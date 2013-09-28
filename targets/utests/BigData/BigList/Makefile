@@ -17,7 +17,9 @@
 #
 ################################################################
 MODULE := BigList_utest
-NOMODULEMAKE := 1
 TEST_MODULE :=  BigList
 DEPENDMODULES := AIM
-include ../../make/utestmodule.mk
+
+MODULE_DIRS := ../../../../modules ../../../../submodules/infra/modules
+
+include $(BUILDER)/build-unit-test.mk
