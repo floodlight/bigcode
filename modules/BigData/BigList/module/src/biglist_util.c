@@ -33,11 +33,11 @@ void*
 biglist_zmalloc(int size)
 {
     void* p;
-    p = BIGLIST_MALLOC(size);
-    if(p) {
-        BIGLIST_MEMSET(p, 0, size);
+    p = BIGLIST_MALLOC(size); 
+    if(p) { 
+        BIGLIST_MEMSET(p, 0, size); 
     }
-    return p;
+    return p; 
 }
 int
 biglist_strlcpy(char* dst, const char* src, int size)
@@ -45,7 +45,7 @@ biglist_strlcpy(char* dst, const char* src, int size)
     BIGLIST_STRNCPY(dst, src, size);
     if (size > 0)
         dst[size-1] = 0;
-    return strlen(src);
+    return strlen(src); 
 }
 /* <auto.end.util(ALL).define> */
 

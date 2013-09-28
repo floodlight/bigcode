@@ -129,6 +129,7 @@ typedef struct biglist_config_settings_s {
 } biglist_config_settings_t;
 
 /** Configuration settings table. */
+/** biglist_config_settings table. */
 extern biglist_config_settings_t biglist_config_settings[];
 
 /**
