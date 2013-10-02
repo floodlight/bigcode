@@ -16,10 +16,11 @@
 # License.
 #
 ################################################################
+include ../../../../init.mk
+
 MODULE := BigList_utest
 TEST_MODULE :=  BigList
 DEPENDMODULES := AIM
 
-MODULE_DIRS := ../../../../modules ../../../../submodules/infra/modules
 
 include $(BUILDER)/build-unit-test.mk
