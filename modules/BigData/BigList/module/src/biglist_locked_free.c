@@ -32,6 +32,6 @@ biglist_locked_free(biglist_locked_t* bl)
     biglist_lock(bl);
     rv = biglist_free(bl->list);
     biglist_unlock(bl);
-    BIGLIST_FREE(bl);
+    aim_free(bl);
     return rv;
 }

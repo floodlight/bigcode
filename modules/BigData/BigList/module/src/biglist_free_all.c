@@ -38,7 +38,7 @@ biglist_free_all(biglist_t* bl, void (*free_function)(void*))
             if(free_function) {
                 free_function(blfree->data);
             }
-            BIGLIST_FREE(blfree);
+            aim_free(blfree);
             count++;
         } while(bl);
     }

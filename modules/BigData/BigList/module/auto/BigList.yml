@@ -17,14 +17,6 @@
 #
 ################################################################
 
-###############################################################################
-#
-#  /module/auto/BigList.yml
-#
-#  BigList Autogen Definitions
-#
-###############################################################################
-
 cdefs: &cdefs
 - BIGLIST_CONFIG_INCLUDE_LOGGING:
     doc: "Include or exclude logging."
@@ -57,20 +49,10 @@ definitions:
   portingmacro:
     BIGLIST:
       macros:
-        - malloc
-        - free
         - memset
         - memcpy
         - strncpy
-        - vsnprintf
-        - snprintf
         - strlen
-
-  util:
-    biglist:
-      objects:
-        - zmalloc
-        - strlcpy
 
 
 

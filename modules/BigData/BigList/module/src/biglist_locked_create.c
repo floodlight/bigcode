@@ -27,7 +27,7 @@
 biglist_locked_t*
 biglist_locked_create(void)
 {
-    biglist_locked_t* bl = biglist_zmalloc(sizeof(*bl));
+    biglist_locked_t* bl = aim_zmalloc(sizeof(*bl));
     if(bl) {
 #if BIGLIST_CONFIG_INCLUDE_LOCKED == 1
         sem_init(&bl->lock, 0, 1);

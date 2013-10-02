@@ -37,7 +37,7 @@ biglist_to_data_array(biglist_t* bl, int* size)
     }
     else {
         biglist_t* ble;
-        void** data = biglist_zmalloc(sizeof(void*)*biglist_length(bl));
+        void** data = aim_zmalloc(sizeof(void*)*biglist_length(bl));
         int i = 0;
         for(ble = bl; ble; ble = ble->next) {
             data[i++] = ble->data;

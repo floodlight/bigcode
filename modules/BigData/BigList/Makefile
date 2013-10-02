@@ -16,19 +16,9 @@
 # License.
 #
 ################################################################
+include ../../../init.mk
 
-###############################################################################
-#
-#  Makefile
-#
-#  BigList Makefile
-#
-###############################################################################
 MODULE :=  BigList
 AUTOMODULE :=  BigList
-
-ifndef BUILDER
-BUILDER := ../../../Builder/unix
-endif
 
 include $(BUILDER)/definemodule.mk

@@ -28,7 +28,7 @@
 biglist_t*
 biglist_alloc(void* data, biglist_t* p, biglist_t* n)
 {
-    biglist_t* ble = biglist_zmalloc(sizeof(*ble));
+    biglist_t* ble = aim_zmalloc(sizeof(*ble));
     if(ble) {
         ble->previous = p;
         ble->next = n;

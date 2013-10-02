@@ -30,10 +30,6 @@
 #include <BigList/biglist_config.h>
 #include <BigList/biglist.h>
 #include <BigList/biglist_locked.h>
-#include "biglist_util.h"
-#include <stdlib.h>
-#include <memory.h>
-#include <string.h>
 
 
 #endif /* __BIGLIST_INT_H__ */

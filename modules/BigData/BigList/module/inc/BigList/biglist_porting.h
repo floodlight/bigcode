@@ -42,26 +42,6 @@
 #include <memory.h>
 #endif
 
-#ifndef BIGLIST_MALLOC
-    #if defined(GLOBAL_MALLOC)
-        #define BIGLIST_MALLOC GLOBAL_MALLOC
-    #elif BIGLIST_CONFIG_PORTING_STDLIB == 1
-        #define BIGLIST_MALLOC malloc
-    #else
-        #error The macro BIGLIST_MALLOC is required but cannot be defined.
-    #endif
-#endif
-
-#ifndef BIGLIST_FREE
-    #if defined(GLOBAL_FREE)
-        #define BIGLIST_FREE GLOBAL_FREE
-    #elif BIGLIST_CONFIG_PORTING_STDLIB == 1
-        #define BIGLIST_FREE free
-    #else
-        #error The macro BIGLIST_FREE is required but cannot be defined.
-    #endif
-#endif
-
 #ifndef BIGLIST_MEMSET
     #if defined(GLOBAL_MEMSET)
         #define BIGLIST_MEMSET GLOBAL_MEMSET
@@ -89,26 +69,6 @@
         #define BIGLIST_STRNCPY strncpy
     #else
         #error The macro BIGLIST_STRNCPY is required but cannot be defined.
-    #endif
-#endif
-
-#ifndef BIGLIST_VSNPRINTF
-    #if defined(GLOBAL_VSNPRINTF)
-        #define BIGLIST_VSNPRINTF GLOBAL_VSNPRINTF
-    #elif BIGLIST_CONFIG_PORTING_STDLIB == 1
-        #define BIGLIST_VSNPRINTF vsnprintf
-    #else
-        #error The macro BIGLIST_VSNPRINTF is required but cannot be defined.
-    #endif
-#endif
-
-#ifndef BIGLIST_SNPRINTF
-    #if defined(GLOBAL_SNPRINTF)
-        #define BIGLIST_SNPRINTF GLOBAL_SNPRINTF
-    #elif BIGLIST_CONFIG_PORTING_STDLIB == 1
-        #define BIGLIST_SNPRINTF snprintf
-    #else
-        #error The macro BIGLIST_SNPRINTF is required but cannot be defined.
     #endif
 #endif
 

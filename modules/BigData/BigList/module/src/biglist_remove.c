@@ -35,7 +35,7 @@ biglist_remove(biglist_t* bl, const void* data)
 
     if(ble != NULL) {
         bl = biglist_remove_link(bl, ble);
-        BIGLIST_FREE(ble);
+        aim_free(ble);
     }
     return bl;
 }
