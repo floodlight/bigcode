@@ -17,14 +17,6 @@
 #
 ################################################################
 
-###############################################################################
-#
-#  /module/auto/murmur.yml
-#
-#  murmur Autogen Definitions
-#
-###############################################################################
-
 cdefs: &cdefs
 - MURMUR_CONFIG_INCLUDE_LOGGING:
     doc: "Include or exclude logging."
@@ -54,20 +46,9 @@ definitions:
   portingmacro:
     MURMUR:
       macros:
-        - malloc
-        - free
         - memset
         - memcpy
         - strncpy
-        - vsnprintf
-        - snprintf
         - strlen
-
-  util:
-    murmur:
-      objects:
-        - zmalloc
-        - strlcpy
-
 
 

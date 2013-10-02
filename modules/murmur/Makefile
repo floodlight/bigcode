@@ -16,19 +16,9 @@
 # License.
 #
 ################################################################
+include ../../init.mk
 
-###############################################################################
-#
-#  Makefile
-#
-#  murmur Makefile
-#
-###############################################################################
 MODULE :=  murmur
 AUTOMODULE := murmur
-
-ifndef BUILDER
-BUILDER := ../../Builder/unix
-endif
 
 include $(BUILDER)/definemodule.mk
