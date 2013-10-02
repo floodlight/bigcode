@@ -1,0 +1,305 @@
+#################################################################
+# 
+#        Copyright 2013, Big Switch Networks, Inc. 
+# 
+# Licensed under the Eclipse Public License, Version 1.0 (the
+# "License"); you may not use this file except in compliance
+# with the License. You may obtain a copy of the License at
+# 
+#        http://www.eclipse.org/legal/epl-v10.html
+# 
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND,
+# either express or implied. See the License for the specific
+# language governing permissions and limitations under the
+# License.
+# 
+#################################################################
+
+cdefs: &cdefs
+- PPE_CONFIG_INCLUDE_LOGGING:
+    doc: "Include or exclude logging."
+    default: 1
+- PPE_CONFIG_LOG_OPTIONS_DEFAULT:
+    doc: "Default enabled log options."
+    default: AIM_LOG_OPTIONS_DEFAULT
+- PPE_CONFIG_LOG_BITS_DEFAULT:
+    doc: "Default enabled log options."
+    default: AIM_LOG_BITS_DEFAULT
+- PPE_CONFIG_LOG_CUSTOM_BITS_DEFAULT:
+    doc: "Default enabled log options."
+    default: 0
+- PPE_CONFIG_PORTING_STDLIB:
+    doc: "Default all porting macros to use the C standard libraries."
+    default: 1
+- PPE_CONFIG_PORTING_INCLUDE_STDLIB_HEADERS:
+    doc: "Include standard library headers for stdlib porting macros."
+    default: PPE_CONFIG_PORTING_STDLIB
+- PPE_CONFIG_INCLUDE_CUSTOM_META_FIELDS:
+    doc: "Include custom metafield definitions for your own application."
+    default: 0
+- PPE_CONFIG_INCLUDE_UCLI:
+    doc: "Include Generic UCLI support."
+    default: 0
+- PPE_CONFIG_INCLUDE_UTM:
+    doc: "Include the PPE unit test module."
+    default: 0
+
+
+
+###############################################################################
+#
+# Custom Log Types
+#
+###############################################################################
+ppe_log_types: &ppe_log_types
+- parse
+- format
+
+###############################################################################
+#
+# Recognized Ethertypes
+#
+###############################################################################
+ethertypes: &ethertypes
+- ARP : 0x0806
+- IP4 : 0x0800
+- IP6 : 0x86DD
+
+###############################################################################
+#
+# Ethernet Frame Types
+#
+###############################################################################
+etherframes: &etherframes
+- ETHERII
+- '8023'
+
+
+###############################################################################
+# 
+# Recognized Packet Headers
+#
+###############################################################################
+headers: &headers
+- META
+- ETHERNET
+- ETHER
+- '8021Q'
+- 'OUTER_8021Q'
+- 'INNER_8021Q' 
+- LLC
+- ETHERII
+- SNAP
+- ARP
+- IP4
+- IP6
+- L4
+- TCP
+- UDP
+- ICMP
+- ETHERTYPE_MISSING
+- OF10
+
+###############################################################################
+#
+# Recognized Packet Fields, per header
+#
+###############################################################################
+#
+# header, field, size (in bits), byte offset (from header), right shift bits, if any
+#
+fields: &fields
+
+# Note -- the META header must be declared first
+- [ META,              INGRESS_PORT,   32,  0, 0 ]
+- [ META,              PACKET_LENGTH,  32,  4, 0 ]
+- [ META,              PACKET_FORMAT,  32,  8, 0 ]
+# And this must be the last entry
+- [ META,              FIELD_COUNT,     0,  0, 0 ]
+
+
+- [ ETHERNET,          DST_MAC,        48,  0, 0 ]
+- [ ETHERNET,          SRC_MAC,        48,  6, 0 ]
+- [ ETHER,             TYPE,           16,  0, 0 ]
+
+- [ '8021Q',           TPID,           16,  0, 0 ]
+- [ '8021Q',           PRI,             3,  2, 5 ]
+- [ '8021Q',           CFI,             1,  2, 4 ]
+- [ '8021Q',           VLAN,           12,  2, 0 ]
+
+- [ OUTER_8021Q,       TPID,           16,  0, 0 ]
+- [ OUTER_8021Q,       PRI,             3,  2, 5 ]
+- [ OUTER_8021Q,       CFI,             1,  2, 4 ]
+- [ OUTER_8021Q,       VLAN,           12,  2, 0 ]
+
+- [ INNER_8021Q,       TPID,           16,  0, 0 ]
+- [ INNER_8021Q,       PRI,             3,  2, 5 ]
+- [ INNER_8021Q,       CFI,             1,  2, 4 ]
+- [ INNER_8021Q,       VLAN,           12,  2, 0 ]
+
+- [ LLC,                LENGTH,         16,  0, 0 ]
+- [ LLC,                DSAP,            8,  2, 0 ]
+- [ LLC,                SSAP,            8,  3, 0 ]
+- [ LLC,                CONTROL,         8,  4, 0 ]
+
+- [ SNAP,              OUI,            24,  0, 0 ]
+- [ SNAP,              PROTOCOL,       16,  3, 0 ]
+
+- [ ARP,                HTYPE,         16,  0, 0 ]
+- [ ARP,                PTYPE,         16,  2, 0 ]
+- [ ARP,                HLEN,           8,  4, 0 ]
+- [ ARP,                PLEN,           8,  5, 0 ]
+- [ ARP,                OPERATION,     16,  6, 0 ]
+- [ ARP,                SHA,           48,  8, 0 ]
+- [ ARP,                SPA,           32, 14, 0 ]
+- [ ARP,                THA,           48, 18, 0 ]
+- [ ARP,                TPA,           32, 24, 0 ]
+
+- [ ICMP,               TYPE,           8,  0,  0 ]
+- [ ICMP,               CODE,           8,  1,  0 ]
+
+- [ IP4,                VERSION,         4,  0, 4 ]
+- [ IP4,                HEADER_SIZE,     4,  0, 0 ]
+- [ IP4,                TOS,             8,  1, 0 ]
+- [ IP4,                TOTAL_LENGTH,   16,  2, 0 ]
+- [ IP4,                TTL,             8,  8, 0 ]
+- [ IP4,                PROTOCOL,        8,  9, 0 ]
+- [ IP4,                CHECKSUM,       16, 10, 0 ]
+- [ IP4,                SRC_ADDR,       32, 12, 0 ]
+- [ IP4,                DST_ADDR,       32, 16, 0 ]
+
+- [ IP6,                VERSION,         4,  0, 4 ]
+- [ IP6,                TRAFFIC_CLASS_U, 4,  0, 0 ]
+- [ IP6,                TRAFFIC_CLASS_L, 4,  1, 4 ]
+- [ IP6,                FLOW_LABEL_U,    4,  1, 0 ]
+- [ IP6,                FLOW_LABEL_L,   16,  2, 0 ]
+- [ IP6,                PAYLOAD_LENGTH, 16,  4, 0 ]
+- [ IP6,                NEXT_HEADER,     8,  6, 0 ]
+- [ IP6,                HOP_LIMIT,       8,  7, 0 ]
+- [ IP6,                SRC_ADDR,      128,  8, 0 ]
+- [ IP6,                DST_ADDR,      128, 24, 0 ]
+
+- [ TCP,                SRC_PORT,      16,  0,  0 ]
+- [ TCP,                DST_PORT,      16,  2,  0 ]
+- [ TCP,                SEQUENCE_NUM,  32,  4,  0 ]
+- [ TCP,                ACKNUM,        32,  8,  0 ]
+- [ TCP,                FLAGS,          6, 13,  0 ]
+- [ TCP,                WINDOW,        16, 14,  0 ]
+- [ TCP,                CHECKSUM,      16, 16,  0 ]
+- [ TCP,                URGENT,        16, 18,  0 ]
+- [ TCP,                OPTIONS,       32, 20,  0 ]
+
+- [ UDP,                SRC_PORT,      16,  0,  0 ]
+- [ UDP,                DST_PORT,      16,  2,  0 ]
+- [ UDP,                LENGTH,        16,  4,  0 ]
+- [ UDP,                CHECKSUM,      16,  6,  0 ]
+
+- [ L4,                 SRC_PORT,       16,  0, 0 ]
+- [ L4,                 DST_PORT,       16,  2, 0 ]
+
+- [ OF10,          FIRST,           0,  0, 0 ]
+- [ OF10,          ETHER_DST_MAC,  48,  0, 0 ]
+- [ OF10,          ETHER_SRC_MAC,  48,  6, 0 ]
+- [ OF10,          TPID,           16, 12, 0 ]
+- [ OF10,          PRI,             3, 14, 5 ]
+- [ OF10,          CFI,             1, 14, 4 ]
+- [ OF10,          VLAN,           12, 14, 0 ]
+- [ OF10,          IP4_DST_ADDR,   32, 16, 0 ]
+- [ OF10,          IP4_SRC_ADDR,   32, 20, 0 ]
+- [ OF10,          L4_DST_PORT,    16, 24, 0 ]
+- [ OF10,          L4_SRC_PORT,    16, 26, 0 ]
+- [ OF10,          IP4_PROTO,       8, 28, 0 ]
+- [ OF10,          IP4_TOS,         8, 29, 0 ]
+- [ OF10,          ICMP_TYPE,       8, 30, 0 ]
+- [ OF10,          ICMP_CODE,       8, 31, 0 ]
+- [ OF10,          INGRESS_PORT,   32, 32, 0 ] 
+- [ OF10,          PACKET_FORMAT,  16, 36, 0 ]
+- [ OF10,          ETHER_TYPE,     16, 38, 0 ]
+- [ OF10,          ARP_SPA,        32, 40, 0 ]
+- [ OF10,          ARP_TPA,        32, 44, 0 ]
+- [ OF10,          ARP_PTYPE,      16, 48, 0 ]
+- [ OF10,          ARP_OPERATION,  16, 50, 0 ]
+- [ OF10,          LAST,            0, 52, 0 ]           
+
+
+###############################################################################
+#
+# Known IP protocol types
+#
+###############################################################################
+ip_protocols: &ip_protocols
+- ICMP :  1
+- TCP  :  6
+- UDP  : 17
+
+
+
+
+###############################################################################
+#
+# Autogen definitions
+#
+###############################################################################
+
+definitions:
+  cdefs:
+    PPE_CONFIG_HEADER: 
+      defs: *cdefs
+      basename: ppe_config
+
+  logger:
+    ppe:
+   
+  portingmacro:
+    PPE:
+      macros:
+        - memset
+        - memcpy
+        - memmove
+        - strncpy
+
+  enum: &enum
+    ppe_field:
+      members: *fields
+      novalue: True
+      linear: True
+      memberfilter: "dict(name=\"%s_%s\" % (m[0],m[1]))"
+      desc: "PPE field identifier."
+      strings: False
+
+    ppe_header:
+      members: *headers
+      desc: "PPE header identifier."
+    ppe_ethertype:
+      members: *ethertypes
+      desc: "PPE ethertype."
+    ppe_ip_protocol:
+      members: *ip_protocols
+      desc: "PPE IP protocol."
+    ppe_log_flag: 
+      members: *ppe_log_types
+      desc: "PPE Log Flag"
+
+  aim_custom_log_macro:
+    ppe:
+      prefix: PPE_LOG_FLAG_
+      flags: *ppe_log_types
+
+  xmacro:
+    PPE_FIELD_ENTRY:
+      members: *fields
+    PPE_HEADER_ENTRY:
+      members: *headers
+    PPE_ETHERTYPE_ENTRY:
+      members: *ethertypes
+    PPE_ETHERFRAMES:
+      members: *etherframes
+    PPE_IP_PROTOCOL_ENTRY:
+      members: *ip_protocols
+
+  xenum:
+    PPE_ENUMERATION_ENTRY: 
+      members: *enum
+      

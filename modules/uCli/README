@@ -1,0 +1,15 @@
+###############################################################################
+#
+#  uCli
+#
+#  Micro Command Line Interface
+#
+###############################################################################
+
+The uCli module provides a framework for disjoint modules to define
+and register CLI components with a CLI managing instance.  Modules
+define tables that map CLI commands to functionality.
+
+The uCli infrastructure is used for all command line interfaces and 
+for options processing for all targets. 
+

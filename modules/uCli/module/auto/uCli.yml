@@ -1,0 +1,106 @@
+#################################################################
+# 
+#        Copyright 2013, Big Switch Networks, Inc. 
+# 
+# Licensed under the Eclipse Public License, Version 1.0 (the
+# "License"); you may not use this file except in compliance
+# with the License. You may obtain a copy of the License at
+# 
+#        http://www.eclipse.org/legal/epl-v10.html
+# 
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND,
+# either express or implied. See the License for the specific
+# language governing permissions and limitations under the
+# License.
+# 
+#################################################################
+
+cdefs: &cdefs
+- UCLI_CONFIG_INCLUDE_LOGGING:
+    doc: "Include or exclude logging."
+    default: 1
+- UCLI_CONFIG_LOG_OPTIONS_DEFAULT:
+    doc: "Default enabled log options."
+    default: AIM_LOG_OPTIONS_DEFAULT
+- UCLI_CONFIG_LOG_BITS_DEFAULT:
+    doc: "Default enabled log options."
+    default: AIM_LOG_BITS_DEFAULT
+- UCLI_CONFIG_LOG_CUSTOM_BITS_DEFAULT:
+    doc: "Default enabled custom log options."
+    default: 0
+- UCLI_CONFIG_PORTING_STDLIB:
+    doc: "Default all porting macros to use the C standard libraries."
+    default: 1
+- UCLI_CONFIG_PORTING_INCLUDE_STDLIB_HEADERS:
+    doc: "Include standard library headers for stdlib porting macros."
+    default: UCLI_CONFIG_PORTING_STDLIB
+- UCLI_CONFIG_MAX_ARGS:
+    doc: "Maximum number of arguments for any given command."
+    default: 32
+- UCLI_CONFIG_MAX_PROMPT:
+    doc: "Maximum prompt length."
+    default: 32
+- UCLI_CONFIG_INCLUDE_FGETS_LOOP:
+    doc: "Include input processing loop using fgets()"
+    default: 0
+- UCLI_CONFIG_INCLUDE_ELS_LOOP:
+    doc: "Include input processing loop using ELS."
+    default: 0
+- UCLI_CONFIG_MAX_INPUT_LINE:
+    doc: "Maximum input line for file processing."
+    default: 2048
+- UCLI_CONFIG_INCLUDE_TTY:
+    doc: "Attempt pretty formatting for posix tty environments. Otherwise plain output for dumb terminals only. "
+    default: 1
+- UCLI_CONFIG_MAX_COMMANDS_PER_BLOCK:
+    doc: "The maximum number of commands allowed in a command-block structure."
+    default: 64
+- UCLI_CONFIG_INCLUDE_MODULE_NODES:
+    doc: "Include all generic module nodes."
+    default: 1
+- UCLI_CONFIG_INCLUDE_PTHREADS:
+    doc: "Include support for command background threads. Requires POSIX."
+    default: 0
+
+
+ucli_status: &ucli_status
+  - ok : 0
+  - continue : 1
+  - e_not_found : -1
+  - e_error : -2 
+  - e_arg : -3
+  - e_internal : -4
+  - e_exit : -5
+  - e_io : -6
+  - e_param : -7
+
+
+definitions:
+  cdefs:
+    UCLI_CONFIG_HEADER: 
+      defs: *cdefs
+      basename: ucli_config
+
+  logger:
+    ucli:
+   
+  portingmacro:
+    UCLI:
+      macros:
+        - memset
+        - memcpy
+        - strncpy
+        - strcpy
+        - strcmp
+        - strncmp
+        - strchr
+        - strlen
+        - strcat
+        - strstr
+
+  enum:
+    ucli_status:
+      members: *ucli_status
+

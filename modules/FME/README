@@ -1,0 +1,11 @@
+###############################################################################
+#
+#  FME
+#
+#  Forwarding Matching Engine
+#
+###############################################################################
+
+The FME is a software TCAM providing the core packet lookup 
+functionality.  FME abstracts keys as value/mask pairs and returns 
+arbitrary data from a lookup.

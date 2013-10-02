@@ -1,0 +1,84 @@
+#################################################################
+# 
+#        Copyright 2013, Big Switch Networks, Inc. 
+# 
+# Licensed under the Eclipse Public License, Version 1.0 (the
+# "License"); you may not use this file except in compliance
+# with the License. You may obtain a copy of the License at
+# 
+#        http://www.eclipse.org/legal/epl-v10.html
+# 
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND,
+# either express or implied. See the License for the specific
+# language governing permissions and limitations under the
+# License.
+# 
+#################################################################
+
+cdefs: &cdefs
+- FME_CONFIG_INCLUDE_LOGGING:
+    doc: "Include or exclude logging."
+    default: 1
+- FME_CONFIG_LOG_OPTIONS_DEFAULT:
+    doc: "Default enabled log options."
+    default: AIM_LOG_OPTIONS_DEFAULT
+- FME_CONFIG_LOG_BITS_DEFAULT:
+    doc: "Default enabled log options."
+    default: AIM_LOG_BITS_DEFAULT
+- FME_CONFIG_LOG_CUSTOM_BITS_DEFAULT:
+    doc: "Default enabled custom log options."
+    default: 0
+- FME_CONFIG_PORTING_STDLIB:
+    doc: "Default all porting macros to use the C standard libraries."
+    default: 1
+- FME_CONFIG_PORTING_INCLUDE_STDLIB_HEADERS:
+    doc: "Include standard library headers for stdlib porting macros."
+    default: FME_CONFIG_PORTING_STDLIB
+- FME_CONFIG_INCLUDE_UCLI:
+    doc: "Include Generic UCLI support."
+    default: 0
+- FME_CONFIG_INCLUDE_UTM:
+    doc: "Include the FME Unit Test Module."
+    default: 0
+- FME_CONFIG_KEY_SIZE_WORDS:
+    doc: "The maximum FME key size (in words)."
+    default: 20
+
+fme_log_types: &fme_log_types
+- match
+- timeout
+
+  
+
+definitions:
+  cdefs:
+    FME_CONFIG_HEADER: 
+      defs: *cdefs
+      basename: fme_config
+
+
+  logger:
+    fme:
+   
+  portingmacro:
+    FME:
+      macros:
+        - memset
+        - memcpy
+        - memmove
+        - strncpy
+        - strlen
+  enum:
+    fme_log_flag:
+      linear: false
+      members: *fme_log_types
+
+  aim_custom_log_macro:
+    fme:
+      flags: *fme_log_types
+      prefix: FME_LOG_FLAG_
+
+
+

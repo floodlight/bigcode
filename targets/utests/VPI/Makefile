@@ -1,5 +1,5 @@
-################################################################
-#
+#################################################################
+# 
 #        Copyright 2013, Big Switch Networks, Inc. 
 # 
 # Licensed under the Eclipse Public License, Version 1.0 (the
@@ -14,27 +14,27 @@
 # either express or implied. See the License for the specific
 # language governing permissions and limitations under the
 # License.
-#
-################################################################
-include ../init.mk
+# 
+#################################################################
+include ../../../init.mk
 
--include Manifest.mk
+MODULE := VPI_utest
+TEST_MODULE :=  VPI
+DEPENDMODULES := AIM OS BigList
+LDFLAGS += -lpthread
+PEDANTIC := 1
 
-include $(BUILDER)/moduledir.mk
+GLOBAL_CFLAGS += -DOS_CONFIG_INCLUDE_POSIX=1
+GLOBAL_CFLAGS += -DAIM_CONFIG_INCLUDE_POSIX=1
+GLOBAL_LINK_LIBS += -lpcap
 
-#
-# Available targets
-#
-moduledir_show_targets::
-	@echo "    autogen                     Make autogen in all modules."
+# Tests must be run under sudo for veth interfaces
+SUDO:=sudo
 
-autogen:
-	$(MAKE) -C BigData/BigList autogen
-	$(MAKE) -C FME autogen
-	$(MAKE) -C IOF autogen
-	$(MAKE) -C OS autogen
-	$(MAKE) -C PPE autogen
-	$(MAKE) -C uCli autogen
+include $(BUILDER)/build-unit-test.mk
+
+
+
 
 
 

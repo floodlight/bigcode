@@ -1,5 +1,5 @@
-################################################################
-#
+#################################################################
+# 
 #        Copyright 2013, Big Switch Networks, Inc. 
 # 
 # Licensed under the Eclipse Public License, Version 1.0 (the
@@ -14,27 +14,22 @@
 # either express or implied. See the License for the specific
 # language governing permissions and limitations under the
 # License.
-#
-################################################################
-include ../init.mk
+# 
+#################################################################
+include ../../../init.mk
 
--include Manifest.mk
+MODULE := FME_utest
+TEST_MODULE :=  FME
+DEPENDMODULES := AIM BigList uCli IOF PPE OS
 
-include $(BUILDER)/moduledir.mk
+GLOBAL_CFLAGS += -DFME_CONFIG_INCLUDE_UTM=1 -DAIM_CONFIG_INCLUDE_POSIX=1
+GLOBAL_CFLAGS += -DAIM_CONFIG_INCLUDE_VALGRIND=1
+GLOBAL_CFLAGS += -DAIM_CONFIG_INCLUDE_MODULES_INIT=1
+GLOBAL_CFLAGS += -DAIM_CONFIG_INCLUDE_MAIN=1
+GLOBAL_CFLAGS += -DUCLI_CONFIG_INCLUDE_FGETS_LOOP=1
 
-#
-# Available targets
-#
-moduledir_show_targets::
-	@echo "    autogen                     Make autogen in all modules."
+OS_MAKE_CONFIG_AUTOSELECT := 1
+PEDANTIC := 1
 
-autogen:
-	$(MAKE) -C BigData/BigList autogen
-	$(MAKE) -C FME autogen
-	$(MAKE) -C IOF autogen
-	$(MAKE) -C OS autogen
-	$(MAKE) -C PPE autogen
-	$(MAKE) -C uCli autogen
-
-
+include $(BUILDER)/build-unit-test.mk
 

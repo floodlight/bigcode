@@ -1,0 +1,14 @@
+###############################################################################
+#
+#  VPI
+#
+#  Virtual Port Interface
+#
+###############################################################################
+
+The Virtual Port Interface module provides a simple packet send and
+receive interface designed to simulate dynamic packet interconnections between
+different entities in a network. 
+
+
+

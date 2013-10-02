@@ -1,5 +1,5 @@
-################################################################
-#
+#################################################################
+# 
 #        Copyright 2013, Big Switch Networks, Inc. 
 # 
 # Licensed under the Eclipse Public License, Version 1.0 (the
@@ -14,27 +14,25 @@
 # either express or implied. See the License for the specific
 # language governing permissions and limitations under the
 # License.
-#
-################################################################
-include ../init.mk
+# 
+#################################################################
 
--include Manifest.mk
+LIBRARY := OS
+OS_SUBDIR := $(dir $(lastword $(MAKEFILE_LIST)))
+include $(BUILDER)/lib.mk
 
-include $(BUILDER)/moduledir.mk
+ifndef OS_MAKE_CONFIG_AUTOSELECT
+OS_MAKE_CONFIG_AUTOSELECT=1
+endif
 
-#
-# Available targets
-#
-moduledir_show_targets::
-	@echo "    autogen                     Make autogen in all modules."
-
-autogen:
-	$(MAKE) -C BigData/BigList autogen
-	$(MAKE) -C FME autogen
-	$(MAKE) -C IOF autogen
-	$(MAKE) -C OS autogen
-	$(MAKE) -C PPE autogen
-	$(MAKE) -C uCli autogen
-
-
-
+ifeq ($(OS_MAKE_CONFIG_AUTOSELECT),1)
+ uname := $(shell uname -s)
+ ifeq ($(uname),Linux)
+  OS_CFLAGS += -DOS_CONFIG_INCLUDE_POSIX=1
+  GLOBAL_LINK_LIBS += -lrt -lpthread
+ endif
+ ifeq ($(uname),Darwin)
+  OS_CFLAGS += -DOS_CONFIG_INCLUDE_OSX=1
+ endif
+endif
+ 

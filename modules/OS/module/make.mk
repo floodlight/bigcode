@@ -1,5 +1,5 @@
-################################################################
-#
+#################################################################
+# 
 #        Copyright 2013, Big Switch Networks, Inc. 
 # 
 # Licensed under the Eclipse Public License, Version 1.0 (the
@@ -14,27 +14,13 @@
 # either express or implied. See the License for the specific
 # language governing permissions and limitations under the
 # License.
-#
-################################################################
-include ../init.mk
+# 
+#################################################################
 
--include Manifest.mk
-
-include $(BUILDER)/moduledir.mk
-
-#
-# Available targets
-#
-moduledir_show_targets::
-	@echo "    autogen                     Make autogen in all modules."
-
-autogen:
-	$(MAKE) -C BigData/BigList autogen
-	$(MAKE) -C FME autogen
-	$(MAKE) -C IOF autogen
-	$(MAKE) -C OS autogen
-	$(MAKE) -C PPE autogen
-	$(MAKE) -C uCli autogen
+THISDIR := $(dir $(lastword $(MAKEFILE_LIST)))
+OS_INCLUDES := -I $(THISDIR)inc
+OS_INTERNAL_INCLUDES := -I $(THISDIR)src
+OS_DEPENDMODULE_ENTRIES := ucli:os init:os
 
 
 

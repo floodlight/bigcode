@@ -1,5 +1,5 @@
-################################################################
-#
+#################################################################
+# 
 #        Copyright 2013, Big Switch Networks, Inc. 
 # 
 # Licensed under the Eclipse Public License, Version 1.0 (the
@@ -14,27 +14,9 @@
 # either express or implied. See the License for the specific
 # language governing permissions and limitations under the
 # License.
-#
-################################################################
-include ../init.mk
+# 
+#################################################################
+VPI_AUTO_DEFS=module/auto/VPI.yml
+VPI_AUTO_DIRS=module/inc/VPI module/src
 
--include Manifest.mk
-
-include $(BUILDER)/moduledir.mk
-
-#
-# Available targets
-#
-moduledir_show_targets::
-	@echo "    autogen                     Make autogen in all modules."
-
-autogen:
-	$(MAKE) -C BigData/BigList autogen
-	$(MAKE) -C FME autogen
-	$(MAKE) -C IOF autogen
-	$(MAKE) -C OS autogen
-	$(MAKE) -C PPE autogen
-	$(MAKE) -C uCli autogen
-
-
-
+-include $(BUILDER)/auto.mk

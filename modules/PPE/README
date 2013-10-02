@@ -1,0 +1,12 @@
+###############################################################################
+#
+#  PPE
+#
+#  Packet Parsing Engine
+#
+###############################################################################
+
+PPE is a module that facilitates the identification and extraction
+of fields from within a packet.  See module/inc/PPE/ppe_types.h for
+examples of how this parse related information is represented.
+

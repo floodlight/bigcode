@@ -1,0 +1,18 @@
+###############################################################################
+#
+# IOF
+#
+# Indented Output Formatter
+#
+###############################################################################
+
+The IOF module provides an interface for nested, indented and tree-like output
+formatting. This interface is used mostly for object and debugging data dumps 
+of a hierarchy of data structures. 
+
+
+
+
+
+
+

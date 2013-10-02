@@ -1,0 +1,155 @@
+#################################################################
+# 
+#        Copyright 2013, Big Switch Networks, Inc. 
+# 
+# Licensed under the Eclipse Public License, Version 1.0 (the
+# "License"); you may not use this file except in compliance
+# with the License. You may obtain a copy of the License at
+# 
+#        http://www.eclipse.org/legal/epl-v10.html
+# 
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND,
+# either express or implied. See the License for the specific
+# language governing permissions and limitations under the
+# License.
+# 
+#################################################################
+
+cdefs: &cdefs
+- VPI_CONFIG_INCLUDE_INTERFACE_DEFAULT:
+    doc: "Set the default for including or excluding VPI interfaces. "
+    default: 1
+- VPI_CONFIG_LOG_OPTIONS_DEFAULT:
+    doc: "Default enabled log options."
+    default: AIM_LOG_OPTIONS_DEFAULT
+- VPI_CONFIG_LOG_BITS_DEFAULT:
+    doc: "Default enabled log options."
+    default: AIM_LOG_BITS_BASELINE
+- VPI_CONFIG_LOG_CUSTOM_BITS_DEFAULT:
+    doc: "Default enabled custom log options."
+    default: 0
+- VPI_CONFIG_INCLUDE_INTERFACE_LOOPBACK:
+    doc: "Include the loopback interface."
+    default: VPI_CONFIG_INCLUDE_INTERFACE_DEFAULT
+- VPI_CONFIG_INCLUDE_INTERFACE_UDP :
+    doc: "Include Transport over UDP sockets"
+    default: VPI_CONFIG_INCLUDE_INTERFACE_DEFAULT
+- VPI_CONFIG_INCLUDE_INTERFACE_TCP :
+    doc: "Include Transport over TCP sockets"
+    default: VPI_CONFIG_INCLUDE_INTERFACE_DEFAULT
+- VPI_CONFIG_INCLUDE_INTERFACE_VETH:
+    doc: "Include Transport over Eth/Veth Devices"
+    default: VPI_CONFIG_INCLUDE_INTERFACE_DEFAULT
+- VPI_CONFIG_INCLUDE_INTERFACE_PCAP:
+    doc: "Include Transport through PCAP"
+    default: VPI_CONFIG_INCLUDE_INTERFACE_DEFAULT
+- VPI_CONFIG_INCLUDE_INTERFACE_PCAPDUMP:
+    doc: "Include the PCAP dump interface."
+    default: VPI_CONFIG_INCLUDE_INTERFACE_DEFAULT
+- VPI_CONFIG_INCLUDE_INTERFACE_BPP:
+    doc: "Include interface to BigPatchPanels"
+    default: VPI_CONFIG_INCLUDE_INTERFACE_UDP
+- VPI_CONFIG_INCLUDE_INTERFACE_DUMP:
+    doc: "Include the packet dump interface."
+    default: VPI_CONFIG_INCLUDE_INTERFACE_DEFAULT
+- VPI_CONFIG_INCLUDE_INTERFACE_QUEUE:
+    doc: "Include the packet queue interface."
+    default: VPI_CONFIG_INCLUDE_INTERFACE_DEFAULT
+
+- VPI_CONFIG_INCLUDE_BRIDGING:
+    doc: "Include transparent bridging between VPI instances. Requires pthreads."
+    default: 1
+- VPI_CONFIG_PORTING_STDLIB:
+    doc: "Default all porting macros to use the C standard libraries."
+    default: 1
+- VPI_CONFIG_PORTING_INCLUDE_STDLIB_HEADERS:
+    doc: "Include standard library headers for stdlib porting macros."
+    default: VPI_CONFIG_PORTING_STDLIB
+- VPI_CONFIG_INCLUDE_ATEXIT:
+    doc: "Automatically destroy all VPIs at exit (requires atexit())"
+    default: 1
+- VPI_CONFIG_MAX_PACKET:
+    doc: "Maximum packet size."
+    default: 10000
+- VPI_CONFIG_CREATE_SPEC_MAX:
+    doc: "Maximum create specification length."
+    default: 512
+- VPI_CONFIG_INCLUDE_LOGGING:
+    doc: "Include or exclude logging."
+    default: 1
+- VPI_CONFIG_LOG_OUTPUT_DEFAULT:
+    doc: "Default output function for log messages. Can be changed and runtime."
+    default: printf
+- VPI_CONFIG_INCLUDE_PYTHON_BINDINGS:
+    doc: "Include Python bindings."
+    default: 0
+- VPI_CONFIG_INCLUDE_UCLI:
+    doc: "Include UCLI support."
+    default: 0
+
+
+
+
+vpiProtocolOpcodes: &vpiProtocolOpcodes
+- packet
+- hello
+- register_recv_listener
+- unregister_recv_listener
+- register_send_listener
+- unregister_send_listener
+- echo
+- register_sendrecv_listener
+- unregister_sendrecv_listener
+
+
+vpi_log_types: &vpi_log_types
+- create
+- send
+- recv
+
+definitions:
+  cdefs:
+    VPI_CONFIG_HEADER:
+      defs: *cdefs
+      basename: vpi_config
+
+
+  enum: &enum
+    vpi_protocol_opcode:
+      members: *vpiProtocolOpcodes
+      desc: "VPI Protocol Opcode"
+
+    vpi_log_flag:
+      linear: false
+      members: *vpi_log_types
+      desc: "VPI Log Flag"
+
+  aim_custom_log_macro:
+    vpi:
+      flags: *vpi_log_types
+      prefix: VPI_LOG_FLAG_
+
+  xenum:
+    VPI_ENUMERATION_ENTRY:
+      members: *enum
+
+  portingmacro:
+    VPI:
+      macros:
+        - memcpy
+        - strcmp
+        - strcpy
+        - strlen
+        - memset
+        - strcat
+        - strncpy
+        - memmove
+        - strchr
+        - atoi
+        - sscanf
+        - sprintf
+
+  logger:
+    vpi:
