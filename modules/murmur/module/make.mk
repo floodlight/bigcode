@@ -17,13 +17,6 @@
 #
 ################################################################
 
-###############################################################################
-#
-#  /module/make.mk
-#
-#  murmur public includes are defined here
-#
-###############################################################################
 THISDIR := $(dir $(lastword $(MAKEFILE_LIST)))
 murmur_INCLUDES := -I $(THISDIR)inc
 murmur_INTERNAL_INCLUDES := -I $(THISDIR)src

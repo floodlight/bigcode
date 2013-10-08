@@ -17,13 +17,6 @@
 #
 ################################################################
 
-###############################################################################
-#
-#  /module/auto/make.mk
-#
-#  murmur Autogen Makefile
-#
-###############################################################################
 murmur_AUTO_DEFS=module/auto/murmur.yml
 murmur_AUTO_DIRS=module/inc/murmur module/src
 -include $(BUILDER)/auto.mk
