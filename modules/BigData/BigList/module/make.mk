@@ -17,13 +17,6 @@
 #
 ################################################################
 
-###############################################################################
-#
-#  /module/make.mk
-#
-#  BigList public includes are defined here
-#
-###############################################################################
 THISDIR := $(dir $(lastword $(MAKEFILE_LIST)))
 BigList_INCLUDES := -I $(THISDIR)inc
 BigList_INTERNAL_INCLUDES := -I $(THISDIR)src

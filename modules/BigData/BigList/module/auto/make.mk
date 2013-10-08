@@ -17,13 +17,6 @@
 #
 ################################################################
 
-###############################################################################
-#
-#  /module/auto/make.mk
-#
-#  BigList Autogen Makefile
-#
-###############################################################################
 BigList_AUTO_DEFS=module/auto/BigList.yml
 BigList_AUTO_DIRS=module/inc/BigList module/src
 -include $(BUILDER)/auto.mk
