@@ -1,0 +1,83 @@
+#################################################################
+# 
+#        Copyright 2013, Big Switch Networks, Inc. 
+# 
+# Licensed under the Eclipse Public License, Version 1.0 (the
+# "License"); you may not use this file except in compliance
+# with the License. You may obtain a copy of the License at
+# 
+#        http://www.eclipse.org/legal/epl-v10.html
+# 
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND,
+# either express or implied. See the License for the specific
+# language governing permissions and limitations under the
+# License.
+# 
+#################################################################
+
+cdefs: &cdefs
+- PIMU_CONFIG_INCLUDE_LOGGING:
+    doc: "Include or exclude logging."
+    default: 1
+- PIMU_CONFIG_LOG_OPTIONS_DEFAULT:
+    doc: "Default enabled log options."
+    default: AIM_LOG_OPTIONS_DEFAULT
+- PIMU_CONFIG_LOG_BITS_DEFAULT:
+    doc: "Default enabled log bits."
+    default: AIM_LOG_BITS_DEFAULT
+- PIMU_CONFIG_LOG_CUSTOM_BITS_DEFAULT:
+    doc: "Default enabled custom log bits."
+    default: 0
+- PIMU_CONFIG_PORTING_STDLIB:
+    doc: "Default all porting macros to use the C standard libraries."
+    default: 1
+- PIMU_CONFIG_PORTING_INCLUDE_STDLIB_HEADERS:
+    doc: "Include standard library headers for stdlib porting macros."
+    default: PIMU_CONFIG_PORTING_STDLIB
+- PIMU_CONFIG_INCLUDE_UCLI:
+    doc: "Include generic uCli support."
+    default: 0
+- PIMU_CONFIG_PACKET_KEY_SIZE:
+    doc: "Size of each packet key."
+    default: 64
+- PIMU_CONFIG_GROUP_COUNT:
+    doc: "Maximum number of supported groups."
+    default: 64
+- PIMU_CONFIG_MAX_ETHER_TYPES:
+    doc: "Maximum number of prioritized ethernet types."
+    default: 8
+- PIMU_CONFIG_MAX_ETHER_DAS:
+    doc: "Maximum number of prioritized ethernet destination addresses."
+    default: 8
+
+pimu_actions: &pimu_actions
+- ERROR
+- FORWARD_NEW
+- FORWARD_EXISTING
+- FORWARD_PRIORITY
+- DROP
+
+definitions:
+  cdefs:
+    PIMU_CONFIG_HEADER: 
+      defs: *cdefs
+      basename: pimu_config
+
+  portingmacro:
+    PIMU:
+      macros:
+        - memset
+        - memcpy
+        - memcmp
+        - strncpy
+        - strlen
+
+  enum: &enums
+    pimu_action:
+      members: *pimu_actions
+
+  xenum:
+    PIMU_ENUMERATION_ENTRY:
+      members: *enums
