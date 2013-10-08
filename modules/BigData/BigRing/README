@@ -1,0 +1,13 @@
+###############################################################################
+#
+# BigRing README
+#
+###############################################################################
+
+Ring buffer implementation.  Note that the iterator assumes that
+some kind of locking is used and that the lock is held until the
+iteration completes.  The locking may be internal, by defining
+BIGRING_CONFIG_INCLUDE_LOCKING at compile time and then calling
+the lock interface; or by single threading context; or by some
+other external mechanism.
+
