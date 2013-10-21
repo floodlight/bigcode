@@ -27,7 +27,7 @@
 #define VPI_LOG_PREFIX2 ".blocking"
 #include "vpi_log.h"
 
-/**************************************************************************//**
+/******************************************************************************
  *
  * Server thread for processing one end of the testcase
  *

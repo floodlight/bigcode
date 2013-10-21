@@ -17,7 +17,7 @@
  * 
  ***************************************************************/
 
-/************************************************************//**
+/****************************************************************
  *
  * @file
  * @brief uCli Common Definitions and datatypes. 
@@ -33,7 +33,7 @@
 #include <uCli/ucli_config.h>
 #include <BigList/biglist.h>
 
-/**************************************************************************//**
+/******************************************************************************
  *
  * Positional arguments are passed to the handler in this structure. 
  *
@@ -51,7 +51,7 @@ typedef struct ucli_pargs_s {
 
 } ucli_pargs_t; 
 
-/**************************************************************************//**
+/******************************************************************************
  *
  * Command handlers can define and receive optional "keyword=value"
  * arguments as well as positional arguments. 
@@ -66,7 +66,7 @@ typedef struct ucli_kwarg_t {
     const char* value;
 } ucli_kwarg_t; 
 
-/**************************************************************************//**
+/******************************************************************************
  *
  * All keyword arguments are passed to the handler in this structure. 
  *
@@ -83,7 +83,7 @@ typedef struct ucli_kwargs_s {
 } ucli_kwargs_t; 
 
 
-/**************************************************************************//**
+/******************************************************************************
  *
  * The following are the return values for commands and 
  * command processing. 
@@ -107,7 +107,7 @@ typedef enum ucli_status_e {
 
 
 struct ucli_context_s;
-/**************************************************************************//**
+/******************************************************************************
  *
  * This is the signature for every command handler. 
  *
@@ -116,7 +116,7 @@ struct ucli_context_s;
 typedef ucli_status_t (*ucli_command_handler_f)(struct ucli_context_s*);
 
 
-/**************************************************************************//**
+/******************************************************************************
  *
  * This structure registers a handler for a given command. 
  *
@@ -172,7 +172,7 @@ typedef struct ucli_command_s {
 
 } ucli_command_t; 
 
-/**************************************************************************//**
+/******************************************************************************
  *
  * All command handlers receive their arguments
  * and execution context within this structure. 
@@ -230,11 +230,15 @@ typedef struct ucli_completion_s {
     /** The string to append to the current line to complete, if applicable */
     char* append_string; 
 
-    /** The possible next tokens, if a complete match cannot be made */
+    /** 
+     * The possible next tokens, if a complete match cannot be made 
+     */
     struct { 
+        /** List of possible matches */
         biglist_t* list; 
+        /** count */
         int count; 
-    } possibilities; 
+    } /** Possible match tokens */ possibilities; 
     
     /** 
      * Internal 
@@ -264,7 +268,7 @@ uint8_t* ucli_util_data_from_string(const char* string, int* size);
 char* ucli_util_data_to_string(ucli_context_t* uc, uint8_t* data, int size, 
                                int columns); 
 
-/**************************************************************************//**
+/******************************************************************************
  *
  * Use this macro to declare the properties of your command handler. 
  * Every handler must include this macro in the beginning of the implementation. 

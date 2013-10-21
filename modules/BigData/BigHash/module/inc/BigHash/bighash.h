@@ -57,7 +57,7 @@ typedef struct bighash_table_s {
  * Iterator over hastable entries
  */
 typedef struct bighash_iter_s {
-    /* Hashtable. Must not be freed during iteration */
+    /** Hashtable. Must not be freed during iteration */
     bighash_table_t *table;
     /** Current bucket in the iteration */
     int current_bucket;
@@ -72,7 +72,9 @@ typedef struct bighash_iter_s {
  * Should be embedded in another struct.
  */
 typedef struct bighash_entry_s {
+    /** next entry */
     struct bighash_entry_s *next;
+    /** hash value */
     uint32_t hash;
 } bighash_entry_t;
 

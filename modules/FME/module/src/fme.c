@@ -270,20 +270,16 @@ fme_match(fme_t* fme, fme_key_t* key, fme_timeval_t now, int size,
     int rv = 0; 
     iof_t iof; 
 
-    /** @fixme */
-    {
-        if(AIM_LOG_ENABLED(VERBOSE)) { 
-            iof_init(&iof, &aim_pvs_stdout); 
-            iof_push(&iof, "fme_match "); 
-            iof_push(&iof, "incoming key: "); 
-            fme_key_dump(key, &iof.inherit); 
-            iof_pop(&iof); 
-            iof_iprintf(&iof, "\n"); 
-            fme_dump(fme, &iof.inherit); 
-            iof_iprintf(&iof, "\n"); 
-        }
+    if(AIM_LOG_ENABLED(VERBOSE)) { 
+        iof_init(&iof, &aim_pvs_stdout); 
+        iof_push(&iof, "fme_match "); 
+        iof_push(&iof, "incoming key: "); 
+        fme_key_dump(key, &iof.inherit); 
+        iof_pop(&iof); 
+        iof_iprintf(&iof, "\n"); 
+        fme_dump(fme, &iof.inherit); 
+        iof_iprintf(&iof, "\n"); 
     }
-
 
     /*
      * Find the first match, in priority order
@@ -302,11 +298,8 @@ fme_match(fme_t* fme, fme_key_t* key, fme_timeval_t now, int size,
         }
     }
 
-    /** @fixme */
-    { 
-        if(AIM_LOG_ENABLED(VERBOSE)) { 
-            iof_pop(&iof); 
-        }
+    if(AIM_LOG_ENABLED(VERBOSE)) { 
+        iof_pop(&iof); 
     }
 
     if(rv == 0) {

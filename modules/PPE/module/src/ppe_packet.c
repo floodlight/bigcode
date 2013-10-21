@@ -83,8 +83,10 @@ ppe_packet_format_get(ppe_packet_t* ppep, ppe_header_t* rv)
     return 0; 
 }
 
-/**
- * This is clearly ghetto. 
+/*
+ * This is clearly an unscaleable approach. 
+ * If the combinations increase this should be
+ * rewritten properly. 
  */
 int
 ppe_packet_format_set(ppe_packet_t* ppep, ppe_header_t type)

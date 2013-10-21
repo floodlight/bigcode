@@ -46,7 +46,11 @@ typedef struct nwac_entry_header_s {
     uint64_t timestamp;
 } nwac_entry_header_t; 
 
+/**
+ * This structure is used to reference the entry and key data. 
+ */
 typedef struct nwac_entry_s { 
+    /** Header data */
     nwac_entry_header_t hdr; 
     /** The search key data for this entry */
     uint8_t key[]; 

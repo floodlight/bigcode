@@ -135,16 +135,16 @@ vpi_destroy_locked_list__(biglist_locked_t* ll)
  *****************************************************************************/
 typedef struct vpi_interface_ctrl_s {
 
-    /* Registered Type */
+    /** Registered Type */
     char type[32]; 
 
-    /* Registered creator */
+    /** Registered creator */
     vpi_interface_create_f creator;
 
-    /* Preprocessor */
+    /** Preprocessor */
     vpi_interface_preprocess_f preprocessor; 
 
-    /* Interface doc string */
+    /** Interface doc string */
     const char* doc_string; 
 
 } vpi_interface_ctrl_t;
@@ -534,7 +534,7 @@ vpi_send_list__(biglist_locked_t* ll, uint8_t* data, uint32_t len, int flag)
     return 0; 
 }
 
-/**************************************************************************//**
+/******************************************************************************
  *
  * Send a packet on a VPI 
  *
@@ -605,7 +605,7 @@ vpi_send(vpi_t vpi, uint8_t* data, uint32_t len)
     }
 }
 
-/**************************************************************************//**
+/******************************************************************************
  *
  * Send an ioctl message on interfaces that support it. 
  *
@@ -756,7 +756,7 @@ vpi_handle_ioctl__(vpi_t vpi, vpi_header_t* hdr, vpi_packet_t* packet)
 }
 
 
-/**************************************************************************//**
+/******************************************************************************
  *
  * Recv a packet on a VPI 
  *
@@ -861,7 +861,7 @@ vpi_descriptor_get(vpi_t vpi)
     return fd; 
 }
 
-/**************************************************************************//**
+/******************************************************************************
  *
  * Destroy a VPI instance. 
  *
@@ -948,7 +948,7 @@ vpi_name_get(vpi_t vpi)
     return (vpi) ? vpi->name : NULL; 
 }
 
-/**************************************************************************//**
+/******************************************************************************
  *
  *
  *
@@ -1166,7 +1166,7 @@ vpi_show(vpi_t vpi, aim_pvs_t* pvs)
                vpi, vpi_name_get(vpi), vpi_get_create_spec(vpi)); 
 }
 
-/**************************************************************************//**
+/******************************************************************************
  *
  *
  *
