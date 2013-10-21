@@ -1,0 +1,10 @@
+/**
+\mainpage
+
+The bigcode Repository. 
+
+This repository contains common software building blocks and generic library implementations. 
+
+It depends (and may only depend) only on the infra repository. 
+
+*/
