@@ -24,6 +24,9 @@
 import os
 import sys
 
+# The root of the repository
+ROOT = os.path.realpath("%s/.." % (os.path.dirname(__file__)))
+
 SUBMODULE_INFRA = os.getenv("SUBMODULE_INFRA")
 if SUBMODULE_INFRA is None:
     SUBMODULE_INFRA = "%s/submodules/infra" % ROOT
