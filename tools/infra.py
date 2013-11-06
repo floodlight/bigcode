@@ -1,5 +1,6 @@
-#################################################################
-# 
+#!/usr/bin/env python
+################################################################
+#
 #        Copyright 2013, Big Switch Networks, Inc. 
 # 
 # Licensed under the Eclipse Public License, Version 1.0 (the
@@ -14,8 +15,20 @@
 # either express or implied. See the License for the specific
 # language governing permissions and limitations under the
 # License.
-# 
-#################################################################
-ucliblocks:
-	python ../../../tools/ucliblocks.py ppe_utests.yml ppe_utests > ppe_utests.c
+#
+################################################################
+#
+# Resolve dependencies on the infra repository. 
+#
+################################################################
+import os
+import sys
 
+SUBMODULE_INFRA = os.getenv("SUBMODULE_INFRA")
+if SUBMODULE_INFRA is None:
+    SUBMODULE_INFRA = "%s/submodules/infra" % ROOT
+
+if not os.path.exists("%s/builder/unix/tools" % SUBMODULE_INFRA):
+    raise Exception("This script requires the infra repository.")
+
+sys.path.append("%s/builder/unix/tools" % SUBMODULE_INFRA)
