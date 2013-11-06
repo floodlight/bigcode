@@ -57,7 +57,7 @@ if __name__ == "__main__":
 
     ############################################################################
     #
-    # Set the module base directory to BigCode/Modules
+    # Set the module base directory to bigcode/modules
     #
     ############################################################################
     ModuleGenerator.modulesBaseDir = "%s/modules" % ROOT
