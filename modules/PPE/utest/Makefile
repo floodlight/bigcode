@@ -17,5 +17,5 @@
 # 
 #################################################################
 ucliblocks:
-	python ../../../Tools/ucliblocks.py ppe_utests.yml ppe_utests > ppe_utests.c
+	python ../../../tools/ucliblocks.py ppe_utests.yml ppe_utests > ppe_utests.c
 

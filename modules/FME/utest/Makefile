@@ -16,11 +16,6 @@
 # License.
 # 
 #################################################################
-TOOLS := ../../../Tools
-
-all: ucliblocks 
-
-
 ucliblocks:
-	python $(TOOLS)/ucliblocks.py fme_utests.yml fme_utests > fme_utests.c
+	python ../../../tools/ucliblocks.py fme_utests.yml fme_utests > fme_utests.c
 
