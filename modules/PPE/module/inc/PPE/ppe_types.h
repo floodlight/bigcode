@@ -31,94 +31,31 @@
 #define __PPE_TYPES_H__
 
 /* <auto.start.enum(ALL).header> */
-/** ppe_ethertype */
-typedef enum ppe_ethertype_e {
-    PPE_ETHERTYPE_ARP = 2054,
-    PPE_ETHERTYPE_IP4 = 2048,
-    PPE_ETHERTYPE_IP6 = 34525,
-} ppe_ethertype_t;
+/** ppe_slow_protocol */
+typedef enum ppe_slow_protocol_e {
+    PPE_SLOW_PROTOCOL_LACP = 1,
+} ppe_slow_protocol_t;
 
 /** Enum names. */
-const char* ppe_ethertype_name(ppe_ethertype_t e);
+const char* ppe_slow_protocol_name(ppe_slow_protocol_t e);
 
 /** Enum values. */
-int ppe_ethertype_value(const char* str, ppe_ethertype_t* e, int substr);
+int ppe_slow_protocol_value(const char* str, ppe_slow_protocol_t* e, int substr);
 
 /** Enum descriptions. */
-const char* ppe_ethertype_desc(ppe_ethertype_t e);
+const char* ppe_slow_protocol_desc(ppe_slow_protocol_t e);
 
 /** Enum validator. */
-int ppe_ethertype_valid(ppe_ethertype_t e);
+int ppe_slow_protocol_valid(ppe_slow_protocol_t e);
 
 /** validator */
-#define PPE_ETHERTYPE_VALID(_e) \
-    (ppe_ethertype_valid((_e)))
+#define PPE_SLOW_PROTOCOL_VALID(_e) \
+    (ppe_slow_protocol_valid((_e)))
 
-/** ppe_ethertype_map table. */
-extern aim_map_si_t ppe_ethertype_map[];
-/** ppe_ethertype_desc_map table. */
-extern aim_map_si_t ppe_ethertype_desc_map[];
-
-/** ppe_ip_protocol */
-typedef enum ppe_ip_protocol_e {
-    PPE_IP_PROTOCOL_ICMP = 1,
-    PPE_IP_PROTOCOL_TCP = 6,
-    PPE_IP_PROTOCOL_UDP = 17,
-} ppe_ip_protocol_t;
-
-/** Enum names. */
-const char* ppe_ip_protocol_name(ppe_ip_protocol_t e);
-
-/** Enum values. */
-int ppe_ip_protocol_value(const char* str, ppe_ip_protocol_t* e, int substr);
-
-/** Enum descriptions. */
-const char* ppe_ip_protocol_desc(ppe_ip_protocol_t e);
-
-/** Enum validator. */
-int ppe_ip_protocol_valid(ppe_ip_protocol_t e);
-
-/** validator */
-#define PPE_IP_PROTOCOL_VALID(_e) \
-    (ppe_ip_protocol_valid((_e)))
-
-/** ppe_ip_protocol_map table. */
-extern aim_map_si_t ppe_ip_protocol_map[];
-/** ppe_ip_protocol_desc_map table. */
-extern aim_map_si_t ppe_ip_protocol_desc_map[];
-
-/** ppe_log_flag */
-typedef enum ppe_log_flag_e {
-    PPE_LOG_FLAG_PARSE,
-    PPE_LOG_FLAG_FORMAT,
-    PPE_LOG_FLAG_LAST = PPE_LOG_FLAG_FORMAT,
-    PPE_LOG_FLAG_COUNT,
-    PPE_LOG_FLAG_INVALID = -1,
-} ppe_log_flag_t;
-
-/** Strings macro. */
-#define PPE_LOG_FLAG_STRINGS \
-{\
-    "parse", \
-    "format", \
-}
-/** Enum names. */
-const char* ppe_log_flag_name(ppe_log_flag_t e);
-
-/** Enum values. */
-int ppe_log_flag_value(const char* str, ppe_log_flag_t* e, int substr);
-
-/** Enum descriptions. */
-const char* ppe_log_flag_desc(ppe_log_flag_t e);
-
-/** validator */
-#define PPE_LOG_FLAG_VALID(_e) \
-    ( (0 <= (_e)) && ((_e) <= PPE_LOG_FLAG_FORMAT))
-
-/** ppe_log_flag_map table. */
-extern aim_map_si_t ppe_log_flag_map[];
-/** ppe_log_flag_desc_map table. */
-extern aim_map_si_t ppe_log_flag_desc_map[];
+/** ppe_slow_protocol_map table. */
+extern aim_map_si_t ppe_slow_protocol_map[];
+/** ppe_slow_protocol_desc_map table. */
+extern aim_map_si_t ppe_slow_protocol_desc_map[];
 
 /** ppe_field */
 typedef enum ppe_field_e {
@@ -199,6 +136,33 @@ typedef enum ppe_field_e {
     PPE_FIELD_UDP_CHECKSUM,
     PPE_FIELD_L4_SRC_PORT,
     PPE_FIELD_L4_DST_PORT,
+    PPE_FIELD_SLOW_PROTOCOLS_SUBTYPE,
+    PPE_FIELD_LACP_VERSION,
+    PPE_FIELD_LACP_ACTOR_INFO,
+    PPE_FIELD_LACP_ACTOR_INFO_LEN,
+    PPE_FIELD_LACP_ACTOR_SYS_PRI,
+    PPE_FIELD_LACP_ACTOR_SYS,
+    PPE_FIELD_LACP_ACTOR_KEY,
+    PPE_FIELD_LACP_ACTOR_PORT_PRI,
+    PPE_FIELD_LACP_ACTOR_PORT,
+    PPE_FIELD_LACP_ACTOR_STATE,
+    PPE_FIELD_LACP_RSV0,
+    PPE_FIELD_LACP_PARTNER_INFO,
+    PPE_FIELD_LACP_PARTNER_INFO_LEN,
+    PPE_FIELD_LACP_PARTNER_SYS_PRI,
+    PPE_FIELD_LACP_PARTNER_SYS,
+    PPE_FIELD_LACP_PARTNER_KEY,
+    PPE_FIELD_LACP_PARTNER_PORT_PRI,
+    PPE_FIELD_LACP_PARTNER_PORT,
+    PPE_FIELD_LACP_PARTNER_STATE,
+    PPE_FIELD_LACP_RSV1,
+    PPE_FIELD_LACP_COLLECTOR_INFO,
+    PPE_FIELD_LACP_COLLECTOR_INFO_LEN,
+    PPE_FIELD_LACP_COLLECTOR_MAX_DELAY,
+    PPE_FIELD_LACP_RSV2,
+    PPE_FIELD_LACP_TERMINATOR_INFO,
+    PPE_FIELD_LACP_TERMINATOR_LENGTH,
+    PPE_FIELD_LACP_RSV4,
     PPE_FIELD_OF10_FIRST,
     PPE_FIELD_OF10_ETHER_DST_MAC,
     PPE_FIELD_OF10_ETHER_SRC_MAC,
@@ -263,6 +227,8 @@ typedef enum ppe_header_e {
     PPE_HEADER_TCP,
     PPE_HEADER_UDP,
     PPE_HEADER_ICMP,
+    PPE_HEADER_SLOW_PROTOCOLS,
+    PPE_HEADER_LACP,
     PPE_HEADER_ETHERTYPE_MISSING,
     PPE_HEADER_OF10,
     PPE_HEADER_LAST = PPE_HEADER_OF10,
@@ -289,6 +255,8 @@ typedef enum ppe_header_e {
     "TCP", \
     "UDP", \
     "ICMP", \
+    "SLOW_PROTOCOLS", \
+    "LACP", \
     "ETHERTYPE_MISSING", \
     "OF10", \
 }
@@ -309,6 +277,96 @@ const char* ppe_header_desc(ppe_header_t e);
 extern aim_map_si_t ppe_header_map[];
 /** ppe_header_desc_map table. */
 extern aim_map_si_t ppe_header_desc_map[];
+
+/** ppe_ip_protocol */
+typedef enum ppe_ip_protocol_e {
+    PPE_IP_PROTOCOL_ICMP = 1,
+    PPE_IP_PROTOCOL_TCP = 6,
+    PPE_IP_PROTOCOL_UDP = 17,
+} ppe_ip_protocol_t;
+
+/** Enum names. */
+const char* ppe_ip_protocol_name(ppe_ip_protocol_t e);
+
+/** Enum values. */
+int ppe_ip_protocol_value(const char* str, ppe_ip_protocol_t* e, int substr);
+
+/** Enum descriptions. */
+const char* ppe_ip_protocol_desc(ppe_ip_protocol_t e);
+
+/** Enum validator. */
+int ppe_ip_protocol_valid(ppe_ip_protocol_t e);
+
+/** validator */
+#define PPE_IP_PROTOCOL_VALID(_e) \
+    (ppe_ip_protocol_valid((_e)))
+
+/** ppe_ip_protocol_map table. */
+extern aim_map_si_t ppe_ip_protocol_map[];
+/** ppe_ip_protocol_desc_map table. */
+extern aim_map_si_t ppe_ip_protocol_desc_map[];
+
+/** ppe_ethertype */
+typedef enum ppe_ethertype_e {
+    PPE_ETHERTYPE_ARP = 2054,
+    PPE_ETHERTYPE_IP4 = 2048,
+    PPE_ETHERTYPE_IP6 = 34525,
+    PPE_ETHERTYPE_SLOW_PROTOCOLS = 34825,
+} ppe_ethertype_t;
+
+/** Enum names. */
+const char* ppe_ethertype_name(ppe_ethertype_t e);
+
+/** Enum values. */
+int ppe_ethertype_value(const char* str, ppe_ethertype_t* e, int substr);
+
+/** Enum descriptions. */
+const char* ppe_ethertype_desc(ppe_ethertype_t e);
+
+/** Enum validator. */
+int ppe_ethertype_valid(ppe_ethertype_t e);
+
+/** validator */
+#define PPE_ETHERTYPE_VALID(_e) \
+    (ppe_ethertype_valid((_e)))
+
+/** ppe_ethertype_map table. */
+extern aim_map_si_t ppe_ethertype_map[];
+/** ppe_ethertype_desc_map table. */
+extern aim_map_si_t ppe_ethertype_desc_map[];
+
+/** ppe_log_flag */
+typedef enum ppe_log_flag_e {
+    PPE_LOG_FLAG_PARSE,
+    PPE_LOG_FLAG_FORMAT,
+    PPE_LOG_FLAG_LAST = PPE_LOG_FLAG_FORMAT,
+    PPE_LOG_FLAG_COUNT,
+    PPE_LOG_FLAG_INVALID = -1,
+} ppe_log_flag_t;
+
+/** Strings macro. */
+#define PPE_LOG_FLAG_STRINGS \
+{\
+    "parse", \
+    "format", \
+}
+/** Enum names. */
+const char* ppe_log_flag_name(ppe_log_flag_t e);
+
+/** Enum values. */
+int ppe_log_flag_value(const char* str, ppe_log_flag_t* e, int substr);
+
+/** Enum descriptions. */
+const char* ppe_log_flag_desc(ppe_log_flag_t e);
+
+/** validator */
+#define PPE_LOG_FLAG_VALID(_e) \
+    ( (0 <= (_e)) && ((_e) <= PPE_LOG_FLAG_FORMAT))
+
+/** ppe_log_flag_map table. */
+extern aim_map_si_t ppe_log_flag_map[];
+/** ppe_log_flag_desc_map table. */
+extern aim_map_si_t ppe_log_flag_desc_map[];
 /* <auto.end.enum(ALL).header> */
 
 

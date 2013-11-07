@@ -84,6 +84,16 @@
     #endif
 #endif
 
+#ifndef PPE_MEMCMP
+    #if defined(GLOBAL_MEMCMP)
+        #define PPE_MEMCMP GLOBAL_MEMCMP
+    #elif PPE_CONFIG_PORTING_STDLIB == 1
+        #define PPE_MEMCMP memcmp
+    #else
+        #error The macro PPE_MEMCMP is required but cannot be defined.
+    #endif
+#endif
+
 /* <auto.end.portingmacro(ALL).define> */
 
 #endif /* __PPE_PORTING_H__ */

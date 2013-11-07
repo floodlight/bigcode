@@ -151,6 +151,36 @@ ppe_parse_ethertype_ARP__(ppe_packet_t* ppep, uint8_t* data, int size)
 }
 
 static inline int
+ppe_parse_slow_protocol_LACP__(ppe_packet_t* ppep, uint8_t* data, int size)
+{
+    AIM_REFERENCE(size); 
+    PPE_PACKET_HEADER_SET(ppep, PPE_HEADER_LACP, data); 
+    return 0; 
+}
+
+static inline int
+ppe_parse_ethertype_SLOW_PROTOCOLS__(ppe_packet_t* ppep, uint8_t* data, int size)
+{
+    uint32_t subtype; 
+
+    PPE_PACKET_HEADER_SET(ppep, PPE_HEADER_SLOW_PROTOCOLS, data); 
+    ppe_field_get(ppep, PPE_FIELD_SLOW_PROTOCOLS_SUBTYPE, &subtype); 
+
+    switch(subtype)
+        {
+#define PPE_SLOW_PROTOCOL_ENTRY(_proto, _value) \
+            case PPE_SLOW_PROTOCOL_##_proto:                            \
+                return ppe_parse_slow_protocol_##_proto##__(ppep, data+1, size-1); 
+#include <PPE/ppe.x>
+        default:
+            {
+                AIM_LOG_WARN("Slow Protocol Subtype 0x%x is not recognized.", subtype); 
+            }
+        }
+    return 0; 
+}
+
+static inline int
 ppe_parse_ethertype_IP4__(ppe_packet_t* ppep, uint8_t* data, int size)
 {
     int hsize = data[0] & 0xF; 

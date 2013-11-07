@@ -66,6 +66,15 @@ ethertypes: &ethertypes
 - ARP : 0x0806
 - IP4 : 0x0800
 - IP6 : 0x86DD
+- SLOW_PROTOCOLS  : 0x8809
+
+###############################################################################
+#
+# Slow Protocol Types
+#
+###############################################################################
+slow_protocols: &slow_protocols
+- LACP : 0x1
 
 ###############################################################################
 #
@@ -99,6 +108,8 @@ headers: &headers
 - TCP
 - UDP
 - ICMP
+- SLOW_PROTOCOLS
+- LACP
 - ETHERTYPE_MISSING
 - OF10
 
@@ -199,6 +210,36 @@ fields: &fields
 - [ L4,                 SRC_PORT,       16,  0, 0 ]
 - [ L4,                 DST_PORT,       16,  2, 0 ]
 
+- [ SLOW_PROTOCOLS,      SUBTYPE,        8,   0, 0 ]
+
+- [ LACP,               VERSION,              8,  0, 0 ]
+- [ LACP,               ACTOR_INFO,           8,  1, 0 ]
+- [ LACP,               ACTOR_INFO_LEN,       8,  2, 0 ]
+- [ LACP,               ACTOR_SYS_PRI,       16,  3, 0 ]
+- [ LACP,               ACTOR_SYS,           48,  5, 0 ]
+- [ LACP,               ACTOR_KEY,           16, 11, 0 ]
+- [ LACP,               ACTOR_PORT_PRI,      16, 13, 0 ]
+- [ LACP,               ACTOR_PORT,          16, 15, 0 ]
+- [ LACP,               ACTOR_STATE,          8, 17, 0 ] 
+- [ LACP,               RSV0,                24, 18, 0 ]
+- [ LACP,               PARTNER_INFO,         8, 21, 0 ]
+- [ LACP,               PARTNER_INFO_LEN,     8, 22, 0 ]
+- [ LACP,               PARTNER_SYS_PRI,     16, 23, 0 ]
+- [ LACP,               PARTNER_SYS,         48, 25, 0 ]
+- [ LACP,               PARTNER_KEY,         16, 31, 0 ]
+- [ LACP,               PARTNER_PORT_PRI,    16, 33, 0 ]
+- [ LACP,               PARTNER_PORT,        16, 35, 0 ]
+- [ LACP,               PARTNER_STATE,        8, 37, 0 ]
+- [ LACP,               RSV1,                24, 38, 0 ]
+- [ LACP,               COLLECTOR_INFO,       8, 41, 0 ]
+- [ LACP,               COLLECTOR_INFO_LEN,   8, 42, 0 ]
+- [ LACP,               COLLECTOR_MAX_DELAY, 16, 43, 0 ]
+- [ LACP,               RSV2,                96, 45, 0 ]
+- [ LACP,               TERMINATOR_INFO,      8, 57, 0 ]
+- [ LACP,               TERMINATOR_LENGTH,    8, 58, 0 ]
+- [ LACP,               RSV4,               384, 59, 0 ]
+
+
 - [ OF10,          FIRST,           0,  0, 0 ]
 - [ OF10,          ETHER_DST_MAC,  48,  0, 0 ]
 - [ OF10,          ETHER_SRC_MAC,  48,  6, 0 ]
@@ -259,6 +300,7 @@ definitions:
         - memcpy
         - memmove
         - strncpy
+        - memcmp
 
   enum: &enum
     ppe_field:
@@ -278,6 +320,9 @@ definitions:
     ppe_ip_protocol:
       members: *ip_protocols
       desc: "PPE IP protocol."
+    ppe_slow_protocol:
+      members: *slow_protocols
+      desc: "PPE slow protocol."
     ppe_log_flag: 
       members: *ppe_log_types
       desc: "PPE Log Flag"
@@ -298,6 +343,8 @@ definitions:
       members: *etherframes
     PPE_IP_PROTOCOL_ENTRY:
       members: *ip_protocols
+    PPE_SLOW_PROTOCOL_ENTRY:
+      members: *slow_protocols
 
   xenum:
     PPE_ENUMERATION_ENTRY: 
