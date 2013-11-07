@@ -17,8 +17,8 @@
 # 
 #################################################################
 ucli:
-	$(BIGCODE)/Tools/uclihandlers.py fme_utm.c
-	$(BIGCODE)/Tools/uclihandlers.py fme_ucli.c
+	@../../../../tools/uclihandlers.py fme_utm.c
+	@../../../../tools/uclihandlers.py fme_ucli.c
 
 
 
