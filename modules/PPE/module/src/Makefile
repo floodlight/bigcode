@@ -17,8 +17,9 @@
 # 
 #################################################################
 ucli:
-	$(BIGCODE)/Tools/uclihandlers.py ppe_utm.c
-	$(BIGCODE)/Tools/uclihandlers.py ppe_ucli.c
+	@../../../../tools/uclihandlers.py ppe_utm.c
+	@../../../../tools/uclihandlers.py ppe_ucli.c
+
 
 
 

@@ -442,6 +442,64 @@ ppe_ucli_utm__check__(ucli_context_t* uc)
 }
 
 static ucli_status_t
+ppe_ucli_utm__checkw__(ucli_context_t* uc)
+{
+    ppe_field_info_t* fi; 
+    uint8_t* cvalue; 
+    uint8_t pvalue[128];
+    unsigned int csize; 
+
+    aim_datatype_map_t* operation; 
+    aim_datatype_map_t operation_map[] = { 
+        { "==", 'e' }, { "!=", 'n' }, { NULL } 
+    }; 
+
+    UCLI_COMMAND_INFO(uc, 
+                      "checkw", 3, 
+                      "Check wide packet field values and status.");
+    
+    UCLI_ARGPARSE_OR_RETURN(uc, "{ppe_field_info}{map}{data}", &fi, 
+                            &operation, operation_map, "operation", 
+                            &cvalue, &csize); 
+
+    PPE_FIELD_EXISTS_OR_RETURN(uc, fi->field); 
+    
+    if(fi->size_bits/8 != csize) { 
+        return ucli_error(uc, 
+                          "field %{ppe_field} is %d bytes wide.", fi->field, 
+                          fi->size_bits/8);
+    }
+
+    PPE_WIDE_FIELD_GET_OR_RETURN(uc, &ppec->ppep, fi->field, pvalue); 
+    
+    switch(operation->i) 
+        {
+        case 'e':
+            {
+                if(PPE_MEMCMP(pvalue, cvalue, csize)) { 
+                    return ucli_error(uc, 
+                                      "field %{ppe_field} is %{data} (should be %{data}", 
+                                      fi->field, pvalue, csize, cvalue, csize); 
+                }
+                return UCLI_STATUS_OK; 
+                break; 
+            }
+        case 'n':
+            {
+                if(!PPE_MEMCMP(pvalue, cvalue, csize)) { 
+                    return ucli_error(uc, 
+                                      "field %{ppe_field} is %{data}", 
+                                      fi->field, pvalue, csize); 
+                }
+                return UCLI_STATUS_OK; 
+                break; 
+            }
+        default:
+            return ucli_e_internal(uc, "unknown operation."); 
+        }
+}
+
+static ucli_status_t
 ppe_ucli_utm__listf__(ucli_context_t* uc)
 {
     ppe_field_info_t* fi; 
@@ -572,8 +630,8 @@ ppe_ucli_utm__rwall__(ucli_context_t* uc)
      * All bits will be initialized to 1. 
      */
     for(header = 0; header < PPE_HEADER_COUNT; header++) {
-        uint8_t* hp = aim_zmalloc(100); 
-        PPE_MEMSET(hp, 0xFF, 100); 
+        uint8_t* hp = aim_zmalloc(1000); 
+        PPE_MEMSET(hp, 0xFF, 1000); 
         ppe_header_set(&ppep, header, hp); 
     }
 
@@ -664,6 +722,7 @@ static ucli_command_handler_f ppe_ucli_utm_handlers__[] =
     ppe_ucli_utm__missing__,
     ppe_ucli_utm__checkf__,
     ppe_ucli_utm__check__,
+    ppe_ucli_utm__checkw__,
     ppe_ucli_utm__listf__,
     ppe_ucli_utm__dfk__,
     ppe_ucli_utm__rwall__,
