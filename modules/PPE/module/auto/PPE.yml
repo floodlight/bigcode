@@ -66,6 +66,7 @@ ethertypes: &ethertypes
 - ARP : 0x0806
 - IP4 : 0x0800
 - IP6 : 0x86DD
+- LLDP : 0x88CC
 - SLOW_PROTOCOLS  : 0x8809
 
 ###############################################################################
@@ -102,6 +103,7 @@ headers: &headers
 - ETHERII
 - SNAP
 - ARP
+- LLDP
 - IP4
 - IP6
 - L4

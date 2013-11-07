@@ -221,6 +221,7 @@ typedef enum ppe_header_e {
     PPE_HEADER_ETHERII,
     PPE_HEADER_SNAP,
     PPE_HEADER_ARP,
+    PPE_HEADER_LLDP,
     PPE_HEADER_IP4,
     PPE_HEADER_IP6,
     PPE_HEADER_L4,
@@ -249,6 +250,7 @@ typedef enum ppe_header_e {
     "ETHERII", \
     "SNAP", \
     "ARP", \
+    "LLDP", \
     "IP4", \
     "IP6", \
     "L4", \
@@ -311,6 +313,7 @@ typedef enum ppe_ethertype_e {
     PPE_ETHERTYPE_ARP = 2054,
     PPE_ETHERTYPE_IP4 = 2048,
     PPE_ETHERTYPE_IP6 = 34525,
+    PPE_ETHERTYPE_LLDP = 35020,
     PPE_ETHERTYPE_SLOW_PROTOCOLS = 34825,
 } ppe_ethertype_t;
 

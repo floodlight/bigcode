@@ -151,6 +151,15 @@ ppe_parse_ethertype_ARP__(ppe_packet_t* ppep, uint8_t* data, int size)
 }
 
 static inline int
+ppe_parse_ethertype_LLDP__(ppe_packet_t* ppep, uint8_t* data, int size)
+{
+    AIM_REFERENCE(size); 
+    PPE_PACKET_HEADER_SET(ppep, PPE_HEADER_LLDP, data); 
+    return 0; 
+}
+    
+    
+static inline int
 ppe_parse_slow_protocol_LACP__(ppe_packet_t* ppep, uint8_t* data, int size)
 {
     AIM_REFERENCE(size); 

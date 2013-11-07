@@ -402,6 +402,7 @@ aim_map_si_t ppe_header_map[] =
     { "ETHERII", PPE_HEADER_ETHERII },
     { "SNAP", PPE_HEADER_SNAP },
     { "ARP", PPE_HEADER_ARP },
+    { "LLDP", PPE_HEADER_LLDP },
     { "IP4", PPE_HEADER_IP4 },
     { "IP6", PPE_HEADER_IP6 },
     { "L4", PPE_HEADER_L4 },
@@ -427,6 +428,7 @@ aim_map_si_t ppe_header_desc_map[] =
     { "None", PPE_HEADER_ETHERII },
     { "None", PPE_HEADER_SNAP },
     { "None", PPE_HEADER_ARP },
+    { "None", PPE_HEADER_LLDP },
     { "None", PPE_HEADER_IP4 },
     { "None", PPE_HEADER_IP6 },
     { "None", PPE_HEADER_L4 },
@@ -547,6 +549,7 @@ aim_map_si_t ppe_ethertype_map[] =
     { "ARP", PPE_ETHERTYPE_ARP },
     { "IP4", PPE_ETHERTYPE_IP4 },
     { "IP6", PPE_ETHERTYPE_IP6 },
+    { "LLDP", PPE_ETHERTYPE_LLDP },
     { "SLOW_PROTOCOLS", PPE_ETHERTYPE_SLOW_PROTOCOLS },
     { NULL, 0 }
 };
@@ -556,6 +559,7 @@ aim_map_si_t ppe_ethertype_desc_map[] =
     { "None", PPE_ETHERTYPE_ARP },
     { "None", PPE_ETHERTYPE_IP4 },
     { "None", PPE_ETHERTYPE_IP6 },
+    { "None", PPE_ETHERTYPE_LLDP },
     { "None", PPE_ETHERTYPE_SLOW_PROTOCOLS },
     { NULL, 0 }
 };
