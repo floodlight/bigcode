@@ -18,6 +18,6 @@
 #################################################################
 module:
 	python handlers.py > modules.c_
-	$(BIGCODE)/Tools/uclihandlers.py modules.c_
-	$(BIGCODE)/Tools/uclihandlers.py main.c
+	@../../../tools/uclihandlers.py modules.c_
+	@../../../tools/uclihandlers.py main.c
 
