@@ -86,7 +86,7 @@ for ((p,m), lst) in modules.iteritems():
     for h in lst:
         if h['condition']:
             s += "%s\n" % h['condition']
-        s+= "    %s, \n" % (h['name'])
+        s+= "    %s,\n" % (h['name'])
         if h['condition']:
             s += "#endif\n"
 
