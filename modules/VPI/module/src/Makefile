@@ -17,7 +17,7 @@
 # 
 #################################################################
 ucli:
-	$(BIGCODE)/Tools/uclihandlers.py vpi_ucli.c
+	@../../../../tools/uclihandlers.py vpi_ucli.c
 
 
 
