@@ -179,6 +179,16 @@
 #endif
 
 /**
+ * VPI_CONFIG_INCLUDE_INTERFACE_TAP
+ *
+ * Include the TAP packet interface. */
+
+
+#ifndef VPI_CONFIG_INCLUDE_INTERFACE_TAP
+#define VPI_CONFIG_INCLUDE_INTERFACE_TAP VPI_CONFIG_INCLUDE_INTERFACE_DEFAULT
+#endif
+
+/**
  * VPI_CONFIG_INCLUDE_BRIDGING
  *
  * Include transparent bridging between VPI instances. Requires pthreads. */

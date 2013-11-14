@@ -32,6 +32,7 @@
 #include "vpi_interface_loopback.h"
 #include "vpi_interface_pcap.h"
 #include "vpi_interface_pcapdump.h"
+#include "vpi_interface_tap.h"
 #include "vpi_interface_dump.h"
 #include "vpi_log.h"
 
@@ -100,11 +101,17 @@ vpi_init(void)
     vpi_dump_interface_register(); 
 #endif
 
+#if VPI_CONFIG_INCLUDE_INTERFACE_TAP == 1
+    vpi_tap_interface_register(); 
+#endif
+
     vpi_instances__ = biglist_locked_create(); 
 
 #if VPI_CONFIG_INCLUDE_ATEXIT == 1
     atexit(vpi_close); 
 #endif
+
+
 
     return 0; 
 }
