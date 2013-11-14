@@ -94,6 +94,11 @@ vpi_config_settings_t vpi_config_settings[] =
 #else
 { VPI_CONFIG_INCLUDE_INTERFACE_QUEUE(__vpi_config_STRINGIFY_NAME), "__undefined__" },
 #endif
+#ifdef VPI_CONFIG_INCLUDE_INTERFACE_TAP
+    { __vpi_config_STRINGIFY_NAME(VPI_CONFIG_INCLUDE_INTERFACE_TAP), __vpi_config_STRINGIFY_VALUE(VPI_CONFIG_INCLUDE_INTERFACE_TAP) },
+#else
+{ VPI_CONFIG_INCLUDE_INTERFACE_TAP(__vpi_config_STRINGIFY_NAME), "__undefined__" },
+#endif
 #ifdef VPI_CONFIG_INCLUDE_BRIDGING
     { __vpi_config_STRINGIFY_NAME(VPI_CONFIG_INCLUDE_BRIDGING), __vpi_config_STRINGIFY_VALUE(VPI_CONFIG_INCLUDE_BRIDGING) },
 #else
