@@ -57,6 +57,9 @@ cdefs: &cdefs
 - VPI_CONFIG_INCLUDE_INTERFACE_QUEUE:
     doc: "Include the packet queue interface."
     default: VPI_CONFIG_INCLUDE_INTERFACE_DEFAULT
+- VPI_CONFIG_INCLUDE_INTERFACE_TAP:
+    doc: "Include the TAP packet interface."
+    default: VPI_CONFIG_INCLUDE_INTERFACE_DEFAULT
 
 - VPI_CONFIG_INCLUDE_BRIDGING:
     doc: "Include transparent bridging between VPI instances. Requires pthreads."
