@@ -1,25 +1,25 @@
 /****************************************************************
- * 
- *        Copyright 2013, Big Switch Networks, Inc. 
- * 
+ *
+ *        Copyright 2013, Big Switch Networks, Inc.
+ *
  * Licensed under the Eclipse Public License, Version 1.0 (the
  * "License"); you may not use this file except in compliance
  * with the License. You may obtain a copy of the License at
- * 
+ *
  *        http://www.eclipse.org/legal/epl-v10.html
- * 
+ *
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND,
  * either express or implied. See the License for the specific
  * language governing permissions and limitations under the
  * License.
- * 
+ *
  ***************************************************************/
 /************************************************************//**
  *
  * @file
- * @brief PPE Structures and Datatypes. 
+ * @brief PPE Structures and Datatypes.
  *
  *
  * @addtogroup ppe-ppe
@@ -376,85 +376,85 @@ extern aim_map_si_t ppe_log_flag_desc_map[];
 
 /**************************************************************************//**
  *
- * This structure defines the properties of every packet field. 
+ * This structure defines the properties of every packet field.
  *
  *****************************************************************************/
 
 typedef struct ppe_field_info_s {
 
     /** Field identifier */
-    ppe_field_t field; 
+    ppe_field_t field;
 
     /** Header in which this field resides. */
-    ppe_header_t header; 
+    ppe_header_t header;
 
     /** The size of this field, in bits. */
-    uint32_t size_bits; 
+    uint32_t size_bits;
 
     /** The offset to the first byte (in network order) containing data
      * for this field. */
-    uint16_t offset_bytes; 
+    uint16_t offset_bytes;
 
     /** The number of bits we must shift to access the field's LSB. */
-    uint16_t shift_bits; 
+    uint16_t shift_bits;
 
-} ppe_field_info_t; 
+} ppe_field_info_t;
 
 
 /**
- * The field information for all available fields is available 
- * for public use in this table. 
+ * The field information for all available fields is available
+ * for public use in this table.
  */
 extern ppe_field_info_t ppe_field_info_table[];
 
 
 /**************************************************************************//**
  *
- * The base address of every header found in the packet 
- * while we are parsing it is stored in this structure. 
+ * The base address of every header found in the packet
+ * while we are parsing it is stored in this structure.
  *
  *****************************************************************************/
 typedef struct ppe_header_data_t {
     /** The base address of this header */
-    uint8_t* start; 
-} ppe_header_data_t; 
+    uint8_t* start;
+} ppe_header_data_t;
 
 
 /**************************************************************************//**
  *
- * Packet data is managed through this structure. 
+ * Packet data is managed through this structure.
  *
  *****************************************************************************/
 typedef struct ppe_packet_s {
 
     /** The raw packet data */
-    uint8_t* data; 
+    uint8_t* data;
     /** The total size of the packet data. */
-    uint32_t size; 
+    uint32_t size;
 
-    /** bitmask of all headers found in the packet while parsing it. 
-     * see ppe_header_t 
+    /** bitmask of all headers found in the packet while parsing it.
+     * see ppe_header_t
      */
-    uint32_t header_mask; 
+    uint32_t header_mask;
 
-    /** Header information for every parsed header that exists in this 
-     * packet. 
+    /** Header information for every parsed header that exists in this
+     * packet.
      */
-    ppe_header_data_t headers[PPE_HEADER_COUNT]; 
-    
+    ppe_header_data_t headers[PPE_HEADER_COUNT];
+
     /** Previous data pointer in the case of buffer reallocations */
-    uint8_t* _data; 
+    uint8_t* _data;
 
     /** Internal - used for metaheader data storage */
-    uint32_t mh[PPE_FIELD_META_FIELD_COUNT]; 
+    uint32_t mh[PPE_FIELD_META_FIELD_COUNT];
 
     /** Available for client header storage. */
-    uint32_t _ch[16]; 
+    uint32_t _ch[16];
 
     /** Internal - used for data copy management. */
-    int realloc; 
+    int realloc;
 
-} ppe_packet_t; 
+} ppe_packet_t;
 
 
 /******************************************************************************
@@ -465,26 +465,26 @@ typedef struct ppe_packet_s {
  *****************************************************************************/
 
 /** Dynamic Field Key Header */
-typedef struct ppe_dfk_header_s { 
+typedef struct ppe_dfk_header_s {
     /** The fields that make up this key. */
-    const ppe_field_t* fields; 
+    const ppe_field_t* fields;
     /** Field count */
-    unsigned int fcount; 
-} ppe_dfk_header_t; 
+    unsigned int fcount;
+} ppe_dfk_header_t;
 
 /** Dynamic Field Key instance.  */
-typedef struct ppe_dfk_s { 
+typedef struct ppe_dfk_s {
     /** Header for this key */
-    ppe_dfk_header_t header; 
-    /** Mask of valid fields in this key data */        
-    uint32_t mask; 
+    ppe_dfk_header_t header;
+    /** Mask of valid fields in this key data */
+    uint32_t mask;
     /** Key data */
-    uint8_t* data; 
+    uint8_t* data;
     /** Key data size */
-    uint8_t size; 
-} ppe_dfk_t; 
+    uint8_t size;
+} ppe_dfk_t;
 
-        
+
 
 
 
@@ -516,7 +516,7 @@ typedef struct ppe_dfk_s {
     do {                                                                \
         PPE_PACKET_HEADERBIT_CLEAR(_ppe_packet, _header);               \
         PPE_PACKET_HEADER_START_SET(_ppe_packet, _header, NULL);        \
-    } while(0) 
+    } while(0)
 
 
 #endif /* __PPE_TYPES_H__ */

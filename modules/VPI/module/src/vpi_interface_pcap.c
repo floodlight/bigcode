@@ -1,20 +1,20 @@
 /****************************************************************
- * 
- *        Copyright 2013, Big Switch Networks, Inc. 
- * 
+ *
+ *        Copyright 2013, Big Switch Networks, Inc.
+ *
  * Licensed under the Eclipse Public License, Version 1.0 (the
  * "License"); you may not use this file except in compliance
  * with the License. You may obtain a copy of the License at
- * 
+ *
  *        http://www.eclipse.org/legal/epl-v10.html
- * 
+ *
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND,
  * either express or implied. See the License for the specific
  * language governing permissions and limitations under the
  * License.
- * 
+ *
  ***************************************************************/
 
 #include "vpi_int.h"
@@ -27,7 +27,7 @@
 #include "vpi_interface_pcap.h"
 #include <pcap/pcap.h>
 
-static const char* pcap_interface_docstring__ = 
+static const char* pcap_interface_docstring__ =
     "----------------------------------------------------\n"
     "VPI Interface: PCAP \n"
     "----------------------------------------------------\n"
@@ -46,28 +46,28 @@ typedef struct vpi_interface_pcap_s {
 
 /**************************************************************************//**
  *
- * This must always be first. 
- * This is the public inteface data. 
+ * This must always be first.
+ * This is the public inteface data.
  *
  *****************************************************************************/
-    vpi_interface_t interface; 
+    vpi_interface_t interface;
 
 
 /**************************************************************************//**
  *
- * Private implementation data. 
+ * Private implementation data.
  *
  *
  *****************************************************************************/
-    const char* log_string; 
+    const char* log_string;
 
     /* Our pcap object */
-    pcap_t* pcap; 
+    pcap_t* pcap;
 
     /* Descriptor */
-    int fd; 
+    int fd;
 
-} vpi_interface_pcap_t; 
+} vpi_interface_pcap_t;
 
 
 #define VICAST(_vi_name, _vpi_name) \
@@ -78,50 +78,50 @@ int
 vpi_pcap_interface_register(void)
 {
     /* Register our module as handling type 'udp' */
-    return vpi_interface_register("pcap", vpi_pcap_interface_create, NULL, 
-                                pcap_interface_docstring__); 
+    return vpi_interface_register("pcap", vpi_pcap_interface_create, NULL,
+                                pcap_interface_docstring__);
 }
 
 
 /**************************************************************************//**
  *
- * Send packet data on our socket. Assumes no fragmentation. 
+ * Send packet data on our socket. Assumes no fragmentation.
  *
  *
  *****************************************************************************/
 static int
 sendto__(vpi_interface_pcap_t* vi, char* data, int len)
 {
-    return pcap_sendpacket(vi->pcap, (unsigned char*)data, len); 
+    return pcap_sendpacket(vi->pcap, (unsigned char*)data, len);
 }
 
 /**************************************************************************//**
  *
- * Receive packet data on our socket. Assumes no fragmentation. 
+ * Receive packet data on our socket. Assumes no fragmentation.
  *
  *
  *****************************************************************************/
 static int
 read__(vpi_interface_pcap_t* vi, char* data, unsigned int len)
 {
-    int rv; 
+    int rv;
     struct pcap_pkthdr *pkt_header;
     const uint8_t *pkt_data;
 
     if (pcap_next_ex(vi->pcap, &pkt_header, &pkt_data) != 1) {
         VPI_ERROR(vi, "pcap_next_ex() failed: %s", pcap_geterr(vi->pcap));
-        return -1; 
+        return -1;
     }
 
     if (pkt_header->caplen != pkt_header->len) {
         VPI_ERROR(vi, "pcap truncated packet: len=%d caplen=%d",
                   pkt_header->caplen, pkt_header->len);
-        return -1; 
+        return -1;
     }
-    
-    rv = (len < pkt_header->len) ? len : pkt_header->len; 
-    VPI_MEMCPY(data, pkt_data, rv); 
-    return rv; 
+
+    rv = (len < pkt_header->len) ? len : pkt_header->len;
+    VPI_MEMCPY(data, pkt_data, rv);
+    return rv;
 }
 
 /**************************************************************************//**
@@ -132,110 +132,110 @@ read__(vpi_interface_pcap_t* vi, char* data, unsigned int len)
  *****************************************************************************/
 
 int
-vpi_pcap_interface_create(vpi_interface_t** vi, char* args[], int flags, 
+vpi_pcap_interface_create(vpi_interface_t** vi, char* args[], int flags,
                        const char* vpi_name_ptr)
 {
-    vpi_interface_pcap_t* nvi = aim_zmalloc(sizeof(*nvi)); 
-    char** arg = args; 
+    vpi_interface_pcap_t* nvi = aim_zmalloc(sizeof(*nvi));
+    char** arg = args;
     char errbuf[PCAP_ERRBUF_SIZE];
 
-    AIM_REFERENCE(flags); 
+    AIM_REFERENCE(flags);
 
     if(nvi == NULL) {
-        VPI_MERROR("interface allocation failed for %s.", 
-                   vpi_name_ptr); 
-        return -1; 
-    }   
-    
+        VPI_MERROR("interface allocation failed for %s.",
+                   vpi_name_ptr);
+        return -1;
+    }
+
     /*
-     * Point our log_string to our name so we can use it immediately 
-     * in log messages. 
+     * Point our log_string to our name so we can use it immediately
+     * in log messages.
      */
-    nvi->log_string = vpi_name_ptr; 
+    nvi->log_string = vpi_name_ptr;
 
 
-    /* 
+    /*
      * The first argument is the type -- skip for now
      */
-    arg++; 
+    arg++;
 
     /*
-     * next arg - interface name. 
+     * next arg - interface name.
      */
     if((nvi->pcap = pcap_create(*arg, errbuf)) == NULL) {
-        VPI_ERROR(nvi, "pcap_create(%s) failed: %s\n", 
-                  *arg, errbuf); 
-        aim_free(nvi); 
-        return -1; 
+        VPI_ERROR(nvi, "pcap_create(%s) failed: %s\n",
+                  *arg, errbuf);
+        aim_free(nvi);
+        return -1;
     }
 
     if(pcap_set_promisc(nvi->pcap, 1) != 0) {
-        VPI_WARN(nvi, "pcap_set_promisc() failed."); 
+        VPI_WARN(nvi, "pcap_set_promisc() failed.");
     }
-    
+
     if (pcap_activate(nvi->pcap) != 0) {
         VPI_ERROR(nvi, "pcap_activate() failed: %s", pcap_geterr(nvi->pcap));
-        pcap_close(nvi->pcap); 
-        aim_free(nvi); 
-        return -1; 
+        pcap_close(nvi->pcap);
+        aim_free(nvi);
+        return -1;
      }
 
-    nvi->fd = pcap_get_selectable_fd(nvi->pcap); 
+    nvi->fd = pcap_get_selectable_fd(nvi->pcap);
     if(nvi->fd < 0) {
-        VPI_WARN(nvi, "pcap_get_selectable_fd() returned %d", nvi->fd); 
+        VPI_WARN(nvi, "pcap_get_selectable_fd() returned %d", nvi->fd);
     }
 
     nvi->interface.send = vpi_pcap_interface_send;
-    nvi->interface.recv = vpi_pcap_interface_recv; 
-    nvi->interface.recv_ready = vpi_pcap_interface_recv_ready; 
-    nvi->interface.destroy = vpi_pcap_interface_destroy; 
-    nvi->interface.descriptor = vpi_pcap_interface_descriptor; 
+    nvi->interface.recv = vpi_pcap_interface_recv;
+    nvi->interface.recv_ready = vpi_pcap_interface_recv_ready;
+    nvi->interface.destroy = vpi_pcap_interface_destroy;
+    nvi->interface.descriptor = vpi_pcap_interface_descriptor;
 
-    *vi = (vpi_interface_t*)nvi; 
-    return 0; 
+    *vi = (vpi_interface_t*)nvi;
+    return 0;
 }
-    
-int 
+
+int
 vpi_pcap_interface_send(vpi_interface_t* _vi, unsigned char* data, int len)
 {
-    VICAST(vi, _vi); 
-    return sendto__(vi, (char*)data, len); 
+    VICAST(vi, _vi);
+    return sendto__(vi, (char*)data, len);
 }
 
 int
 vpi_pcap_interface_recv(vpi_interface_t* _vi, unsigned char* data, int len)
 {
-    VICAST(vi, _vi); 
-    return read__(vi, (char*)data, len); 
+    VICAST(vi, _vi);
+    return read__(vi, (char*)data, len);
 }
 
 int
 vpi_pcap_interface_recv_ready(vpi_interface_t* _vi)
 {
-    VICAST(vi, _vi); 
-    fd_set rfds; 
-    struct timeval tv; 
-    FD_ZERO(&rfds); 
-    FD_SET(vi->fd, &rfds); 
+    VICAST(vi, _vi);
+    fd_set rfds;
+    struct timeval tv;
+    FD_ZERO(&rfds);
+    FD_SET(vi->fd, &rfds);
     tv.tv_sec = 0;
-    tv.tv_usec = 0; 
+    tv.tv_usec = 0;
     return select(vi->fd+1, &rfds, NULL, NULL, &tv);
 }
 
 int
 vpi_pcap_interface_descriptor(vpi_interface_t* _vi)
 {
-    VICAST(vi, _vi); 
-    return vi->fd; 
+    VICAST(vi, _vi);
+    return vi->fd;
 }
 
 int
 vpi_pcap_interface_destroy(vpi_interface_t* _vi)
 {
-    VICAST(vi, _vi); 
-    pcap_close(vi->pcap); 
-    aim_free(vi); 
-    return 0; 
+    VICAST(vi, _vi);
+    pcap_close(vi->pcap);
+    aim_free(vi);
+    return 0;
 }
 
 #endif /* INCLUDE_INTERFACE_PCAP */

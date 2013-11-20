@@ -1,14 +1,14 @@
 #!/usr/bin/env python
 ################################################################
 #
-#        Copyright 2013, Big Switch Networks, Inc. 
-# 
+#        Copyright 2013, Big Switch Networks, Inc.
+#
 # Licensed under the Eclipse Public License, Version 1.0 (the
 # "License"); you may not use this file except in compliance
 # with the License. You may obtain a copy of the License at
-# 
+#
 #        http://www.eclipse.org/legal/epl-v10.html
-# 
+#
 # Unless required by applicable law or agreed to in writing,
 # software distributed under the License is distributed on an
 # "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND,
@@ -18,14 +18,14 @@
 #
 ################################################################
 #
-# This script takes as input a YAML file describing 
-# a list of ucli command blocks. 
+# This script takes as input a YAML file describing
+# a list of ucli command blocks.
 #
 # It outputs a C array of ucli_block_t structures representing
-# the input data. 
+# the input data.
 #
 # This is a simple and cheap mechanism for embedding UCLI sequences
-# in the code. 
+# in the code.
 #
 ################################################################
 import yaml
@@ -33,8 +33,8 @@ import sys
 import datetime
 
 datafilename = sys.argv[1]
-datafile = open(datafilename, "r"); 
-data = yaml.load(datafile); 
+datafile = open(datafilename, "r");
+data = yaml.load(datafile);
 datafile.close()
 array_name = sys.argv[2]
 
@@ -57,7 +57,7 @@ for block in data:
         print "    \"%s\", " % name
         print "    {"
         for command in commands:
-            print "      \"%s\", " % command; 
+            print "      \"%s\", " % command;
         print "    },"
         print "  },"
 

@@ -1,23 +1,23 @@
 #!/usr/bin/python
 #################################################################
-# 
-#        Copyright 2013, Big Switch Networks, Inc. 
-# 
+#
+#        Copyright 2013, Big Switch Networks, Inc.
+#
 # Licensed under the Eclipse Public License, Version 1.0 (the
 # "License"); you may not use this file except in compliance
 # with the License. You may obtain a copy of the License at
-# 
+#
 #        http://www.eclipse.org/legal/epl-v10.html
-# 
+#
 # Unless required by applicable law or agreed to in writing,
 # software distributed under the License is distributed on an
 # "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND,
 # either express or implied. See the License for the specific
 # language governing permissions and limitations under the
 # License.
-# 
+#
 #################################################################
-import os 
+import os
 import sys
 
 PPE_MODULE_ROOT=os.path.abspath(__file__ + "/../..")
@@ -63,9 +63,9 @@ fname = "%s/inc/PPE/ppe.x" % PPE_MODULE_ROOT
 new = ''
 offset = 0
 with open(fname, "r") as f:
-    
+
     for l in f.readlines():
-        # Need to keep track of the field offsets relative to the start of the 
+        # Need to keep track of the field offsets relative to the start of the
         # metaheader
         if l.startswith("PPE_FIELD_ENTRY(META, "):
             x = l.split(',')
@@ -79,8 +79,8 @@ with open(fname, "r") as f:
         new += l
 with open(fname, "w") as f:
     f.write(new)
-            
-            
+
+
 
 
 #
@@ -89,7 +89,7 @@ with open(fname, "w") as f:
 newmap = """
 
     #if PPE_CONFIG_INCLUDE_CUSTOM_META_FIELDS == 1
-    #define PPE_CUSTOM_META_FIELD_ENTRY(_name, _size, _offset, _shift) { "META_" #_name, PPE_FIELD_META_##_name }, 
+    #define PPE_CUSTOM_META_FIELD_ENTRY(_name, _size, _offset, _shift) { "META_" #_name, PPE_FIELD_META_##_name },
     #include <ppe_custom_fields.x>
     #endif
 
@@ -100,7 +100,7 @@ newmap = """
 newdesc = """
 
     #if PPE_CONFIG_INCLUDE_CUSTOM_META_FIELDS == 1
-    #define PPE_CUSTOM_META_FIELD_ENTRY(_name, _size, _offset, _shift) { "None", PPE_FIELD_META_##_name }, 
+    #define PPE_CUSTOM_META_FIELD_ENTRY(_name, _size, _offset, _shift) { "None", PPE_FIELD_META_##_name },
     #include <ppe_custom_fields.x>
     #endif
 
