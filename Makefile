@@ -25,7 +25,7 @@
 
 check tests:
 	make -C targets/utests
-	make -C targets/vpi
+
 
 doc:
 	doxygen
