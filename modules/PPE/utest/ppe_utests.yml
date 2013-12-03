@@ -1,20 +1,20 @@
 #################################################################
-# 
-#        Copyright 2013, Big Switch Networks, Inc. 
-# 
+#
+#        Copyright 2013, Big Switch Networks, Inc.
+#
 # Licensed under the Eclipse Public License, Version 1.0 (the
 # "License"); you may not use this file except in compliance
 # with the License. You may obtain a copy of the License at
-# 
+#
 #        http://www.eclipse.org/legal/epl-v10.html
-# 
+#
 # Unless required by applicable law or agreed to in writing,
 # software distributed under the License is distributed on an
 # "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND,
 # either express or implied. See the License for the specific
 # language governing permissions and limitations under the
 # License.
-# 
+#
 #################################################################
 
 - READ_WRITE_ALL:
@@ -116,7 +116,7 @@
     - data FF.FF.FF.FF.FF.FF.00.00.00.00.00.01.08.00.45.00.00.28.00.01.00.00.40.06.7C.CD.7F.00.00.01.7F.00.00.01.00.14.00.50.00.00.00.00.00.00.00.00.50.02.20.00.91.7C.00.00
     - check IP4_CHECKSUM == 0x7ccd
     - set IP4_CHECKSUM 0xA5A5
-    - update 
+    - update
     - check IP4_CHECKSUM == 0x7ccd
     - check TCP_CHECKSUM == 0x917c
     - set TCP_CHECKSUM 0xA5A5
@@ -150,7 +150,7 @@
     - data 33.33.00.01.00.03.00.12.3f.97.92.01.86.dd.60.00.00.00.00.25.11.01.fe.80.00.00.00.00.00.00.9c.09.b4.16.07.68.ff.42.ff.02.00.00.00.00.00.00.00.00.00.00.00.01.00.03.cf.dd.14.eb.00.25.b3.3c.77.91.00.00.00.01.00.00.00.00.00.00.0b.41.53.49.53.45.4c.46.48.4f.53.54.00.00.01.00.01
     - check ETHER_TYPE == 0x86dd
     - check IP6_VERSION == 0x6
-    - check IP6_PAYLOAD_LENGTH == 0x25 
+    - check IP6_PAYLOAD_LENGTH == 0x25
     - check L4_SRC_PORT == 53213
     - check L4_DST_PORT == 5355
 
@@ -210,14 +210,14 @@
     - check LLC_DSAP == 0x33
     - check LLC_SSAP == 0x44
     - check LLC_CONTROL == 0x55
-    
+
 - snap:
     - data {000102030405.00060708090a}{0007}{AA}{AA}{FF}{DEAD00}{CAFE}
     - check LLC_LENGTH == 0x7
     - check LLC_DSAP == 0xAA
     - check LLC_SSAP == 0xAA
     - check SNAP_OUI == 0xDEAD00
-    - check SNAP_PROTOCOL == 0xCAFE; 
+    - check SNAP_PROTOCOL == 0xCAFE;
     - chm LLC true
     - chm ETHERTYPE_MISSING true
 
@@ -277,15 +277,15 @@
     - chm SLOW_PROTOCOLS true
     - chm LACP true
     - check SLOW_PROTOCOLS_SUBTYPE == 0x1
-    - check LACP_VERSION == 0x1 
-    - check LACP_ACTOR_INFO == 0x1 
+    - check LACP_VERSION == 0x1
+    - check LACP_ACTOR_INFO == 0x1
     - check LACP_ACTOR_INFO_LEN == 0x14
     - check LACP_ACTOR_SYS_PRI == 0x8000
     - checkw LACP_ACTOR_SYS == 00.0e.83.16.f5.00
-    - check LACP_ACTOR_KEY == 0xd 
+    - check LACP_ACTOR_KEY == 0xd
     - check LACP_ACTOR_PORT_PRI == 0x8000
     - check LACP_ACTOR_PORT == 0x19
-    - check LACP_ACTOR_STATE == 0x3c 
+    - check LACP_ACTOR_STATE == 0x3c
     - check LACP_RSV0 == 0x0
     - check LACP_PARTNER_INFO == 0x2
     - check LACP_PARTNER_INFO_LEN == 0x14
@@ -295,7 +295,7 @@
     - check LACP_PARTNER_PORT_PRI == 0x8000
     - check LACP_PARTNER_PORT == 0x16
     - check LACP_PARTNER_STATE == 0xd
-    - check LACP_RSV1 == 0x0 
+    - check LACP_RSV1 == 0x0
     - check LACP_COLLECTOR_INFO == 0x3
     - check LACP_COLLECTOR_INFO_LEN == 0x10
     - check LACP_COLLECTOR_MAX_DELAY == 0x8000
@@ -312,7 +312,26 @@
     - check ETHER_TYPE == 0x88CC
 
 
+- ICMP_ECHO_REQUEST:
+    - data 005056e01449000c29340bde08004500003cd743000080012b73c0a89e8bae892a4d08002a5c020021006162636465666768696a6b6c6d6e6f7071727374757677616263646566676869
+    - chm ICMP true
+    - check ICMP_TYPE == 8
+    - check ICMP_CODE == 0
+    - check ICMP_CHECKSUM == 0x2a5c
+    - check ICMP_HEADER_DATA == 0x02002100
+    - check ICMP_PAYLOAD == 0x61
 
-    
+- ICMP_ECHO_REPLY:
+    - data 000c29340bde005056e0144908004500003c76e1000080018bd5ae892a4dc0a89e8b0000325c020021006162636465666768696a6b6c6d6e6f7071727374757677616263646566676869
+    - chm ICMP true
+    - check ICMP_TYPE == 0
+    - check ICMP_CODE == 0
+    - check ICMP_CHECKSUM == 0x325c
+    - check ICMP_HEADER_DATA == 0x02002100
+    - check ICMP_PAYLOAD == 0x61
+
+
+
+
 
 
