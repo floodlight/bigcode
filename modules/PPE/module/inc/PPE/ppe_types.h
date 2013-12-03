@@ -102,6 +102,9 @@ typedef enum ppe_field_e {
     PPE_FIELD_ARP_TPA,
     PPE_FIELD_ICMP_TYPE,
     PPE_FIELD_ICMP_CODE,
+    PPE_FIELD_ICMP_CHECKSUM,
+    PPE_FIELD_ICMP_HEADER_DATA,
+    PPE_FIELD_ICMP_PAYLOAD,
     PPE_FIELD_IP4_VERSION,
     PPE_FIELD_IP4_HEADER_SIZE,
     PPE_FIELD_IP4_TOS,
@@ -307,6 +310,79 @@ int ppe_ip_protocol_valid(ppe_ip_protocol_t e);
 extern aim_map_si_t ppe_ip_protocol_map[];
 /** ppe_ip_protocol_desc_map table. */
 extern aim_map_si_t ppe_ip_protocol_desc_map[];
+
+/** ppe_icmp_typecode */
+typedef enum ppe_icmp_typecode_e {
+    PPE_ICMP_TYPECODE_ECHO_REPLY = 0,
+    PPE_ICMP_TYPECODE_DEST_NETWORK_UNREACHABLE = ( ( 3 << 8) |  0 ),
+    PPE_ICMP_TYPECODE_DEST_HOST_UNREACHABLE = ( ( 3 << 8) |  1 ),
+    PPE_ICMP_TYPECODE_DEST_PROTOCOL_UNREACHABLE = ( ( 3 << 8) |  2 ),
+    PPE_ICMP_TYPECODE_DEST_PORT_UNREACHABLE = ( ( 3 << 8) |  3 ),
+    PPE_ICMP_TYPECODE_FRAGMENTATION_REQUIRED = ( ( 3 << 8) |  4 ),
+    PPE_ICMP_TYPECODE_SOURCE_ROUTE_FAILED = ( ( 3 << 8) |  5 ),
+    PPE_ICMP_TYPECODE_NETWORK_UNKNOWN = ( ( 3 << 8) |  6 ),
+    PPE_ICMP_TYPECODE_HOST_UNKNOWN = ( ( 3 << 8) |  7 ),
+    PPE_ICMP_TYPECODE_SOURCE_ISOLATED = ( ( 3 << 8) |  8 ),
+    PPE_ICMP_TYPECODE_NETWORK_PROHIBITED = ( ( 3 << 8) |  9 ),
+    PPE_ICMP_TYPECODE_HOST_PROHIBITED = ( ( 3 << 8) | 10 ),
+    PPE_ICMP_TYPECODE_NETWORK_TOS = ( ( 3 << 8) | 11 ),
+    PPE_ICMP_TYPECODE_HOST_TOS = ( ( 3 << 8) | 12 ),
+    PPE_ICMP_TYPECODE_COM_PROHIBITED = ( ( 3 << 8) | 13 ),
+    PPE_ICMP_TYPECODE_HOST_PRECEDENCE = ( ( 3 << 8) | 14 ),
+    PPE_ICMP_TYPECODE_PRECEDENCE_CUTOFF = ( ( 3 << 8) | 15 ),
+    PPE_ICMP_TYPECODE_SOURCE_QUENCH = ( ( 4 << 8) |  0 ),
+    PPE_ICMP_TYPECODE_REDIRECT_NETWORK = ( ( 5 << 8) |  0 ),
+    PPE_ICMP_TYPECODE_REDIRECT_HOST = ( ( 5 << 8) |  1 ),
+    PPE_ICMP_TYPECODE_REDIRECT_NETWORK_TOS = ( ( 5 << 8) |  2 ),
+    PPE_ICMP_TYPECODE_REDIRECT_HOST_TOS = ( ( 5 << 8) |  3 ),
+    PPE_ICMP_TYPECODE_ALTERNATE_HOST_ADDRESS = ( ( 6 << 8) |  0 ),
+    PPE_ICMP_TYPECODE_ECHO_REQUEST = ( ( 8 << 8) |  0 ),
+    PPE_ICMP_TYPECODE_ROUTER_ADVERT = ( ( 9 << 8) |  0 ),
+    PPE_ICMP_TYPECODE_ROUTER_SOL = ( (10 << 8) |  0 ),
+    PPE_ICMP_TYPECODE_TIME_EXCEEDED = ( (11 << 8) |  0 ),
+    PPE_ICMP_TYPECODE_PARAMETER_POINTER = ( (12 << 8) |  0 ),
+    PPE_ICMP_TYPECODE_PARAMETER_MISSING = ( (12 << 8) |  1 ),
+    PPE_ICMP_TYPECODE_PARAMETER_BAD_LENGTH = ( (12 << 8) |  2 ),
+    PPE_ICMP_TYPECODE_TIMESTAMP = ( (13 << 8) |  0 ),
+    PPE_ICMP_TYPECODE_TIMESTAMP_REPLY = ( (14 << 8) |  0 ),
+    PPE_ICMP_TYPECODE_INFORMATION_REQUEST = ( (15 << 8) |  0 ),
+    PPE_ICMP_TYPECODE_INFORMATION_REPLY = ( (16 << 8) |  0 ),
+    PPE_ICMP_TYPECODE_ADDRESS_MASK_REQUEST = ( (17 << 8) |  0 ),
+    PPE_ICMP_TYPECODE_ADDRESS_MASK_REPLY = ( (18 << 8) |  0 ),
+    PPE_ICMP_TYPECODE_TRACEROUTE_INFO_REQUEST = ( (30 << 8) |  0 ),
+    PPE_ICMP_TYPECODE_DATAGRAM_CONVERSION = ( (31 << 8) |  0 ),
+    PPE_ICMP_TYPECODE_MOBILE_HOST_REDIRECT = ( (32 << 8) |  0 ),
+    PPE_ICMP_TYPECODE_WHERE_ARE_YOU = ( (33 << 8) |  0 ),
+    PPE_ICMP_TYPECODE_HERE_I_AM = ( (34 << 8) |  0 ),
+    PPE_ICMP_TYPECODE_MOBILE_REG_REQUEST = ( (35 << 8) |  0 ),
+    PPE_ICMP_TYPECODE_MOBILE_REG_REPLY = ( (36 << 8) |  0 ),
+    PPE_ICMP_TYPECODE_DOMAIN_NAME_REQUEST = ( (37 << 8) |  0 ),
+    PPE_ICMP_TYPECODE_DOMAIN_NAME_REPLY = ( (38 << 8) |  0 ),
+    PPE_ICMP_TYPECODE_SKIP = ( (39 << 8) |  0 ),
+    PPE_ICMP_TYPECODE_PHOTURIS = ( (40 << 8) |  0 ),
+    PPE_ICMP_TYPECODE_EXPERIMENTAL = ( (41 << 8) |  0 ),
+} ppe_icmp_typecode_t;
+
+/** Enum names. */
+const char* ppe_icmp_typecode_name(ppe_icmp_typecode_t e);
+
+/** Enum values. */
+int ppe_icmp_typecode_value(const char* str, ppe_icmp_typecode_t* e, int substr);
+
+/** Enum descriptions. */
+const char* ppe_icmp_typecode_desc(ppe_icmp_typecode_t e);
+
+/** Enum validator. */
+int ppe_icmp_typecode_valid(ppe_icmp_typecode_t e);
+
+/** validator */
+#define PPE_ICMP_TYPECODE_VALID(_e) \
+    (ppe_icmp_typecode_valid((_e)))
+
+/** ppe_icmp_typecode_map table. */
+extern aim_map_si_t ppe_icmp_typecode_map[];
+/** ppe_icmp_typecode_desc_map table. */
+extern aim_map_si_t ppe_icmp_typecode_desc_map[];
 
 /** ppe_ethertype */
 typedef enum ppe_ethertype_e {
