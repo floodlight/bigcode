@@ -20,6 +20,8 @@
 #include <VPI/vpi_config.h>
 #include <VPI/vpi.h>
 #include "vpi_int.h"
+#include "vpi_log.h"
+#include <AIM/aim_pvs_file.h>
 
 #if VPI_CONFIG_INCLUDE_PYTHON_BINDINGS == 1
 
@@ -476,31 +478,19 @@ PyMethodDef vpi_methods[] =
     };
 
 
-#if 0
-#include "vpi_log.h"
-static FILE* __logOutput = NULL;
-static void __pylog(const char* msg)
+void initpyvpi(void)
 {
-    if(__logOutput) {
-        fprintf(__logOutput, "%s\n", msg);
-        fflush(__logOutput);
-    }
-}
-#endif
 
-#include <stdio.h>
-
-void initPyVPI(void)
-{
-#if 0
-    __logOutput = fopen("PyVPI.log", "w");
-    if(__logOutput) {
-        vpi_log_info.output = __pylog;
-        vpi_log_info.flags = 0xFFFFFFFF;
+#if VPI_CONFIG_INCLUDE_PYTHON_DEBUG_LOGGING == 1
+    char* fname = getenv("PYVPI_DEBUG_LOG");
+    if(fname) {
+        aim_pvs_t* pvs = aim_pvs_fopen(fname, "a");
+        aim_log_pvs_set(AIM_LOG_STRUCT_POINTER, pvs);
     }
 #endif
+
     vpi_init();
-    Py_InitModule4("PyVPI",   // name of the module
+    Py_InitModule4("pyvpi",   // name of the module
                    vpi_methods,  // name of the method table
                    "C VPI class", // doc string for module
                    0,   // last two never change

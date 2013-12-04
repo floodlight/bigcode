@@ -1,0 +1,22 @@
+#!/usr/bin/make -f
+
+DEB_DH_INSTALL_SOURCEDIR = debian/tmp
+INSTALL_DIR = $(CURDIR)/$(DEB_DH_INSTALL_SOURCEDIR)
+export TOOLCHAIN=$(DEB_HOST_GNU_TYPE)
+
+%:
+	dh $@
+
+build-arch:
+	$(MAKE) -C ..
+
+clean:
+	dh clean
+
+override_dh_auto_install:
+	mkdir -p $(INSTALL_DIR)/usr/lib
+	cp ../build/$(DEB_HOST_GNU_TYPE)/bin/libvpi.so $(INSTALL_DIR)/usr/lib/libvpi.so.1
+	# Generic shared library
+	cd $(INSTALL_DIR)/usr/lib && ln -s libvpi.so.1 libvpi.so
+
+

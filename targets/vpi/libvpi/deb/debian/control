@@ -1,0 +1,13 @@
+Source: libvpi
+Section: misc
+Priority: optional
+Maintainer: Jeffrey Townsend <jeff@bigswitch.com>
+Build-Depends: debhelper (>= 9)
+Standards-Version: 3.8.4
+
+Package: libvpi
+Architecture: any
+Depends: libc6
+Description: VPI Shared Library
+ This package provides VPI shared library.
+

@@ -1,3 +1,4 @@
+# -*- Makefile -*-
 ################################################################
 #
 #        Copyright 2013, Big Switch Networks, Inc.
@@ -16,18 +17,20 @@
 # License.
 #
 ################################################################
-
 #
-# Top level infra Makefile
+# Static rules for SWIG generation
 #
+################################################################
 
-.default: check
+all: swig
 
-check tests:
-	make -C targets/utests
+PACKAGE=com.bigswitch.vpi.native_.swig
+OUTDIR=com/bigswitch/vpi/native_/swig
+swigclean:
+	@rm -f VPI_wrap.c
+	@rm -f $(OUTDIR)/*.java
+	@rm -f $(OUTDIR)/*.class
 
+swig: swigclean
+	swig -java -package $(PACKAGE) -outdir $(OUTDIR) VPI.i
 
-doc:
-	doxygen
-
-.PHONY: check tests doc
