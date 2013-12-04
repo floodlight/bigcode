@@ -1,0 +1,85 @@
+#!/usr/bin/python
+################################################################
+#
+#        Copyright 2013, Big Switch Networks, Inc.
+#
+# Licensed under the Eclipse Public License, Version 1.0 (the
+# "License"); you may not use this file except in compliance
+# with the License. You may obtain a copy of the License at
+#
+#        http://www.eclipse.org/legal/epl-v10.html
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND,
+# either express or implied. See the License for the specific
+# language governing permissions and limitations under the
+# License.
+#
+################################################################
+import argparse
+import sys
+import os
+from vpi import vpi
+
+vt = vpi.VpiTool();
+
+ap = argparse.ArgumentParser(description="Python VPI Tool");
+ap.add_argument("--dump");
+ap.add_argument("--bridge", nargs='+');
+ap.add_argument("--send", nargs='+');
+ap.add_argument("--test", action="store_true", default=False)
+
+ops = ap.parse_args();
+
+if ops.dump:
+    vt.Dump(ops.dump)
+
+if ops.send:
+    if os.path.exists(ops.send[1]):
+        # Read from file
+        data = open(ops.send[1]).read()
+    else:
+        # Immediate string
+        data = ops.send[1]
+
+    vt.Send(ops.send[0], data);
+
+if ops.bridge:
+    print "start"
+    vt.Bridge(ops.bridge[0], ops.bridge[1])
+    print "end"
+    while(True):
+        pass
+
+if ops.test:
+    print "Running VPI module test."
+    v = vpi.Vpi("loop")
+    print v.NameGet()
+    print v.TypeGet()
+    v.NameSet("NewName")
+    print v.NameGet()
+    if v.Recv(False) != None:
+        print "ERROR: recv should not have returned anything."
+        sys.exit(-1)
+    packetData = "This is my packet. There are many like it but this one is mine."
+    v.Send(packetData)
+    rv = v.Recv(True);
+    if rv != packetData:
+        print "ERROR: recv data mismatch: received '%s'" % rv
+    sys.exit(1);
+    print "PASS"
+
+
+
+
+
+
+
+
+
+
+
+
+
+
