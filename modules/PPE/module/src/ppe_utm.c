@@ -667,7 +667,7 @@ ppe_ucli_utm__rwall__(ucli_context_t* uc)
             }
         }
         else {
-            uint8_t vb[64];
+            uint8_t vb[1024];
             int bytes = ppe_wide_field_get(&ppep, f, vb);
             int i;
             for(i = 0; i < bytes; i++) {
@@ -678,7 +678,7 @@ ppe_ucli_utm__rwall__(ucli_context_t* uc)
             }
             PPE_MEMSET(vb, 0, sizeof(vb));
             /** clear field and re-read */
-            ppe_wide_field_set(&ppep, f, vb);
+            ppe_wide_field_set(&ppep, f, NULL);
             PPE_MEMSET(vb, 0xFF, sizeof(vb));
             ppe_wide_field_get(&ppep, f, vb);
             for(i = 0; i < bytes; i++) {

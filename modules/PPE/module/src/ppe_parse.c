@@ -104,6 +104,73 @@ uint8_t* datap__(int skip, int advance, int size, uint8_t** data, int* len)
  *
  *****************************************************************************/
 static inline int
+ppe_parse_dhcp(ppe_packet_t* ppep, uint16_t sport, uint16_t dport,
+               uint8_t* data, int size)
+{
+    uint32_t cookie;
+
+    AIM_REFERENCE(sport);
+    AIM_REFERENCE(dport);
+    AIM_REFERENCE(size);
+    PPE_PACKET_HEADER_SET(ppep, PPE_HEADER_DHCP, data);
+
+    /*
+     * Verify DHCP or BOOTP.
+     */
+#define DHCP_MAGIC_COOKIE 0x63825363
+
+    ppe_field_get(ppep, PPE_FIELD_DHCP_MAGIC, &cookie);
+
+    if(cookie == DHCP_MAGIC_COOKIE) {
+        /* Possible options parse */
+    }
+    else {
+        /* BOOTP */
+    }
+    return 0;
+}
+
+
+static inline int
+ppe_parse_service_port_DHCP_CLIENT(ppe_packet_t* ppep,
+                                   uint16_t sport, uint16_t dport,
+                                   uint8_t* data, int size)
+{
+    return ppe_parse_dhcp(ppep, sport, dport, data, size);
+}
+
+static inline int
+ppe_parse_service_port_DHCP_SERVER(ppe_packet_t* ppep,
+                                   uint16_t sport, uint16_t dport,
+                                   uint8_t* data, int size)
+{
+    return ppe_parse_dhcp(ppep, sport, dport, data, size);
+}
+
+
+static inline int
+ppe_parse_service_ports(ppe_packet_t* ppep, uint8_t* data, int size)
+{
+    uint32_t sport;
+    uint32_t dport;
+
+    ppe_field_get(ppep, PPE_FIELD_L4_SRC_PORT, &sport);
+    ppe_field_get(ppep, PPE_FIELD_L4_DST_PORT, &dport);
+
+    switch(sport)
+        {
+#define PPE_PSERVICE_PORT_ENTRY(_name, _value)                          \
+            case PPE_PSERVICE_PORT_##_name:                             \
+                return ppe_parse_service_port_##_name(ppep, sport, dport, data, size);
+#include <PPE/ppe.x>
+        default:
+            break;
+        }
+
+    return 0;
+}
+
+static inline int
 ppe_parse_ip_protocol_TCP__(ppe_packet_t* ppep, uint8_t* data, int size)
 {
     AIM_REFERENCE(size);
@@ -117,7 +184,7 @@ ppe_parse_ip_protocol_UDP__(ppe_packet_t* ppep, uint8_t* data, int size)
     AIM_REFERENCE(size);
     PPE_PACKET_HEADER_SET(ppep, PPE_HEADER_UDP, data);
     PPE_PACKET_HEADER_SET(ppep, PPE_HEADER_L4, data);
-    return 0;
+    return ppe_parse_service_ports(ppep, data+8, size-8);
 }
 static inline int
 ppe_parse_ip_protocol_ICMP__(ppe_packet_t* ppep, uint8_t* data, int size)
@@ -140,7 +207,6 @@ ppe_parse_ip_protocol(ppe_packet_t* ppep, uint8_t protocol,
         default: return 0;
         }
 }
-
 
 static inline int
 ppe_parse_ethertype_ARP__(ppe_packet_t* ppep, uint8_t* data, int size)
