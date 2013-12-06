@@ -129,6 +129,22 @@ aim_map_si_t ppe_field_map[] =
     { "ARP_SPA", PPE_FIELD_ARP_SPA },
     { "ARP_THA", PPE_FIELD_ARP_THA },
     { "ARP_TPA", PPE_FIELD_ARP_TPA },
+    { "DHCP_OPCODE", PPE_FIELD_DHCP_OPCODE },
+    { "DHCP_HTYPE", PPE_FIELD_DHCP_HTYPE },
+    { "DHCP_HLEN", PPE_FIELD_DHCP_HLEN },
+    { "DHCP_HOPS", PPE_FIELD_DHCP_HOPS },
+    { "DHCP_XID", PPE_FIELD_DHCP_XID },
+    { "DHCP_SECONDS", PPE_FIELD_DHCP_SECONDS },
+    { "DHCP_FLAGS", PPE_FIELD_DHCP_FLAGS },
+    { "DHCP_CIADDR", PPE_FIELD_DHCP_CIADDR },
+    { "DHCP_YIADDR", PPE_FIELD_DHCP_YIADDR },
+    { "DHCP_SIADDR", PPE_FIELD_DHCP_SIADDR },
+    { "DHCP_GIADDR", PPE_FIELD_DHCP_GIADDR },
+    { "DHCP_CHADDR", PPE_FIELD_DHCP_CHADDR },
+    { "DHCP_SNAME", PPE_FIELD_DHCP_SNAME },
+    { "DHCP_BOOTF", PPE_FIELD_DHCP_BOOTF },
+    { "DHCP_MAGIC", PPE_FIELD_DHCP_MAGIC },
+    { "DHCP_OPTIONS", PPE_FIELD_DHCP_OPTIONS },
     { "ICMP_TYPE", PPE_FIELD_ICMP_TYPE },
     { "ICMP_CODE", PPE_FIELD_ICMP_CODE },
     { "ICMP_CHECKSUM", PPE_FIELD_ICMP_CHECKSUM },
@@ -264,6 +280,22 @@ aim_map_si_t ppe_field_desc_map[] =
     { "None", PPE_FIELD_ARP_SPA },
     { "None", PPE_FIELD_ARP_THA },
     { "None", PPE_FIELD_ARP_TPA },
+    { "None", PPE_FIELD_DHCP_OPCODE },
+    { "None", PPE_FIELD_DHCP_HTYPE },
+    { "None", PPE_FIELD_DHCP_HLEN },
+    { "None", PPE_FIELD_DHCP_HOPS },
+    { "None", PPE_FIELD_DHCP_XID },
+    { "None", PPE_FIELD_DHCP_SECONDS },
+    { "None", PPE_FIELD_DHCP_FLAGS },
+    { "None", PPE_FIELD_DHCP_CIADDR },
+    { "None", PPE_FIELD_DHCP_YIADDR },
+    { "None", PPE_FIELD_DHCP_SIADDR },
+    { "None", PPE_FIELD_DHCP_GIADDR },
+    { "None", PPE_FIELD_DHCP_CHADDR },
+    { "None", PPE_FIELD_DHCP_SNAME },
+    { "None", PPE_FIELD_DHCP_BOOTF },
+    { "None", PPE_FIELD_DHCP_MAGIC },
+    { "None", PPE_FIELD_DHCP_OPTIONS },
     { "None", PPE_FIELD_ICMP_TYPE },
     { "None", PPE_FIELD_ICMP_CODE },
     { "None", PPE_FIELD_ICMP_CHECKSUM },
@@ -417,6 +449,7 @@ aim_map_si_t ppe_header_map[] =
     { "ICMP", PPE_HEADER_ICMP },
     { "SLOW_PROTOCOLS", PPE_HEADER_SLOW_PROTOCOLS },
     { "LACP", PPE_HEADER_LACP },
+    { "DHCP", PPE_HEADER_DHCP },
     { "ETHERTYPE_MISSING", PPE_HEADER_ETHERTYPE_MISSING },
     { "OF10", PPE_HEADER_OF10 },
     { NULL, 0 }
@@ -443,6 +476,7 @@ aim_map_si_t ppe_header_desc_map[] =
     { "None", PPE_HEADER_ICMP },
     { "None", PPE_HEADER_SLOW_PROTOCOLS },
     { "None", PPE_HEADER_LACP },
+    { "None", PPE_HEADER_DHCP },
     { "None", PPE_HEADER_ETHERTYPE_MISSING },
     { "None", PPE_HEADER_OF10 },
     { NULL, 0 }
@@ -547,6 +581,66 @@ int
 ppe_ip_protocol_valid(ppe_ip_protocol_t e)
 {
     return aim_map_si_i(NULL, e, ppe_ip_protocol_map, 0) ? 1 : 0;
+}
+
+
+aim_map_si_t ppe_pservice_port_map[] =
+{
+    { "DHCP_CLIENT", PPE_PSERVICE_PORT_DHCP_CLIENT },
+    { "DHCP_SERVER", PPE_PSERVICE_PORT_DHCP_SERVER },
+    { NULL, 0 }
+};
+
+aim_map_si_t ppe_pservice_port_desc_map[] =
+{
+    { "None", PPE_PSERVICE_PORT_DHCP_CLIENT },
+    { "None", PPE_PSERVICE_PORT_DHCP_SERVER },
+    { NULL, 0 }
+};
+
+const char*
+ppe_pservice_port_name(ppe_pservice_port_t e)
+{
+    const char* name;
+    if(aim_map_si_i(&name, e, ppe_pservice_port_map, 0)) {
+        return name;
+    }
+    else {
+        return "-invalid value for enum type 'ppe_pservice_port'";
+    }
+}
+
+int
+ppe_pservice_port_value(const char* str, ppe_pservice_port_t* e, int substr)
+{
+    int i;
+    AIM_REFERENCE(substr);
+    if(aim_map_si_s(&i, str, ppe_pservice_port_map, 0)) {
+        /* Enum Found */
+        *e = i;
+        return 0;
+    }
+    else {
+        return -1;
+    }
+}
+
+const char*
+ppe_pservice_port_desc(ppe_pservice_port_t e)
+{
+    const char* name;
+    if(aim_map_si_i(&name, e, ppe_pservice_port_desc_map, 0)) {
+        return name;
+    }
+    else {
+        return "-invalid value for enum type 'ppe_pservice_port'";
+    }
+}
+
+int
+ppe_pservice_port_valid(ppe_pservice_port_t e)
+{
+    return aim_map_si_i(NULL, e, ppe_pservice_port_map, 0) ? 1 : 0;
 }
 
 
