@@ -143,10 +143,38 @@ icmp_typecodes: &icmp_typecodes
 - EXPERIMENTAL :             ( (41 << 8) |  0 )
 
 
+dhcp_ops: &dhcp_ops
+- REQUEST : 1
+- REPLY : 2
+
+dhcp_htypes: &dhcp_htypes
+- ETHERNET10 : 1
+- IEEE_ETHERNET : 6
+- ARCNET : 7
+- LOCALTALK : 11
+- LOCALNET : 12
+- SMDS : 14
+- FRAME_RELAY : 15
+- ATM : 16
+- HDLC : 17
+- FIBRE_CHANNEL : 18
+- ATM2 : 19
+- SERIAL : 20
+
 
 ###############################################################################
 #
-# Recognized Packet Headers
+# Well-known service ports (of parsable interest)
+#
+###############################################################################
+pservice_ports: &pservice_ports
+- DHCP_CLIENT : 68
+- DHCP_SERVER : 67
+
+
+###############################################################################
+#
+# Packet Headers
 #
 ###############################################################################
 headers: &headers
@@ -169,6 +197,7 @@ headers: &headers
 - ICMP
 - SLOW_PROTOCOLS
 - LACP
+- DHCP
 - ETHERTYPE_MISSING
 - OF10
 
@@ -226,6 +255,23 @@ fields: &fields
 - [ ARP,                SPA,           32, 14, 0 ]
 - [ ARP,                THA,           48, 18, 0 ]
 - [ ARP,                TPA,           32, 24, 0 ]
+
+- [ DHCP,               OPCODE,         8,  0,  0 ]
+- [ DHCP,               HTYPE,          8,  1,  0 ]
+- [ DHCP,               HLEN,           8,  2,  0 ]
+- [ DHCP,               HOPS,           8,  3,  0 ]
+- [ DHCP,               XID,           32,  4,  0 ]
+- [ DHCP,               SECONDS,       16,  8,  0 ]
+- [ DHCP,               FLAGS,         16, 10,  0 ]
+- [ DHCP,               CIADDR,        32, 12,  0 ]
+- [ DHCP,               YIADDR,        32, 16,  0 ]
+- [ DHCP,               SIADDR,        32, 20,  0 ]
+- [ DHCP,               GIADDR,        32, 24,  0 ]
+- [ DHCP,               CHADDR,       128, 28,  0 ]
+- [ DHCP,               SNAME,        512, 44,  0 ]
+- [ DHCP,               BOOTF,       1024, 108, 0 ]
+- [ DHCP,               MAGIC,         32, 236, 0 ]
+- [ DHCP,               OPTIONS,        8, 240, 0 ]
 
 - [ ICMP,               TYPE,           8,  0,  0 ]
 - [ ICMP,               CODE,           8,  1,  0 ]
@@ -391,6 +437,9 @@ definitions:
     ppe_icmp_typecode:
       members: *icmp_typecodes
       desc: "PPE Icmp Typecode."
+    ppe_pservice_port:
+      members: *pservice_ports
+      desc: "PPE Parsable Service Port."
 
   aim_custom_log_macro:
     ppe:
@@ -412,6 +461,8 @@ definitions:
       members: *slow_protocols
     PPE_ICMP_TYPECODE_ENTRY:
       members: *icmp_typecodes
+    PPE_PSERVICE_PORT_ENTRY:
+      members: *pservice_ports
 
   xenum:
     PPE_ENUMERATION_ENTRY:

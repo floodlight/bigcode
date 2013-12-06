@@ -100,6 +100,22 @@ typedef enum ppe_field_e {
     PPE_FIELD_ARP_SPA,
     PPE_FIELD_ARP_THA,
     PPE_FIELD_ARP_TPA,
+    PPE_FIELD_DHCP_OPCODE,
+    PPE_FIELD_DHCP_HTYPE,
+    PPE_FIELD_DHCP_HLEN,
+    PPE_FIELD_DHCP_HOPS,
+    PPE_FIELD_DHCP_XID,
+    PPE_FIELD_DHCP_SECONDS,
+    PPE_FIELD_DHCP_FLAGS,
+    PPE_FIELD_DHCP_CIADDR,
+    PPE_FIELD_DHCP_YIADDR,
+    PPE_FIELD_DHCP_SIADDR,
+    PPE_FIELD_DHCP_GIADDR,
+    PPE_FIELD_DHCP_CHADDR,
+    PPE_FIELD_DHCP_SNAME,
+    PPE_FIELD_DHCP_BOOTF,
+    PPE_FIELD_DHCP_MAGIC,
+    PPE_FIELD_DHCP_OPTIONS,
     PPE_FIELD_ICMP_TYPE,
     PPE_FIELD_ICMP_CODE,
     PPE_FIELD_ICMP_CHECKSUM,
@@ -233,6 +249,7 @@ typedef enum ppe_header_e {
     PPE_HEADER_ICMP,
     PPE_HEADER_SLOW_PROTOCOLS,
     PPE_HEADER_LACP,
+    PPE_HEADER_DHCP,
     PPE_HEADER_ETHERTYPE_MISSING,
     PPE_HEADER_OF10,
     PPE_HEADER_LAST = PPE_HEADER_OF10,
@@ -262,6 +279,7 @@ typedef enum ppe_header_e {
     "ICMP", \
     "SLOW_PROTOCOLS", \
     "LACP", \
+    "DHCP", \
     "ETHERTYPE_MISSING", \
     "OF10", \
 }
@@ -310,6 +328,33 @@ int ppe_ip_protocol_valid(ppe_ip_protocol_t e);
 extern aim_map_si_t ppe_ip_protocol_map[];
 /** ppe_ip_protocol_desc_map table. */
 extern aim_map_si_t ppe_ip_protocol_desc_map[];
+
+/** ppe_pservice_port */
+typedef enum ppe_pservice_port_e {
+    PPE_PSERVICE_PORT_DHCP_CLIENT = 68,
+    PPE_PSERVICE_PORT_DHCP_SERVER = 67,
+} ppe_pservice_port_t;
+
+/** Enum names. */
+const char* ppe_pservice_port_name(ppe_pservice_port_t e);
+
+/** Enum values. */
+int ppe_pservice_port_value(const char* str, ppe_pservice_port_t* e, int substr);
+
+/** Enum descriptions. */
+const char* ppe_pservice_port_desc(ppe_pservice_port_t e);
+
+/** Enum validator. */
+int ppe_pservice_port_valid(ppe_pservice_port_t e);
+
+/** validator */
+#define PPE_PSERVICE_PORT_VALID(_e) \
+    (ppe_pservice_port_valid((_e)))
+
+/** ppe_pservice_port_map table. */
+extern aim_map_si_t ppe_pservice_port_map[];
+/** ppe_pservice_port_desc_map table. */
+extern aim_map_si_t ppe_pservice_port_desc_map[];
 
 /** ppe_icmp_typecode */
 typedef enum ppe_icmp_typecode_e {

@@ -263,7 +263,12 @@ ppe_wide_field_info_set_header(uint8_t* p, const ppe_field_info_t* fi,
 {
     if(p) {
         p += fi->offset_bytes;
-        PPE_MEMCPY(p, sv, fi->size_bits/8);
+        if(sv) {
+            PPE_MEMCPY(p, sv, fi->size_bits/8);
+        }
+        else {
+            PPE_MEMSET(p, 0, fi->size_bits/8);
+        }
         return 0;
     }
     else {
