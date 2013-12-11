@@ -18,6 +18,8 @@
 ################################################################
 include ../../../init.mk
 
+GCC_NO_WERROR := 1
+
 MODULE := pyvpim
 include $(BUILDER)/standardinit.mk
 
