@@ -419,5 +419,30 @@ int ppe_dfk_wide_field_get(ppe_dfk_t* dfk, ppe_field_t field, uint8_t* data);
  */
 int ppe_packet_dump(ppe_packet_t* ppep, aim_pvs_t* pvs);
 
+/**
+ * @brief Build IPV4 header and fill all fields in the packet.
+ * @param ppep The PPE packet structure.
+ * @param src_ip Source IP Address.
+ * @param dest_ip Destination IP Address.
+ * @param total_len Total length including IP header and payload.
+ * @param proto Higher level Protocol.
+ * @param ttl TTL value.
+ */
+int ppe_build_ipv4_header(ppe_packet_t* ppep, uint32_t src_ip, uint32_t dest_ip,
+                          uint32_t total_len, uint32_t proto, uint32_t ttl);
+
+/**
+ * @brief Build ICMP header and fill all fields in the packet.
+ * @param ppep The PPE packet structure.
+ * @param type ICMP type.
+ * @param code ICMP code.
+ * @param hdr_data Unused header fields/Identification-Seq num for Echo msg's.
+ * @param icmp_data Pointer to ICMP data, Cannot be NULL.
+ * @param icmp_data_len Length of ICMP data in bytes.
+ */
+int ppe_build_icmp_packet(ppe_packet_t* ppep, uint32_t type, uint32_t code, 
+                          uint32_t hdr_data, uint8_t *icmp_data,
+                          uint32_t icmp_data_len);
+
 #endif /* __PPE_H__ */
 /*@}*/

@@ -179,3 +179,83 @@ ppe_udp_header_checksum_update(ppe_packet_t* ppep)
                                             PPE_IP_PROTOCOL_UDP);
 }
 
+/**************************************************************************//**
+ *
+ * Recalculate the ICMP Header checksum and update the packet.
+ * Returns the new checksum.
+ *
+ *
+ *****************************************************************************/
+uint32_t
+ppe_icmp_header_checksum_update(ppe_packet_t* ppep)
+{
+    uint8_t* icmp_header = ppep->headers[PPE_HEADER_ICMP].start;
+    int csum = 0;
+    uint32_t ip_hdr, ip_total_len;
+    /* ICMP HDR (8 bytes) + Variable Size Data */
+    uint32_t size = 0; 
+
+    /* Only for ICMP Packets */
+    if(icmp_header) {
+        /* Calculate the length of ICMP Data */
+        ppe_field_get(ppep, PPE_FIELD_IP4_HEADER_SIZE, &ip_hdr);
+        ip_hdr *= 4;
+        ppe_field_get(ppep, PPE_FIELD_IP4_TOTAL_LENGTH, &ip_total_len);
+        size = ip_total_len - ip_hdr;
+
+        ppe_field_set(ppep, PPE_FIELD_ICMP_CHECKSUM, 0);
+        csum = ip_checksum__(icmp_header, size, NULL, 0, NULL, 0);
+        ppe_field_set(ppep, PPE_FIELD_ICMP_CHECKSUM, csum);
+    }
+    return csum;
+}
+
+int
+ppe_build_ipv4_header(ppe_packet_t* ppep, uint32_t src_ip, uint32_t dest_ip,
+                      uint32_t total_len, uint32_t proto, uint32_t ttl)
+{
+    if (!ppep) return -1;
+
+    if (!ppe_header_get(ppep, PPE_HEADER_IP4)) return -1;
+
+    /* Version = 4, HDR_LEN = 5, Type of Service = 0 */
+    ppe_field_set(ppep, PPE_FIELD_IP4_VERSION, 4);
+    ppe_field_set(ppep, PPE_FIELD_IP4_HEADER_SIZE, 5);
+    ppe_field_set(ppep, PPE_FIELD_IP4_TOS, 0);
+
+    ppe_field_set(ppep, PPE_FIELD_IP4_TTL, ttl);
+    ppe_field_set(ppep, PPE_FIELD_IP4_TOTAL_LENGTH, total_len);
+    ppe_field_set(ppep, PPE_FIELD_IP4_PROTOCOL, proto);
+    ppe_field_set(ppep, PPE_FIELD_IP4_SRC_ADDR, src_ip);
+    ppe_field_set(ppep, PPE_FIELD_IP4_DST_ADDR, dest_ip); 
+   
+    /* Update the checksum */
+    ppe_packet_update(ppep);      
+ 
+    /* Need to reparse to recognize proto */
+    ppe_parse(ppep);
+ 
+    return 0;
+}
+
+int
+ppe_build_icmp_packet(ppe_packet_t* ppep, uint32_t type, uint32_t code,
+                      uint32_t hdr_data, uint8_t *icmp_data, 
+                      uint32_t icmp_data_len)
+{
+    if (!ppep || !icmp_data) return -1;
+
+    if (!ppe_header_get(ppep, PPE_HEADER_ICMP)) return -1;
+
+    ppe_field_set(ppep, PPE_FIELD_ICMP_TYPE, type);
+    ppe_field_set(ppep, PPE_FIELD_ICMP_CODE, code);
+    ppe_field_set(ppep, PPE_FIELD_ICMP_HEADER_DATA, hdr_data);
+
+    PPE_MEMCPY(ppe_fieldp_get(ppep, PPE_FIELD_ICMP_PAYLOAD), icmp_data, 
+               icmp_data_len);
+
+    /* Update the checksum */
+    ppe_packet_update(ppep);
+
+    return 0;
+}
