@@ -196,6 +196,7 @@ int ppe_wide_field_info_get_header(uint8_t* header_start,
  *
  * @note It is an error to call this function with a field <= 32 bits.
  * @note You must pass a buffer of sufficient size for the given field.
+ * @note The field will be set to zero if sv is NULL.
  */
 int ppe_wide_field_set(ppe_packet_t* ppep, ppe_field_t field,
                        uint8_t* sv);

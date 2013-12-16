@@ -1,20 +1,20 @@
 #################################################################
-# 
-#        Copyright 2013, Big Switch Networks, Inc. 
-# 
+#
+#        Copyright 2013, Big Switch Networks, Inc.
+#
 # Licensed under the Eclipse Public License, Version 1.0 (the
 # "License"); you may not use this file except in compliance
 # with the License. You may obtain a copy of the License at
-# 
+#
 #        http://www.eclipse.org/legal/epl-v10.html
-# 
+#
 # Unless required by applicable law or agreed to in writing,
 # software distributed under the License is distributed on an
 # "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND,
 # either express or implied. See the License for the specific
 # language governing permissions and limitations under the
 # License.
-# 
+#
 #################################################################
 
 cdefs: &cdefs
@@ -88,8 +88,93 @@ etherframes: &etherframes
 
 
 ###############################################################################
-# 
-# Recognized Packet Headers
+#
+# ICMP Typecode values.
+#
+###############################################################################
+icmp_typecodes: &icmp_typecodes
+- ECHO_REPLY : 0
+- DEST_NETWORK_UNREACHABLE : ( ( 3 << 8) |  0 )
+- DEST_HOST_UNREACHABLE :    ( ( 3 << 8) |  1 )
+- DEST_PROTOCOL_UNREACHABLE: ( ( 3 << 8) |  2 )
+- DEST_PORT_UNREACHABLE :    ( ( 3 << 8) |  3 )
+- FRAGMENTATION_REQUIRED :   ( ( 3 << 8) |  4 )
+- SOURCE_ROUTE_FAILED :      ( ( 3 << 8) |  5 )
+- NETWORK_UNKNOWN :          ( ( 3 << 8) |  6 )
+- HOST_UNKNOWN :             ( ( 3 << 8) |  7 )
+- SOURCE_ISOLATED :          ( ( 3 << 8) |  8 )
+- NETWORK_PROHIBITED :       ( ( 3 << 8) |  9 )
+- HOST_PROHIBITED :          ( ( 3 << 8) | 10 )
+- NETWORK_TOS :              ( ( 3 << 8) | 11 )
+- HOST_TOS :                 ( ( 3 << 8) | 12 )
+- COM_PROHIBITED :           ( ( 3 << 8) | 13 )
+- HOST_PRECEDENCE :          ( ( 3 << 8) | 14 )
+- PRECEDENCE_CUTOFF :        ( ( 3 << 8) | 15 )
+- SOURCE_QUENCH :            ( ( 4 << 8) |  0 )
+- REDIRECT_NETWORK :         ( ( 5 << 8) |  0 )
+- REDIRECT_HOST :            ( ( 5 << 8) |  1 )
+- REDIRECT_NETWORK_TOS :     ( ( 5 << 8) |  2 )
+- REDIRECT_HOST_TOS :        ( ( 5 << 8) |  3 )
+- ALTERNATE_HOST_ADDRESS :   ( ( 6 << 8) |  0 )
+- ECHO_REQUEST :             ( ( 8 << 8) |  0 )
+- ROUTER_ADVERT :            ( ( 9 << 8) |  0 )
+- ROUTER_SOL :               ( (10 << 8) |  0 )
+- TIME_EXCEEDED :            ( (11 << 8) |  0 )
+- PARAMETER_POINTER :        ( (12 << 8) |  0 )
+- PARAMETER_MISSING :        ( (12 << 8) |  1 )
+- PARAMETER_BAD_LENGTH :     ( (12 << 8) |  2 )
+- TIMESTAMP :                ( (13 << 8) |  0 )
+- TIMESTAMP_REPLY :          ( (14 << 8) |  0 )
+- INFORMATION_REQUEST :      ( (15 << 8) |  0 )
+- INFORMATION_REPLY :        ( (16 << 8) |  0 )
+- ADDRESS_MASK_REQUEST :     ( (17 << 8) |  0 )
+- ADDRESS_MASK_REPLY :       ( (18 << 8) |  0 )
+- TRACEROUTE_INFO_REQUEST :  ( (30 << 8) |  0 )
+- DATAGRAM_CONVERSION :      ( (31 << 8) |  0 )
+- MOBILE_HOST_REDIRECT:      ( (32 << 8) |  0 )
+- WHERE_ARE_YOU :            ( (33 << 8) |  0 )
+- HERE_I_AM :                ( (34 << 8) |  0 )
+- MOBILE_REG_REQUEST :       ( (35 << 8) |  0 )
+- MOBILE_REG_REPLY :         ( (36 << 8) |  0 )
+- DOMAIN_NAME_REQUEST :      ( (37 << 8) |  0 )
+- DOMAIN_NAME_REPLY :        ( (38 << 8) |  0 )
+- SKIP :                     ( (39 << 8) |  0 )
+- PHOTURIS :                 ( (40 << 8) |  0 )
+- EXPERIMENTAL :             ( (41 << 8) |  0 )
+
+
+dhcp_ops: &dhcp_ops
+- REQUEST : 1
+- REPLY : 2
+
+dhcp_htypes: &dhcp_htypes
+- ETHERNET10 : 1
+- IEEE_ETHERNET : 6
+- ARCNET : 7
+- LOCALTALK : 11
+- LOCALNET : 12
+- SMDS : 14
+- FRAME_RELAY : 15
+- ATM : 16
+- HDLC : 17
+- FIBRE_CHANNEL : 18
+- ATM2 : 19
+- SERIAL : 20
+
+
+###############################################################################
+#
+# Well-known service ports (of parsable interest)
+#
+###############################################################################
+pservice_ports: &pservice_ports
+- DHCP_CLIENT : 68
+- DHCP_SERVER : 67
+
+
+###############################################################################
+#
+# Packet Headers
 #
 ###############################################################################
 headers: &headers
@@ -98,7 +183,7 @@ headers: &headers
 - ETHER
 - '8021Q'
 - 'OUTER_8021Q'
-- 'INNER_8021Q' 
+- 'INNER_8021Q'
 - LLC
 - ETHERII
 - SNAP
@@ -112,6 +197,7 @@ headers: &headers
 - ICMP
 - SLOW_PROTOCOLS
 - LACP
+- DHCP
 - ETHERTYPE_MISSING
 - OF10
 
@@ -170,15 +256,35 @@ fields: &fields
 - [ ARP,                THA,           48, 18, 0 ]
 - [ ARP,                TPA,           32, 24, 0 ]
 
+- [ DHCP,               OPCODE,         8,  0,  0 ]
+- [ DHCP,               HTYPE,          8,  1,  0 ]
+- [ DHCP,               HLEN,           8,  2,  0 ]
+- [ DHCP,               HOPS,           8,  3,  0 ]
+- [ DHCP,               XID,           32,  4,  0 ]
+- [ DHCP,               SECONDS,       16,  8,  0 ]
+- [ DHCP,               FLAGS,         16, 10,  0 ]
+- [ DHCP,               CIADDR,        32, 12,  0 ]
+- [ DHCP,               YIADDR,        32, 16,  0 ]
+- [ DHCP,               SIADDR,        32, 20,  0 ]
+- [ DHCP,               GIADDR,        32, 24,  0 ]
+- [ DHCP,               CHADDR,       128, 28,  0 ]
+- [ DHCP,               SNAME,        512, 44,  0 ]
+- [ DHCP,               BOOTF,       1024, 108, 0 ]
+- [ DHCP,               MAGIC,         32, 236, 0 ]
+- [ DHCP,               OPTIONS,        8, 240, 0 ]
+
 - [ ICMP,               TYPE,           8,  0,  0 ]
 - [ ICMP,               CODE,           8,  1,  0 ]
+- [ ICMP,               CHECKSUM,       16, 2,  0 ]
+- [ ICMP,               HEADER_DATA,    32, 4,  0 ]
+- [ ICMP,               PAYLOAD,         8, 8,  0 ]
 
-- [ IP4,                VERSION,         4,  0, 4 ]
-- [ IP4,                HEADER_SIZE,     4,  0, 0 ]
-- [ IP4,                TOS,             8,  1, 0 ]
-- [ IP4,                TOTAL_LENGTH,   16,  2, 0 ]
-- [ IP4,                TTL,             8,  8, 0 ]
-- [ IP4,                PROTOCOL,        8,  9, 0 ]
+- [ IP4,                VERSION,         4, 0,  4 ]
+- [ IP4,                HEADER_SIZE,     4, 0,  0 ]
+- [ IP4,                TOS,             8, 1,  0 ]
+- [ IP4,                TOTAL_LENGTH,   16, 2,  0 ]
+- [ IP4,                TTL,             8, 8,  0 ]
+- [ IP4,                PROTOCOL,        8, 9,  0 ]
 - [ IP4,                CHECKSUM,       16, 10, 0 ]
 - [ IP4,                SRC_ADDR,       32, 12, 0 ]
 - [ IP4,                DST_ADDR,       32, 16, 0 ]
@@ -222,7 +328,7 @@ fields: &fields
 - [ LACP,               ACTOR_KEY,           16, 11, 0 ]
 - [ LACP,               ACTOR_PORT_PRI,      16, 13, 0 ]
 - [ LACP,               ACTOR_PORT,          16, 15, 0 ]
-- [ LACP,               ACTOR_STATE,          8, 17, 0 ] 
+- [ LACP,               ACTOR_STATE,          8, 17, 0 ]
 - [ LACP,               RSV0,                24, 18, 0 ]
 - [ LACP,               PARTNER_INFO,         8, 21, 0 ]
 - [ LACP,               PARTNER_INFO_LEN,     8, 22, 0 ]
@@ -257,14 +363,14 @@ fields: &fields
 - [ OF10,          IP4_TOS,         8, 29, 0 ]
 - [ OF10,          ICMP_TYPE,       8, 30, 0 ]
 - [ OF10,          ICMP_CODE,       8, 31, 0 ]
-- [ OF10,          INGRESS_PORT,   32, 32, 0 ] 
+- [ OF10,          INGRESS_PORT,   32, 32, 0 ]
 - [ OF10,          PACKET_FORMAT,  16, 36, 0 ]
 - [ OF10,          ETHER_TYPE,     16, 38, 0 ]
 - [ OF10,          ARP_SPA,        32, 40, 0 ]
 - [ OF10,          ARP_TPA,        32, 44, 0 ]
 - [ OF10,          ARP_PTYPE,      16, 48, 0 ]
 - [ OF10,          ARP_OPERATION,  16, 50, 0 ]
-- [ OF10,          LAST,            0, 52, 0 ]           
+- [ OF10,          LAST,            0, 52, 0 ]
 
 
 ###############################################################################
@@ -288,13 +394,13 @@ ip_protocols: &ip_protocols
 
 definitions:
   cdefs:
-    PPE_CONFIG_HEADER: 
+    PPE_CONFIG_HEADER:
       defs: *cdefs
       basename: ppe_config
 
   logger:
     ppe:
-   
+
   portingmacro:
     PPE:
       macros:
@@ -325,9 +431,15 @@ definitions:
     ppe_slow_protocol:
       members: *slow_protocols
       desc: "PPE slow protocol."
-    ppe_log_flag: 
+    ppe_log_flag:
       members: *ppe_log_types
       desc: "PPE Log Flag"
+    ppe_icmp_typecode:
+      members: *icmp_typecodes
+      desc: "PPE Icmp Typecode."
+    ppe_pservice_port:
+      members: *pservice_ports
+      desc: "PPE Parsable Service Port."
 
   aim_custom_log_macro:
     ppe:
@@ -347,8 +459,12 @@ definitions:
       members: *ip_protocols
     PPE_SLOW_PROTOCOL_ENTRY:
       members: *slow_protocols
+    PPE_ICMP_TYPECODE_ENTRY:
+      members: *icmp_typecodes
+    PPE_PSERVICE_PORT_ENTRY:
+      members: *pservice_ports
 
   xenum:
-    PPE_ENUMERATION_ENTRY: 
+    PPE_ENUMERATION_ENTRY:
       members: *enum
-      
+

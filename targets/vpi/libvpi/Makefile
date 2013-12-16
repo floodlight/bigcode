@@ -16,18 +16,38 @@
 # License.
 #
 ################################################################
+include ../../../init.mk
 
 #
-# Top level infra Makefile
+# Python2.6 headers have a POSIX redefined warning
 #
+GCC_NO_WERROR := 1
 
-.default: check
+MODULE := libvpim
+include $(BUILDER)/standardinit.mk
 
-check tests:
-	make -C targets/utests
+DEPENDMODULES := AIM VPI BigList OS
+include $(BUILDER)/dependmodules.mk
 
+SHAREDLIB := libvpi.so
 
-doc:
-	doxygen
+# Build a shared lib from all object files
+$(SHAREDLIB)_TARGETS := $(ALL_TARGETS)
+include $(BUILDER)/so.mk
 
-.PHONY: check tests doc
+include $(BUILDER)/targets.mk
+
+LDFLAGS += -lpthread -lrt
+
+# TODO use pkg-config
+GLOBAL_CFLAGS += -fPIC
+GLOBAL_LINK_LIBS += -lpcap -lrt
+
+.DEFAULT_GOAL := all
+
+all: libraries sharedlibs
+
+.PHONY: deb
+
+deb:
+	cd deb && debuild $(DEBUILD_ARGS) $(ARCH_OPTIONS) -b -us -uc
