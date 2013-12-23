@@ -19,6 +19,11 @@
 
 #include <uCli/ucli.h>
 #include <uCli/ucli_handler_macros.h>
+#include <AIM/aim_pvs.h>
+
+#if AIM_CONFIG_INCLUDE_PVS_SYSLOG == 1
+#include <AIM/aim_pvs_syslog.h>
+#endif
 
 
 /**
@@ -113,6 +118,46 @@ ucli_ucli_mlog__show__(ucli_context_t* uc)
     return UCLI_STATUS_OK;
 
 }
+
+static ucli_status_t
+ucli_ucli_mlog__set__(ucli_context_t* uc)
+{
+    const char* module_name;
+    aim_log_t* lobj;
+    char* f = NULL;
+    aim_pvs_t* pvs = NULL;
+
+    UCLI_COMMAND_INFO(uc,
+                      "set", 1,
+                      "$summary#Redirect log output to the given file.");
+
+    UCLI_ARGPARSE_OR_RETURN(uc, "s", &f);
+
+    module_name = (const char*)uc->cookie;
+    lobj = aim_log_find(module_name);
+
+    if(lobj == NULL) {
+        return ucli_error(uc, "module %s does not have a log registered.",
+                          module_name);
+    }
+
+    if(!UCLI_STRCMP(f, "syslog")) {
+#if AIM_CONFIG_INCLUDE_PVS_SYSLOG == 1
+        pvs = aim_pvs_syslog_get();
+#else
+        return ucli_error(uc, "syslog is not supported in this build.");
+#endif
+    }
+    else {
+        pvs = aim_pvs_fopen(f, "a");
+    }
+    pvs = aim_log_pvs_set(lobj, pvs);
+    /* Note -- don't destroy, it might still be in use.
+     * These should be reference counted. */
+    return UCLI_STATUS_OK;
+}
+
+
 static ucli_status_t
 ucli_ucli_modules__manifest__(ucli_context_t* uc)
 {
@@ -189,7 +234,32 @@ ucli_ucli_alog__mod__(ucli_context_t* uc)
     return UCLI_STATUS_OK;
 }
 
+static ucli_status_t
+ucli_ucli_alog__set__(ucli_context_t* uc)
+{
+    aim_pvs_t* pvs;
+    char* f = NULL;
 
+    UCLI_COMMAND_INFO(uc,
+                      "set", 1,
+                      "$summary#Redirect all log output to the given file.");
+
+    UCLI_ARGPARSE_OR_RETURN(uc, "s", &f);
+
+    if(!UCLI_STRCMP(f, "syslog")) {
+#if AIM_CONFIG_INCLUDE_PVS_SYSLOG == 1
+        pvs = aim_pvs_syslog_get();
+#else
+        return ucli_error(uc, "syslog is not supported in this build.");
+#endif
+    }
+    else {
+        pvs = aim_pvs_fopen(f, "a");
+    }
+    /* Possible leak of previous values */
+    aim_log_pvs_set_all(pvs);
+    return UCLI_STATUS_OK;
+}
 
 
 /* <auto.ucli.handlers.start> */
@@ -204,6 +274,7 @@ static ucli_command_handler_f ucli_ucli_mlog_handlers__[] =
     ucli_ucli_mlog__opt__,
     ucli_ucli_mlog__mod__,
     ucli_ucli_mlog__show__,
+    ucli_ucli_mlog__set__,
     NULL
 };
 static ucli_command_handler_f ucli_ucli_modules_handlers__[] =
@@ -216,6 +287,7 @@ static ucli_command_handler_f ucli_ucli_alog_handlers__[] =
     ucli_ucli_alog__show__,
     ucli_ucli_alog__opt__,
     ucli_ucli_alog__mod__,
+    ucli_ucli_alog__set__,
     NULL
 };
 /******************************************************************************/
