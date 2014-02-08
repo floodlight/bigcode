@@ -41,7 +41,8 @@ sum16__(uint8_t* data, int len)
 
     if(len) {
         uint16_t b = data[olen-1];
-        if(*sdata != b) {
+        uint8_t* bdata = (uint8_t*)sdata;
+        if(*bdata != b) {
             sum += b<<8;
         }
         else {
