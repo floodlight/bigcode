@@ -147,17 +147,17 @@ static ucli_status_t
 ppe_ucli_utm__chm__(ucli_context_t* uc)
 {
     ppe_header_t header;
-    int bool;
+    int val;
 
     UCLI_COMMAND_INFO(uc,
                       "chm", 2,
                       "Check the header mask.");
 
-    UCLI_ARGPARSE_OR_RETURN(uc, "{ppe_header}{bool}", &header, &bool);
-    if(bool && !(ppec->ppep.header_mask & (1 << header))) {
+    UCLI_ARGPARSE_OR_RETURN(uc, "{ppe_header}{bool}", &header, &val);
+    if(val && !(ppec->ppep.header_mask & (1 << header))) {
         return ucli_error(uc, "header bit %{ppe_header} is 0.", header);
     }
-    if(!bool && (ppec->ppep.header_mask & (1 << header))) {
+    if(!val && (ppec->ppep.header_mask & (1 << header))) {
         return ucli_error(uc, "header bit %{ppe_header} is 1.", header);
     }
     return UCLI_STATUS_OK;
