@@ -1,0 +1,47 @@
+###############################################################################
+#
+# timer_wheel Autogeneration Definitions.
+#
+###############################################################################
+
+cdefs: &cdefs
+- TIMER_WHEEL_CONFIG_INCLUDE_LOGGING:
+    doc: "Include or exclude logging."
+    default: 1
+- TIMER_WHEEL_CONFIG_LOG_OPTIONS_DEFAULT:
+    doc: "Default enabled log options."
+    default: AIM_LOG_OPTIONS_DEFAULT
+- TIMER_WHEEL_CONFIG_LOG_BITS_DEFAULT:
+    doc: "Default enabled log bits."
+    default: AIM_LOG_BITS_DEFAULT
+- TIMER_WHEEL_CONFIG_LOG_CUSTOM_BITS_DEFAULT:
+    doc: "Default enabled custom log bits."
+    default: 0
+- TIMER_WHEEL_CONFIG_PORTING_STDLIB:
+    doc: "Default all porting macros to use the C standard libraries."
+    default: 1
+- TIMER_WHEEL_CONFIG_PORTING_INCLUDE_STDLIB_HEADERS:
+    doc: "Include standard library headers for stdlib porting macros."
+    default: TIMER_WHEEL_CONFIG_PORTING_STDLIB
+- TIMER_WHEEL_CONFIG_INCLUDE_UCLI:
+    doc: "Include generic uCli support."
+    default: 0
+
+
+definitions:
+  cdefs:
+    TIMER_WHEEL_CONFIG_HEADER:
+      defs: *cdefs
+      basename: timer_wheel_config
+
+  portingmacro:
+    TIMER_WHEEL:
+      macros:
+        - malloc
+        - free
+        - memset
+        - memcpy
+        - strncpy
+        - vsnprintf
+        - snprintf
+        - strlen
