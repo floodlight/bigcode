@@ -797,7 +797,7 @@ ucli_prompt_get(ucli_t* ucli, char* dst, int dst_size, const char* prompt)
         }
         biglist_free(path);
     }
-    rv = aim_snprintf(p, dst_size, "> ");
+    aim_snprintf(p, dst_size, "> ");
     return dst;
 }
 

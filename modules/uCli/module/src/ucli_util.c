@@ -123,8 +123,7 @@ ucli_util_data_to_string(ucli_context_t* uc, uint8_t* data, int size,
         sp += c, len -= c;
     }
     if((size > columns) && (size % columns != 0)) {
-        c = aim_snprintf(sp, len, "\n");
-        sp += c, len -= c;
+        aim_snprintf(sp, len, "\n");
     }
     return s;
 }
