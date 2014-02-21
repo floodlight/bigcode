@@ -151,7 +151,7 @@ ucli_ucli_mlog__set__(ucli_context_t* uc)
     else {
         pvs = aim_pvs_fopen(f, "a");
     }
-    pvs = aim_log_pvs_set(lobj, pvs);
+    aim_log_pvs_set(lobj, pvs);
     /* Note -- don't destroy, it might still be in use.
      * These should be reference counted. */
     return UCLI_STATUS_OK;
