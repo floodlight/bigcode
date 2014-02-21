@@ -31,7 +31,7 @@
  */
 #undef UCLI_COMMAND_INIT
 #define UCLI_COMMAND_INIT \
-    AIM_VAR_PCAST_SAFE(ppe_utm_ctrl_t*, ppec, uc, uc->cookie); \
+    ppe_utm_ctrl_t *ppec = uc->cookie; \
     AIM_REFERENCE(ppec)
 
 

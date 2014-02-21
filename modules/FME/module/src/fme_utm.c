@@ -31,7 +31,7 @@
  */
 #undef UCLI_COMMAND_INIT
 #define UCLI_COMMAND_INIT \
-    AIM_VAR_PCAST_SAFE(fme_utm_ctrl_t*, fmec, uc, uc->cookie); \
+    fme_utm_ctrl_t *fmec = uc->cookie; \
     AIM_REFERENCE(fmec)
 
 

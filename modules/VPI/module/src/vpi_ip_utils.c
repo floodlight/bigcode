@@ -138,6 +138,8 @@ vpi_get_ip_src_for_dst_addr(vpi_ip_endpoint_t* remote_endpoint, char* src_addres
     unsigned int sa_local_size = sizeof(sa_local);
     int fd = -1;
 
+    VPI_MEMSET(&sa_local, 0, sizeof(sa_local));
+
     /* Resolve connection info */
     if(vpi_sockaddr_endpoint(&sa_remote, remote_endpoint) < 0) {
         return -1;
