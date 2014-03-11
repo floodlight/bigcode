@@ -375,6 +375,7 @@ ucli_dispatch_command__(ucli_t* ucli, aim_pvs_t* pvs, char* str)
     if(token_count == -1) {
         /* Token error already reported. */
         ucli_parray_free__((void**)tokens, 0);
+        aim_free(localstr);
         return -1;
     }
 
