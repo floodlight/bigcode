@@ -325,12 +325,14 @@ ucli_string_tokenize__(char* string, char** argv, int max, char delimiter,
             break;
         }
         else if(rv == ucliTokenStatusError) {
+            if(epvs) {
+                aim_printf(epvs, "invalid input starting at '%s'\n", tok);
+            }
             /* Return the error token string if requested */
             if(error) {
                 *error = tok;
-            }
-            if(epvs) {
-                aim_printf(epvs, "invalid input starting at '%s'\n", tok);
+            } else {
+                aim_free(tok);
             }
             /* Free all previous tokens */
             while(argc >= 0) {
