@@ -325,16 +325,20 @@ ucli_string_tokenize__(char* string, char** argv, int max, char delimiter,
             break;
         }
         else if(rv == ucliTokenStatusError) {
-            /* Return the error token string if requested */
-            if(error) {
-                *error = tok;
-            }
             if(epvs) {
                 aim_printf(epvs, "invalid input starting at '%s'\n", tok);
             }
+            /* Return the error token string if requested */
+            if(error) {
+                *error = tok;
+            } else {
+                aim_free(tok);
+            }
             /* Free all previous tokens */
             while(argc >= 0) {
-                aim_free(argv[argc--]);
+                aim_free(argv[argc]);
+                argv[argc] = NULL;
+                argc--;
             }
             return -1;
         }
@@ -371,6 +375,7 @@ ucli_dispatch_command__(ucli_t* ucli, aim_pvs_t* pvs, char* str)
     if(token_count == -1) {
         /* Token error already reported. */
         ucli_parray_free__((void**)tokens, 0);
+        aim_free(localstr);
         return -1;
     }
 
