@@ -336,7 +336,9 @@ ucli_string_tokenize__(char* string, char** argv, int max, char delimiter,
             }
             /* Free all previous tokens */
             while(argc >= 0) {
-                aim_free(argv[argc--]);
+                aim_free(argv[argc]);
+                argv[argc] = NULL;
+                argc--;
             }
             return -1;
         }
