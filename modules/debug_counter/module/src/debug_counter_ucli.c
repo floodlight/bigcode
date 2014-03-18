@@ -4,6 +4,7 @@
  *
  *****************************************************************************/
 #include <debug_counter/debug_counter_config.h>
+#include <debug_counter/debug_counter.h>
 
 #if DEBUG_COUNTER_CONFIG_INCLUDE_UCLI == 1
 
@@ -17,7 +18,65 @@ debug_counter_ucli_ucli__config__(ucli_context_t* uc)
     UCLI_HANDLER_MACRO_MODULE_CONFIG(debug_counter)
 }
 
+static ucli_status_t
+debug_counter_ucli_ucli__show__(ucli_context_t* uc)
+{
+    UCLI_COMMAND_INFO(uc,
+                      "show", 0,
+                      "$summary#show all debug counters.");
+    list_head_t *counters = debug_counter_list();
+    list_links_t *cur;
+    LIST_FOREACH(counters, cur) {
+	debug_counter_t *counter = container_of(cur, links, debug_counter_t);
+	ucli_printf(uc, "%s: %u\n", counter->name, (unsigned int)counter->value);
+    }
+    return UCLI_STATUS_OK;
+}
+
+static ucli_status_t
+debug_counter_ucli_ucli__describe__(ucli_context_t* uc)
+{
+    UCLI_COMMAND_INFO(uc,
+                      "describe", 0,
+                      "$summary#show description of all debug counters.");
+    list_head_t *counters = debug_counter_list();
+    list_links_t *cur;
+    LIST_FOREACH(counters, cur) {
+	debug_counter_t *counter = container_of(cur, links, debug_counter_t);
+	if (cur != counters->links.next) {
+	    ucli_printf(uc, "\n", counter->name);
+	}
+	ucli_printf(uc, "%s\n", counter->name);
+	ucli_printf(uc, "Value: %u\n", (unsigned int)counter->value);
+	ucli_printf(uc, "Description: %s\n", counter->description);
+    }
+    return UCLI_STATUS_OK;
+}
+
+static ucli_status_t
+debug_counter_ucli_ucli__reset__(ucli_context_t* uc)
+{
+    UCLI_COMMAND_INFO(uc,
+                      "reset", 0,
+                      "$summary#reset all debug counters to zero.");
+    list_head_t *counters = debug_counter_list();
+    list_links_t *cur;
+    LIST_FOREACH(counters, cur) {
+	debug_counter_t *counter = container_of(cur, links, debug_counter_t);
+	debug_counter_reset(counter);
+    }
+    return UCLI_STATUS_OK;
+}
+
 /* <auto.ucli.handlers.start> */
+static ucli_command_handler_f debug_counter_ucli_ucli_handlers__[] =
+{
+    debug_counter_ucli_ucli__config__,
+    debug_counter_ucli_ucli__show__,
+    debug_counter_ucli_ucli__describe__,
+    debug_counter_ucli_ucli__reset__,
+    NULL
+};
 /* <auto.ucli.handlers.end> */
 
 static ucli_module_t
