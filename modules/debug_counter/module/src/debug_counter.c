@@ -21,6 +21,8 @@
 
 static uint64_t debug_counter_next_id = 0;
 static LIST_DEFINE(debug_counters);
+static debug_counter_t register_counter;
+static debug_counter_t unregister_counter;
 
 void
 debug_counter_register(debug_counter_t *counter, const char *name, const char *description)
@@ -32,11 +34,13 @@ debug_counter_register(debug_counter_t *counter, const char *name, const char *d
     counter->name = name;
     AIM_ASSERT(strlen(description) > 0 && strlen(description) < 256);
     counter->description = description;
+    debug_counter_inc(&register_counter);
 }
 
 void
 debug_counter_unregister(debug_counter_t *counter)
 {
+    debug_counter_inc(&unregister_counter);
     list_remove(&counter->links);
 }
 
@@ -44,4 +48,13 @@ list_head_t *
 debug_counter_list(void)
 {
     return &debug_counters;
+}
+
+void
+debug_counter_module_init(void)
+{
+    debug_counter_register(&register_counter, "debug_counter.register",
+	                   "Number of calls to debug_counter_register");
+    debug_counter_register(&unregister_counter, "debug_counter.unregister",
+	                   "Number of calls to debug_counter_unregister");
 }

@@ -5,6 +5,7 @@
  *****************************************************************************/
 #include <debug_counter/debug_counter_config.h>
 
+#include "debug_counter_int.h"
 #include "debug_counter_log.h"
 
 static int
@@ -19,5 +20,6 @@ void __debug_counter_module_init__(void)
 {
     AIM_LOG_STRUCT_REGISTER();
     datatypes_init__();
+    debug_counter_module_init();
 }
 

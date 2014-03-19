@@ -21,6 +21,17 @@
 
 int aim_main(int argc, char* argv[])
 {
+    /* Unregister existing counters */
+    {
+        list_head_t *counters;
+        list_links_t *cur;
+        counters = debug_counter_list();
+        LIST_FOREACH(counters, cur) {
+            debug_counter_t *counter = container_of(cur, links, debug_counter_t);
+            debug_counter_unregister(counter);
+        }
+    }
+
     /* Test counting */
     {
         debug_counter_t counter;
