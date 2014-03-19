@@ -13,6 +13,12 @@
 #include <uCli/ucli_argparse.h>
 #include <uCli/ucli_handler_macros.h>
 
+static bool
+prefix_match(const char *haystack, const char *needle)
+{
+    return needle == NULL || strstr(haystack, needle) == haystack;
+}
+
 static ucli_status_t
 debug_counter_ucli_ucli__config__(ucli_context_t* uc)
 {
@@ -23,13 +29,21 @@ static ucli_status_t
 debug_counter_ucli_ucli__show__(ucli_context_t* uc)
 {
     UCLI_COMMAND_INFO(uc,
-                      "show", 0,
+                      "show", -1,
                       "$summary#show all debug counters.");
+
+    const char *prefix = NULL;
+    if (uc->pargs->count > 0) {
+	UCLI_ARGPARSE_OR_RETURN(uc, "s", &prefix);
+    }
+
     list_head_t *counters = debug_counter_list();
     list_links_t *cur;
     LIST_FOREACH(counters, cur) {
 	debug_counter_t *counter = container_of(cur, links, debug_counter_t);
-	ucli_printf(uc, "%s: %"PRIu64"\n", counter->name, counter->value);
+	if (prefix_match(counter->name, prefix)) {
+	    ucli_printf(uc, "%s: %"PRIu64"\n", counter->name, counter->value);
+	}
     }
     return UCLI_STATUS_OK;
 }
@@ -38,18 +52,29 @@ static ucli_status_t
 debug_counter_ucli_ucli__describe__(ucli_context_t* uc)
 {
     UCLI_COMMAND_INFO(uc,
-                      "describe", 0,
+                      "describe", -1,
                       "$summary#show description of all debug counters.");
     list_head_t *counters = debug_counter_list();
     list_links_t *cur;
+    bool first = true;
+
+    const char *prefix = NULL;
+    if (uc->pargs->count > 0) {
+	UCLI_ARGPARSE_OR_RETURN(uc, "s", &prefix);
+    }
+
     LIST_FOREACH(counters, cur) {
 	debug_counter_t *counter = container_of(cur, links, debug_counter_t);
-	if (cur != counters->links.next) {
-	    ucli_printf(uc, "\n", counter->name);
+	if (prefix_match(counter->name, prefix)) {
+	    if (first) {
+		first = false;
+	    } else {
+		ucli_printf(uc, "\n", counter->name);
+	    }
+	    ucli_printf(uc, "%s\n", counter->name);
+	    ucli_printf(uc, "Value: %"PRIu64"\n", counter->value);
+	    ucli_printf(uc, "Description: %s\n", counter->description);
 	}
-	ucli_printf(uc, "%s\n", counter->name);
-	ucli_printf(uc, "Value: %"PRIu64"\n", counter->value);
-	ucli_printf(uc, "Description: %s\n", counter->description);
     }
     return UCLI_STATUS_OK;
 }
@@ -58,13 +83,21 @@ static ucli_status_t
 debug_counter_ucli_ucli__reset__(ucli_context_t* uc)
 {
     UCLI_COMMAND_INFO(uc,
-                      "reset", 0,
+                      "reset", -1,
                       "$summary#reset all debug counters to zero.");
     list_head_t *counters = debug_counter_list();
     list_links_t *cur;
+
+    const char *prefix = NULL;
+    if (uc->pargs->count > 0) {
+	UCLI_ARGPARSE_OR_RETURN(uc, "s", &prefix);
+    }
+
     LIST_FOREACH(counters, cur) {
 	debug_counter_t *counter = container_of(cur, links, debug_counter_t);
-	debug_counter_reset(counter);
+	if (prefix_match(counter->name, prefix)) {
+	    debug_counter_reset(counter);
+	}
     }
     return UCLI_STATUS_OK;
 }
