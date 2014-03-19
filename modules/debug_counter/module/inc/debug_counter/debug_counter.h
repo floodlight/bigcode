@@ -28,24 +28,27 @@
  *
  * This struct should be allocated by the caller and registered with
  * debug_counter_register. The 'value' field should be treated as private
- * to allow future optimizations.
+ * to allow future optimizations. The other fields should be treated as
+ * read-only.
  */
 typedef struct debug_counter_s {
     uint64_t value;
     uint64_t counter_id;
     list_links_t links;
-    char name[32];
-    char description[256];
+    const char *name;
+    const char *description;
 } debug_counter_t;
 
 
 /**
  * Register a debug counter
  *
- * The 'name' and 'description' fields of the counter should be initialized by
- * the caller. The remaining fields do not need to be initialized.
+ * Initializes all fields of the struct.
+ *
+ * The caller must ensure that 'name' and 'description' live until the
+ * corresponding debug_counter_unregister.
  */
-void debug_counter_register(debug_counter_t *counter);
+void debug_counter_register(debug_counter_t *counter, const char *name, const char *description);
 
 /**
  * Unregister a debug counter

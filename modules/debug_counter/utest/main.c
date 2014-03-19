@@ -23,12 +23,9 @@ int aim_main(int argc, char* argv[])
 {
     /* Test counting */
     {
-        static debug_counter_t counter = {
-            .name = "counter",
-            .description = "Long description of counter",
-        };
+        debug_counter_t counter;
 
-        debug_counter_register(&counter);
+        debug_counter_register(&counter, "counter", "long description of counter");
         AIM_ASSERT(debug_counter_get(&counter) == 0);
         debug_counter_inc(&counter);
         AIM_ASSERT(debug_counter_get(&counter) == 1);
@@ -43,22 +40,14 @@ int aim_main(int argc, char* argv[])
     {
         list_head_t *counters;
         list_links_t *cur;
-
-        debug_counter_t counter1 = {
-            .name = "counter1",
-            .description = "Long description of counter1",
-        };
-
-        debug_counter_t counter2 = {
-            .name = "counter2",
-            .description = "Long description of counter2",
-        };
+        debug_counter_t counter1;
+        debug_counter_t counter2;
 
         counters = debug_counter_list();
         AIM_ASSERT(list_empty(counters));
 
-        debug_counter_register(&counter1);
-        debug_counter_register(&counter2);
+        debug_counter_register(&counter1, "counter 1", "long description of counter 1");
+        debug_counter_register(&counter2, "counter 2", "long description of counter 2");
 
         AIM_ASSERT(counter1.counter_id != counter2.counter_id);
 

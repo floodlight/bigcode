@@ -23,13 +23,15 @@ static uint64_t debug_counter_next_id = 0;
 static LIST_DEFINE(debug_counters);
 
 void
-debug_counter_register(debug_counter_t *counter)
+debug_counter_register(debug_counter_t *counter, const char *name, const char *description)
 {
     counter->value = 0;
     counter->counter_id = debug_counter_next_id++;
     list_push(&debug_counters, &counter->links);
-    AIM_ASSERT(strlen(counter->name) > 0);
-    AIM_ASSERT(strlen(counter->description) > 0);
+    AIM_ASSERT(strlen(name) > 0 && strlen(name) < 32);
+    counter->name = name;
+    AIM_ASSERT(strlen(description) > 0 && strlen(description) < 256);
+    counter->description = description;
 }
 
 void
