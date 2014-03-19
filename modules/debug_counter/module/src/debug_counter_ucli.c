@@ -5,6 +5,7 @@
  *****************************************************************************/
 #include <debug_counter/debug_counter_config.h>
 #include <debug_counter/debug_counter.h>
+#include <inttypes.h>
 
 #if DEBUG_COUNTER_CONFIG_INCLUDE_UCLI == 1
 
@@ -28,7 +29,7 @@ debug_counter_ucli_ucli__show__(ucli_context_t* uc)
     list_links_t *cur;
     LIST_FOREACH(counters, cur) {
 	debug_counter_t *counter = container_of(cur, links, debug_counter_t);
-	ucli_printf(uc, "%s: %u\n", counter->name, (unsigned int)counter->value);
+	ucli_printf(uc, "%s: %"PRIu64"\n", counter->name, counter->value);
     }
     return UCLI_STATUS_OK;
 }
@@ -47,7 +48,7 @@ debug_counter_ucli_ucli__describe__(ucli_context_t* uc)
 	    ucli_printf(uc, "\n", counter->name);
 	}
 	ucli_printf(uc, "%s\n", counter->name);
-	ucli_printf(uc, "Value: %u\n", (unsigned int)counter->value);
+	ucli_printf(uc, "Value: %"PRIu64"\n", counter->value);
 	ucli_printf(uc, "Description: %s\n", counter->description);
     }
     return UCLI_STATUS_OK;
