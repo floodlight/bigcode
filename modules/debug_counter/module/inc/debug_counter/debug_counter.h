@@ -17,6 +17,25 @@
  *
  ***************************************************************/
 
+/*
+ * Debug counter infrastructure
+ *
+ * We have a bunch of counters that are useful for debugging. Their usefulness
+ * is limited, however, if the controller can't read them. The developer
+ * would need to run several CLI commands on each switch to get all counters
+ * of interest. Exposing the counters to the controller allows it to aggregate
+ * them and make them centrally available.
+ *
+ * This module allows other modules to register and list counters.
+ * OFStateManager will use the list interface when sending the counters to
+ * the controller. It also provides a simple uCLI for convenience.
+ *
+ * Counter names should follow a dotted path naming scheme. The first path
+ * element should be the module name. The rest is up to the user, but
+ * should generally be lowercase without whitespace. Counter names must
+ * be unique but this is not enforced by the infrastructure.
+ */
+
 #ifndef DEBUG_COUNTER_H
 #define DEBUG_COUNTER_H
 
