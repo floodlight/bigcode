@@ -42,6 +42,7 @@ debug_counter_unregister(debug_counter_t *counter)
 {
     debug_counter_inc(&unregister_counter);
     list_remove(&counter->links);
+    memset(counter, 0, sizeof(*counter));
 }
 
 list_head_t *

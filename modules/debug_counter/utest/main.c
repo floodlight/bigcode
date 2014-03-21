@@ -24,9 +24,9 @@ int aim_main(int argc, char* argv[])
     /* Unregister existing counters */
     {
         list_head_t *counters;
-        list_links_t *cur;
+        list_links_t *cur, *next;
         counters = debug_counter_list();
-        LIST_FOREACH(counters, cur) {
+        LIST_FOREACH_SAFE(counters, cur, next) {
             debug_counter_t *counter = container_of(cur, links, debug_counter_t);
             debug_counter_unregister(counter);
         }
