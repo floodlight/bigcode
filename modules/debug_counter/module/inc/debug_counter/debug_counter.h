@@ -66,6 +66,9 @@ typedef struct debug_counter_s {
  *
  * The caller must ensure that 'name' and 'description' live until the
  * corresponding debug_counter_unregister.
+ *
+ * The name must be shorter than 64 bytes (excluding the null terminator). The
+ * description must be shorter than 256 bytes.
  */
 void debug_counter_register(debug_counter_t *counter, const char *name, const char *description);
 
