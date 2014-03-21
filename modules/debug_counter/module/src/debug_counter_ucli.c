@@ -69,7 +69,7 @@ debug_counter_ucli_ucli__describe__(ucli_context_t* uc)
 	    if (first) {
 		first = false;
 	    } else {
-		ucli_printf(uc, "\n", counter->name);
+		ucli_printf(uc, "\n");
 	    }
 	    ucli_printf(uc, "%s\n", counter->name);
 	    ucli_printf(uc, "Value: %"PRIu64"\n", counter->value);
