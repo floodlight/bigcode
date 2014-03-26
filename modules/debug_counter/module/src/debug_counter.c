@@ -30,9 +30,9 @@ debug_counter_register(debug_counter_t *counter, const char *name, const char *d
     counter->value = 0;
     counter->counter_id = debug_counter_next_id++;
     list_push(&debug_counters, &counter->links);
-    AIM_ASSERT(strlen(name) > 0 && strlen(name) < 64);
+    AIM_ASSERT(strlen(name) > 0 && strlen(name) < DEBUG_COUNTER_NAME_SIZE);
     counter->name = name;
-    AIM_ASSERT(strlen(description) > 0 && strlen(description) < 256);
+    AIM_ASSERT(strlen(description) > 0 && strlen(description) < DEBUG_COUNTER_DESCRIPTION_SIZE);
     counter->description = description;
     debug_counter_inc(&register_counter);
 }
