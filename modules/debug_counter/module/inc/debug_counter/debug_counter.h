@@ -42,6 +42,9 @@
 #include <AIM/aim.h>
 #include <AIM/aim_list.h>
 
+#define DEBUG_COUNTER_NAME_SIZE 64
+#define DEBUG_COUNTER_DESCRIPTION_SIZE 256
+
 /**
  * Debug counter
  *
