@@ -18,6 +18,11 @@ timer_wheel_ucli_ucli__config__(ucli_context_t* uc)
 }
 
 /* <auto.ucli.handlers.start> */
+static ucli_command_handler_f timer_wheel_ucli_ucli_handlers__[] =
+{
+    timer_wheel_ucli_ucli__config__,
+    NULL
+};
 /* <auto.ucli.handlers.end> */
 
 static ucli_module_t
