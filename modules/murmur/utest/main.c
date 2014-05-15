@@ -55,8 +55,26 @@ test_murmur(void)
     AIM_TRUE_OR_DIE(final == 0xB0F57EE3);
 }
 
+static void
+test_incremental(void)
+{
+    uint32_t data[] = { 0, 1, 2, 3, 4, 5 };
+
+    uint32_t standard_hash = murmur_hash(data, sizeof(data), 42);
+    AIM_TRUE_OR_DIE(standard_hash == 0xf791bcc9);
+
+    uint32_t incremental_hash = 42;
+    int i;
+    for (i = 0; i < 6; i++) {
+        incremental_hash = murmur_round(incremental_hash, data[i]);
+    }
+    incremental_hash = murmur_finish(incremental_hash, sizeof(data));
+    AIM_TRUE_OR_DIE(standard_hash == incremental_hash);
+}
+
 int aim_main(int argc, char* argv[])
 {
     test_murmur();
+    test_incremental();
     return 0;
 }
