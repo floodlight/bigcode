@@ -1,6 +1,6 @@
 /****************************************************************
  *
- *        Copyright 2013, Big Switch Networks, Inc.
+ *        Copyright 2013-2014, Big Switch Networks, Inc.
  *
  * Licensed under the Eclipse Public License, Version 1.0 (the
  * "License"); you may not use this file except in compliance
@@ -111,7 +111,7 @@ pimu_action_t pimu_packet_in(pimu_t* pimu, int pid, int gid, uint8_t* data,
  * @note You must clear the flow cache if you change this
  * while under traffic. See pimu_cache_clear()
  */
-int pimu_flow_pps_set(pimu_t* pimu, uint32_t pps);
+int pimu_flow_pps_set(pimu_t* pimu, double pps);
 
 /**
  * @brief Set the global packet rate for all flows.
@@ -119,7 +119,7 @@ int pimu_flow_pps_set(pimu_t* pimu, uint32_t pps);
  * @param pps Packets per second.
  * @param burst_size Allowable burst size.
  */
-int pimu_global_pps_set(pimu_t* pimu, uint32_t pps, uint32_t burst_size);
+int pimu_global_pps_set(pimu_t* pimu, double pps, uint32_t burst_size);
 
 /**
  * @brief Set the group packet rate.
@@ -130,7 +130,7 @@ int pimu_global_pps_set(pimu_t* pimu, uint32_t pps, uint32_t burst_size);
  * @note Use groups if you want to shape traffic based on
  * a meta-property, such as ingress-port number.
  */
-int pimu_group_pps_set(pimu_t* pimu, int group, uint32_t pps,
+int pimu_group_pps_set(pimu_t* pimu, int group, double pps,
                        uint32_t burst_size);
 
 /**

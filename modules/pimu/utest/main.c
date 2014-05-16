@@ -82,13 +82,21 @@ init_packets__(int vid, int ethertype, uint8_t* da)
 static uint64_t __now = 0;
 
 int
-verify_flow_pps__(pimu_t* pimu, int pps, int gid)
+verify_flow_pps__(pimu_t* pimu, double pps, int gid)
 {
     int count[PACKET_COUNT] = {0};
     int t;
     int p;
     uint64_t now = __now; __now += 50000000;
-    int stop_time = 1000000+now;
+    int stop_time;
+
+    if (pps < 1.0) {
+        /* Wait 30s */
+        stop_time = 30*1000000+now;
+    } else {
+        stop_time = 1000000+now;
+    }
+
     /* Run all packets through for delta-T */
     for(t = now; t < stop_time; t+=10) {
         for(p = 0; p < PACKET_COUNT; p++) {
@@ -103,18 +111,29 @@ verify_flow_pps__(pimu_t* pimu, int pps, int gid)
     }
     /* Verify the accept rate */
     for(p = 0; p < PACKET_COUNT; p++) {
-        /* Verify within 2% of rate */
-        uint64_t expected = pps;
-        int lower = expected - expected/50;
-        int upper = expected + expected/50;
+        uint64_t expected;
+        int lower;
+        int upper;
+
+        if (pps < 1.0) {
+            /* Verify within +/- 1 of 30s packet count */
+            expected = 30*pps;
+            lower = expected - 1;
+            upper = expected + 1;
+        } else {
+            /* Verify within 2% of rate */
+            expected = pps;
+            lower = expected - expected/50;
+            upper = expected + expected/50;
+        }
 
         if(count[p] < lower || count[p] > upper) {
-            AIM_LOG_ERROR("pps=%d count[%d] = %d (should be %d)\n", pps, p, count[p],
-                          expected);
+            AIM_LOG_ERROR("pps=%.2lf count[%d] = %d (should be %d-%d-%d)\n", pps, p, count[p],
+                          lower, expected, upper);
             exit(1);
         }
     }
-    AIM_LOG_MSG("verified at %d pps.", pps);
+    AIM_LOG_MSG("verified at %.2lf pps.", pps);
     return 0;
 }
 
@@ -214,7 +233,12 @@ int aim_main(int argc, char* argv[])
 
     /* Verify flows at different PPS */
     {
-        int pps;
+        double pps;
+        for(pps = 0.1; pps < 1.0; pps *= 1.5) {
+            pimu_cache_clear(pimu);
+            pimu_flow_pps_set(pimu, pps);
+            verify_flow_pps__(pimu, pps, -1);
+        }
         for(pps = 1; pps < 10; pps++) {
             pimu_cache_clear(pimu);
             pimu_flow_pps_set(pimu, pps);
