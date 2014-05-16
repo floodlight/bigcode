@@ -1,6 +1,6 @@
 /****************************************************************
  *
- *        Copyright 2013, Big Switch Networks, Inc.
+ *        Copyright 2013-2014, Big Switch Networks, Inc.
  *
  * Licensed under the Eclipse Public License, Version 1.0 (the
  * "License"); you may not use this file except in compliance
@@ -40,7 +40,7 @@ typedef struct pimu_entry_s {
 
 typedef struct pimu_group_s {
     /** PPS for this group */
-    uint32_t pps;
+    double pps;
     /** Ratelimiter for this group */
     aim_ratelimiter_t rl;
 } pimu_group_t;
@@ -60,7 +60,7 @@ struct pimu_s {
     /** Flow cache */
     nwac_t* nwac;
     /** Flow Packets/sec */
-    uint32_t flow_pps;
+    double flow_pps;
 
     /** Global Group -- applicable to all packets */
     pimu_group_t global;
@@ -98,30 +98,30 @@ pimu_destroy(pimu_t* pimu)
 }
 
 int
-pimu_flow_pps_set(pimu_t* pimu, uint32_t pps)
+pimu_flow_pps_set(pimu_t* pimu, double pps)
 {
     pimu->flow_pps = pps;
     return 0;
 }
 
 static void
-group_init__(pimu_group_t* group, uint32_t pps, uint32_t burst_size)
+group_init__(pimu_group_t* group, double pps, uint32_t burst_size)
 {
     group->pps = pps;
-    if(pps) {
+    if(pps > 0) {
         aim_ratelimiter_init(&group->rl, 1000000/pps, burst_size, NULL);
     }
 }
 
 int
-pimu_global_pps_set(pimu_t* pimu, uint32_t pps, uint32_t burst_size)
+pimu_global_pps_set(pimu_t* pimu, double pps, uint32_t burst_size)
 {
     group_init__(&pimu->global, pps, burst_size);
     return 0;
 }
 
 int
-pimu_group_pps_set(pimu_t* pimu, int gid, uint32_t pps, uint32_t burst_size)
+pimu_group_pps_set(pimu_t* pimu, int gid, double pps, uint32_t burst_size)
 {
     if(GROUP_VALID(gid)) {
         group_init__(pimu->groups + gid, pps, burst_size);
@@ -246,14 +246,14 @@ pimu_packet_in(pimu_t* pimu, int pid,
     if(pimu_priority_check__(pimu, data, size)) {
         return PIMU_ACTION_FORWARD_PRIORITY;
     }
-    if(pimu->global.pps) {
+    if(pimu->global.pps > 0) {
         /* Global rate limiting is enabled. Check this first */
         if(aim_ratelimiter_limit(&pimu->global.rl, now) == -1) {
             /* Denied */
             return PIMU_ACTION_DROP;
         }
     }
-    if(GROUP_VALID(gid) && pimu->groups[gid].pps) {
+    if(GROUP_VALID(gid) && pimu->groups[gid].pps > 0) {
         /* Group rate limiting is enabled and a group was specified */
         if(aim_ratelimiter_limit(&pimu->groups[gid].rl, now) == -1) {
             /* Denied */
