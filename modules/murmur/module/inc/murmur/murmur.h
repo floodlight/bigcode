@@ -20,12 +20,26 @@
 /*
  * Port of MurmurHash3 (public domain) to C.
  * http://code.google.com/p/smhasher/source/browse/trunk/MurmurHash3.cpp
+ *
+ * This port supports incremental hashing. Example:
+ *
+ *     uint32_t hash = 42; // seed
+ *     for (i = 0; i < num_words; i++) {
+ *         hash = murmur_round(hash, data[i]);
+ *     }
+ *     hash = murmur_finish(hash, num_words*sizeof(uint32_t));
+ *
+ * Incremental hashing will not produce the same result as murmur_hash when
+ * the length is not a multiple of 4 bytes.
  */
 
 #ifndef MURMUR_MURMUR_H
 #define MURMUR_MURMUR_H
 
 #include <stdint.h>
+
+#define MURMUR_C1 0xcc9e2d51
+#define MURMUR_C2 0x1b873593
 
 static inline uint32_t
 murmur_rotl32(uint32_t x, int8_t r)
@@ -45,15 +59,34 @@ murmur_fmix(uint32_t h)
 }
 
 static inline uint32_t
+murmur_round(uint32_t state, uint32_t data)
+{
+    data *= MURMUR_C1;
+    data = murmur_rotl32(data, 15);
+    data *= MURMUR_C2;
+
+    state ^= data;
+    state = murmur_rotl32(state, 13);
+    state = state * 5 + 0xe6546b64;
+
+    return state;
+}
+
+static inline uint32_t
+murmur_finish(uint32_t state, int len)
+{
+    state ^= len;
+    state = murmur_fmix(state);
+    return state;
+}
+
+static inline uint32_t
 murmur_hash(const void *key, int len, uint32_t seed)
 {
     const uint8_t *data = key;
     const int nblocks = len / 4;
 
     uint32_t h1 = seed;
-
-    const uint32_t c1 = 0xcc9e2d51;
-    const uint32_t c2 = 0x1b873593;
 
     /* Workaround for strict aliasing */
 #ifdef __GNUC__
@@ -71,14 +104,7 @@ murmur_hash(const void *key, int len, uint32_t seed)
     for(i = -nblocks; i; i++)
     {
         uint32_t k1 = blocks[i];
-
-        k1 *= c1;
-        k1 = murmur_rotl32(k1,15);
-        k1 *= c2;
-
-        h1 ^= k1;
-        h1 = murmur_rotl32(h1,13);
-        h1 = h1*5+0xe6546b64;
+        h1 = murmur_round(h1, k1);
     }
 
     tail = (const uint8_t*)(data + nblocks*4);
@@ -89,14 +115,10 @@ murmur_hash(const void *key, int len, uint32_t seed)
         case 3: k1 ^= tail[2] << 16;
         case 2: k1 ^= tail[1] << 8;
         case 1: k1 ^= tail[0];
-                k1 *= c1; k1 = murmur_rotl32(k1,15); k1 *= c2; h1 ^= k1;
+                k1 *= MURMUR_C1; k1 = murmur_rotl32(k1,15); k1 *= MURMUR_C2; h1 ^= k1;
     };
 
-    h1 ^= len;
-
-    h1 = murmur_fmix(h1);
-
-    return h1;
+    return murmur_finish(h1, len);
 }
 
 #endif
