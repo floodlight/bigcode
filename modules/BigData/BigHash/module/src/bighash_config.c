@@ -64,6 +64,16 @@ bighash_config_settings_t bighash_config_settings[] =
 #else
 { BIGHASH_CONFIG_INCLUDE_LOCKING(__bighash_config_STRINGIFY_NAME), "__undefined__" },
 #endif
+#ifdef BIGHASH_CONFIG_INITIAL_HASH_BUCKETS_SIZE
+    { __bighash_config_STRINGIFY_NAME(BIGHASH_CONFIG_INITIAL_HASH_BUCKETS_SIZE), __bighash_config_STRINGIFY_VALUE(BIGHASH_CONFIG_INITIAL_HASH_BUCKETS_SIZE) },
+#else
+{ BIGHASH_CONFIG_INITIAL_HASH_BUCKETS_SIZE(__bighash_config_STRINGIFY_NAME), "__undefined__" },
+#endif
+#ifdef BIGHASH_CONFIG_LOAD_FACTOR
+    { __bighash_config_STRINGIFY_NAME(BIGHASH_CONFIG_LOAD_FACTOR), __bighash_config_STRINGIFY_VALUE(BIGHASH_CONFIG_LOAD_FACTOR) },
+#else
+{ BIGHASH_CONFIG_LOAD_FACTOR(__bighash_config_STRINGIFY_NAME), "__undefined__" },
+#endif
     { NULL, NULL }
 };
 #undef __bighash_config_STRINGIFY_VALUE

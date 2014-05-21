@@ -28,6 +28,14 @@
 
 #include <BigHash/bighash_config.h>
 
+/**
+ * Special value passed for the bucket count to enable autogrow.
+ *
+ * When autogrow is enabled, the hash table will resize during
+ * bighash_insert if it would exceeded the load factor.
+ */
+#define BIGHASH_AUTOGROW 0
+
 struct bighash_entry_s;
 
 /**
@@ -44,6 +52,9 @@ typedef struct bighash_table_s {
 #define BIGHASH_TABLE_F_TABLE_ALLOCATED   0x1
     /** The hash bucket array was allocated */
 #define BIGHASH_TABLE_F_BUCKETS_ALLOCATED 0x2
+    /** The hash bucket array should be automatically grown when the load
+     * factor is exceeded */
+#define BIGHASH_TABLE_F_AUTOGROW 0x2
 
     /** Table Flags */
     uint32_t flags;
