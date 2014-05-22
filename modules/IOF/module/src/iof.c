@@ -96,8 +96,10 @@ int
 iof_pop(iof_t* iof)
 {
     --iof->level;
-    iof_indent(iof);
-    iof_uprintf(iof, "%s\n", iof->pop_string);
+    if(iof->pop_string) {
+        iof_indent(iof);
+        iof_uprintf(iof, "%s\n", iof->pop_string);
+    }
     return 0;
 }
 
