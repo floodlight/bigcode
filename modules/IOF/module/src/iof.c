@@ -34,8 +34,10 @@ iof_inherit_vprintf__(aim_pvs_t* pvs, const char* fmt, va_list vargs)
 int
 iof_init(iof_t* iof, aim_pvs_t* pvs)
 {
+    int rv = -1;
+
     if(iof == NULL || pvs == NULL) {
-        return -1;
+        return rv;
     }
 
     /*
@@ -47,6 +49,7 @@ iof_init(iof_t* iof, aim_pvs_t* pvs)
          * inherit the current setttings.
          */
         IOF_MEMCPY(iof, (iof_t*)pvs->object.cookie, sizeof(*iof));
+        rv = 1;
     }
     else {
         IOF_MEMSET(iof, 0, sizeof(*iof));
@@ -60,11 +63,12 @@ iof_init(iof_t* iof, aim_pvs_t* pvs)
 
         iof->pvs = pvs;
         iof->inherit.vprintf = iof_inherit_vprintf__;
+        rv = 0;
     }
 
     /* The inherited IOF structure is always the current one */
     iof->inherit.object.cookie = iof;
-    return 0;
+    return rv;
 }
 
 int
