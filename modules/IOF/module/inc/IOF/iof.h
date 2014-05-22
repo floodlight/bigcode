@@ -79,7 +79,10 @@ typedef struct iof_s {
  * @param iof Pointer to the IOF structure to initialize.
  * @param pvs The AIM output vector.
  *
- * @returns 0 on success, negative on error.
+ * @returns 0 if successfully initialized.
+ * @returns 1 if IOF was inherited via the pvs.
+ * @returns negative on error.
+ *
  */
 int iof_init(iof_t* iof, aim_pvs_t* pvs);
 
