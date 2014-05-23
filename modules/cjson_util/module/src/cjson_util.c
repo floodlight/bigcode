@@ -25,7 +25,7 @@
 #include <cjson_util/cjson_util.h>
 #include <AIM/aim_map.h>
 #include <AIM/aim_error.h>
-
+#include <AIM/aim_memory.h>
 
 static int
 cjson_util_lookup_path__(cJSON *root, cJSON** result, const char *path_)
@@ -69,7 +69,7 @@ cjson_util_vlookup(cJSON* root, cJSON** result, const char* fmt, va_list vargs)
 
     if(root) {
         int size = vsnprintf_size__(fmt, vargs);
-        char* path = aim_malloc(size+1);
+        char* path = aim_zmalloc(size+1);
         vsnprintf(path, size+1, fmt, vargs);
         rv = cjson_util_lookup_path__(root, result, path);
         aim_free(path);
