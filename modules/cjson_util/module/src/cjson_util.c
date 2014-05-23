@@ -28,10 +28,8 @@
 #include <AIM/aim_memory.h>
 
 static int
-cjson_util_lookup_path__(cJSON *root, cJSON** result, const char *path_)
+cjson_util_lookup_path__(cJSON *root, cJSON** result, char *path)
 {
-    /* strtok_r mutates its input, need to copy */
-    char *path = strdup(path_);
     char *saveptr = NULL;
     char *token;
     cJSON *node = root;
@@ -46,7 +44,6 @@ cjson_util_lookup_path__(cJSON *root, cJSON** result, const char *path_)
         }
     }
 
-    free(path);
     *result = err == 0 ? node : NULL;
     return err;
 }
