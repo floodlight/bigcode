@@ -26,6 +26,89 @@
 #include <AIM/aim_map.h>
 #include <AIM/aim_error.h>
 #include <AIM/aim_memory.h>
+#include "cjson_util_log.h"
+
+/*
+ * Given the start of a string containing newlines and another pointer
+ * inside that string, return the line and column number of that position.
+ *
+ * Line and column numbering starts at 1. Tab width is assumed to be 8.
+ */
+static void
+find_line_number__(const char *start, const char *pos, int *line, int *col)
+{
+    const char *cur = start;
+    const int tabwidth = 8;
+    *line = 1;
+    *col = 1;
+
+    while (cur < pos) {
+        if (*cur == '\n') {
+            (*line)++;
+            *col = 1;
+        } else if (*cur == '\t') {
+            (*col) += tabwidth - ((*col - 1) % tabwidth);
+        } else {
+            (*col)++;
+        }
+        cur++;
+    }
+}
+
+int
+cjson_util_parse_file(const char* filename, cJSON** result)
+{
+    FILE *f;
+    long len;
+    char *data;
+    cJSON *root;
+
+    f = fopen(filename, "r");
+    if (f == NULL) {
+        return AIM_ERROR_NOT_FOUND;
+    }
+
+    fseek(f, 0, SEEK_END);
+    len = ftell(f);
+    fseek(f, 0, SEEK_SET);
+    data = aim_zmalloc(len + 1);
+    if (fread(data, 1, len, f) == 0) {
+        aim_free(data);
+        fclose(f);
+        AIM_LOG_ERROR("failed to read %s", filename);
+        return AIM_ERROR_INTERNAL;
+    }
+    data[len] = 0;
+    fclose(f);
+
+    root = cJSON_Parse(data);
+    if (!root) {
+        int line, col;
+        char *next_newline;
+        const char *errptr = cJSON_GetErrorPtr();
+        find_line_number__(data, errptr, &line, &col);
+
+        /* Terminate the snippet before the next newline */
+        next_newline = strchr(errptr, '\n');
+        if (next_newline != NULL) {
+            *next_newline = '\0';
+        }
+
+        AIM_LOG_ERROR("%s: Error at line %d col %d: [%.8s]\n", filename,
+                      line, col, errptr);
+        aim_free(data);
+        return AIM_ERROR_PARAM;
+    }
+
+    aim_free(data);
+    if(result) {
+        *result = root;
+    }
+    else {
+        cJSON_Delete(root);
+    }
+    return 0;
+}
 
 static int
 cjson_util_lookup_path__(cJSON *root, cJSON** result, char *path)

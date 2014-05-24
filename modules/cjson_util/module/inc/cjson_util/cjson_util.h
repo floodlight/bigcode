@@ -31,6 +31,17 @@
 
 
 /**
+ * @brief Load a json configuration file.
+ * @param filename The filename.
+ * @param result Receives the root node.
+ * @returns AIM_ERROR_NOT_FOUND if the file is missing
+ * @returns AIM_ERROR_INTERNAL if the file could not be read.
+ * @reutrns AIM_ERROR_PARAM if the file could not be parsed.
+ */
+
+int cjson_util_parse_file(const char* filename, cJSON** result);
+
+/**
  * @brief Lookup an object node.
  * @param root The root of the tree.
  * @param rv Receives the node if successful.
