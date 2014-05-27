@@ -54,7 +54,7 @@ typedef struct bighash_table_s {
 #define BIGHASH_TABLE_F_BUCKETS_ALLOCATED 0x2
     /** The hash bucket array should be automatically grown when the load
      * factor is exceeded */
-#define BIGHASH_TABLE_F_AUTOGROW 0x2
+#define BIGHASH_TABLE_F_AUTOGROW 0x4
 
     /** Table Flags */
     uint32_t flags;
