@@ -206,6 +206,28 @@ test_template(void)
     return 0;
 }
 
+static void
+test_autogrow(void)
+{
+    {
+        bighash_table_t *table = bighash_table_create(BIGHASH_AUTOGROW);
+        biglist_t *entries = NULL;
+        insert__(table, 63, &entries);
+        AIM_ASSERT(table->bucket_count == 128);
+        test_table_data__(table, &entries);
+        bighash_table_destroy(table, NULL);
+    }
+
+    {
+        bighash_table_t *table = bighash_table_create(BIGHASH_AUTOGROW);
+        biglist_t *entries = NULL;
+        insert__(table, 64, &entries);
+        AIM_ASSERT(table->bucket_count == 256);
+        test_table_data__(table, &entries);
+        bighash_table_destroy(table, NULL);
+    }
+}
+
 int main(int argc, char *argv[])
 {
     biglist_t *entries = NULL;
@@ -288,6 +310,8 @@ int main(int argc, char *argv[])
     bighash_table_destroy(&static_table, free_test_entry);
 
     test_template();
+
+    test_autogrow();
 
     return 0;
 }

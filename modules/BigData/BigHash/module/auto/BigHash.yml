@@ -42,6 +42,12 @@ cdefs: &cdefs
 - BIGHASH_CONFIG_INCLUDE_LOCKING:
     doc: "Include table syncronization and locking."
     default: 1
+- BIGHASH_CONFIG_INITIAL_HASH_BUCKETS_SIZE:
+    doc: "Initial size of the hash buckets array when using autogrow."
+    default: 8
+- BIGHASH_CONFIG_LOAD_FACTOR:
+    doc: "Ratio of entries to buckets."
+    default: 0.5
 
 definitions:
   cdefs:

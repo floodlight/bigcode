@@ -21,6 +21,8 @@
 #include <BigHash/bighash.h>
 #include "bighash_log.h"
 
+static void bighash_grow(bighash_table_t *table);
+
 bighash_table_t *
 bighash_table_create(int bucket_count)
 {
@@ -48,10 +50,16 @@ bighash_table_init_buckets__(bighash_table_t *table)
 int
 bighash_table_init(bighash_table_t *table, int bucket_count)
 {
+    if (bucket_count == BIGHASH_AUTOGROW) {
+        bucket_count = BIGHASH_CONFIG_INITIAL_HASH_BUCKETS_SIZE;
+        table->flags |= BIGHASH_TABLE_F_AUTOGROW;
+    }
+
     if(table->buckets == NULL) {
         table->buckets = aim_zmalloc(sizeof(table->buckets[0])*bucket_count);
         table->flags |= BIGHASH_TABLE_F_BUCKETS_ALLOCATED;
     }
+
     table->bucket_count = bucket_count;
 
     bighash_table_init_buckets__(table);
@@ -105,6 +113,12 @@ bighash_insert(bighash_table_t *table, bighash_entry_t *e, uint32_t hash)
     e->hash = hash;
     *bucket = e;
     table->entry_count++;
+
+    if (table->flags & BIGHASH_TABLE_F_AUTOGROW) {
+        if (table->entry_count >= table->bucket_count*BIGHASH_CONFIG_LOAD_FACTOR) {
+            bighash_grow(table);
+        }
+    }
 }
 
 bighash_entry_t *
@@ -228,4 +242,47 @@ bighash_entries_move(bighash_table_t *dst, bighash_table_t *src)
         bighash_insert(dst, e, e->hash);
     }
     return 0;
+}
+
+static void
+bighash_grow(bighash_table_t *table)
+{
+    AIM_ASSERT(aim_is_pow2_u32(table->bucket_count));
+
+    int new_bucket_count = table->bucket_count * 2;
+    bighash_entry_t **new_buckets = aim_malloc(sizeof(new_buckets[0]) * new_bucket_count);
+
+    /* Bit that decides whether we go in the hi or lo bucket */
+    uint32_t bit = table->bucket_count;
+
+    unsigned i;
+    for (i = 0; i < table->bucket_count; i++) {
+        bighash_entry_t *cur = table->buckets[i];
+        bighash_entry_t **new_tail_lo = &new_buckets[i];
+        bighash_entry_t **new_tail_hi = &new_buckets[bit + i];
+
+        /* Initialize new buckets to an empty list */
+        *new_tail_lo = NULL;
+        *new_tail_hi = NULL;
+
+        while (cur != NULL) {
+            /* Get the new tail */
+            bighash_entry_t ***new_tail_ptr = cur->hash & bit ? &new_tail_hi
+                                                              : &new_tail_lo;
+            bighash_entry_t **new_tail = *new_tail_ptr;
+            bighash_entry_t *next = cur->next;
+
+            /* Add cur to the end of the list */
+            *new_tail = cur;
+            cur->next = NULL;
+
+            /* Advance local list pointers */
+            *new_tail_ptr = &cur->next;
+            cur = next;
+        }
+    }
+
+    aim_free(table->buckets);
+    table->bucket_count = new_bucket_count;
+    table->buckets = new_buckets;
 }

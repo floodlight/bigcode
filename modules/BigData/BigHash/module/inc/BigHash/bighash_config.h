@@ -117,6 +117,26 @@
 #define BIGHASH_CONFIG_INCLUDE_LOCKING 1
 #endif
 
+/**
+ * BIGHASH_CONFIG_INITIAL_HASH_BUCKETS_SIZE
+ *
+ * Initial size of the hash buckets array when using autogrow. */
+
+
+#ifndef BIGHASH_CONFIG_INITIAL_HASH_BUCKETS_SIZE
+#define BIGHASH_CONFIG_INITIAL_HASH_BUCKETS_SIZE 8
+#endif
+
+/**
+ * BIGHASH_CONFIG_LOAD_FACTOR
+ *
+ * Ratio of entries to buckets. */
+
+
+#ifndef BIGHASH_CONFIG_LOAD_FACTOR
+#define BIGHASH_CONFIG_LOAD_FACTOR 0.5
+#endif
+
 
 
 /**
