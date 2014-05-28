@@ -57,7 +57,9 @@ int aim_main(int argc, char* argv[])
         "      \"i2\": 2, "
         "      \"more\": { "
         "        \"i3\": 3, "
-        "        \"i4\": 4 "
+        "        \"i4\": 4, "
+        "        \"hex\": \"0xDEADf00d\","
+        "        \"hexbad\": \"DEADBEEF\""
         "        }"
         "     }, "
         " \"doubles\": {"
@@ -130,7 +132,12 @@ int aim_main(int argc, char* argv[])
     AIM_ASSERT(dv >= 3.141 && dv <= 3.15);
     TRY(cjson_util_lookup_string(root, &sv, "data.strings.alpha.bravo.charlie.delta"));
     AIM_ASSERT(!strcmp(sv, "foxtrot"));
-
+    TRY(cjson_util_lookup_string(root, &sv, "data.int.more.hex"));
+    AIM_ASSERT(!strcmp(sv, "0xDEADf00d"));
+    TRY(cjson_util_lookup_int(root, &iv, "data.int.more.hex"));
+    AIM_ASSERT(iv == 0xdeadf00d);
+    TRY(cjson_util_lookup_string(root, &sv, "data.int.more.hexbad"));
+    AIM_ASSERT(cjson_util_lookup_int(root, &iv, "data.int.more.hexbad") == AIM_ERROR_PARAM);
     cJSON_Delete(root);
     return 0;
 }
