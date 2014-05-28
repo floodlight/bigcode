@@ -22,6 +22,7 @@
  * cJSON Access Utilities
  *
  ***********************************************************/
+#include <cjson_util/cjson_util_config.h>
 #include <cjson_util/cjson_util.h>
 #include <AIM/aim_map.h>
 #include <AIM/aim_error.h>
@@ -181,17 +182,30 @@ cjson_util_vlookup_int(cJSON *root, int* result, const char* fmt,
         return rv;
     }
 
-    if (node->type != cJSON_Number) {
-        return AIM_ERROR_PARAM;
+    if(node->type == cJSON_Number) {
+        if (node->valueint != node->valuedouble) {
+            return AIM_ERROR_PARAM;
+        }
+        *result = node->valueint;
+        rv = 0;
     }
-
-    if (node->valueint != node->valuedouble) {
-        return AIM_ERROR_PARAM;
+    else if(node->type == cJSON_String) {
+        /*
+         * Special case -- allow hexadecimal-as-a-string when expecting
+         * an integer.
+         * The json format does not support hexadecimal number formats,
+         * which sometimes makes things tedious.
+         */
+        rv = AIM_ERROR_PARAM;
+        if(node->valuestring && node->valuestring[0] == '0') {
+            if(node->valuestring[1] == 'x' || node->valuestring[1] == 'X') {
+                if(CJSON_UTIL_SSCANF(node->valuestring+2, "%x", result) == 1) {
+                    rv = 0;
+                }
+            }
+        }
     }
-
-    *result = node->valueint;
-
-    return 0;
+    return rv;
 }
 
 

@@ -39,83 +39,13 @@
 #include <memory.h>
 #endif
 
-#ifndef CJSON_UTIL_MALLOC
-    #if defined(GLOBAL_MALLOC)
-        #define CJSON_UTIL_MALLOC GLOBAL_MALLOC
+#ifndef CJSON_UTIL_SSCANF
+    #if defined(GLOBAL_SSCANF)
+        #define CJSON_UTIL_SSCANF GLOBAL_SSCANF
     #elif CJSON_UTIL_CONFIG_PORTING_STDLIB == 1
-        #define CJSON_UTIL_MALLOC malloc
+        #define CJSON_UTIL_SSCANF sscanf
     #else
-        #error The macro CJSON_UTIL_MALLOC is required but cannot be defined.
-    #endif
-#endif
-
-#ifndef CJSON_UTIL_FREE
-    #if defined(GLOBAL_FREE)
-        #define CJSON_UTIL_FREE GLOBAL_FREE
-    #elif CJSON_UTIL_CONFIG_PORTING_STDLIB == 1
-        #define CJSON_UTIL_FREE free
-    #else
-        #error The macro CJSON_UTIL_FREE is required but cannot be defined.
-    #endif
-#endif
-
-#ifndef CJSON_UTIL_MEMSET
-    #if defined(GLOBAL_MEMSET)
-        #define CJSON_UTIL_MEMSET GLOBAL_MEMSET
-    #elif CJSON_UTIL_CONFIG_PORTING_STDLIB == 1
-        #define CJSON_UTIL_MEMSET memset
-    #else
-        #error The macro CJSON_UTIL_MEMSET is required but cannot be defined.
-    #endif
-#endif
-
-#ifndef CJSON_UTIL_MEMCPY
-    #if defined(GLOBAL_MEMCPY)
-        #define CJSON_UTIL_MEMCPY GLOBAL_MEMCPY
-    #elif CJSON_UTIL_CONFIG_PORTING_STDLIB == 1
-        #define CJSON_UTIL_MEMCPY memcpy
-    #else
-        #error The macro CJSON_UTIL_MEMCPY is required but cannot be defined.
-    #endif
-#endif
-
-#ifndef CJSON_UTIL_STRNCPY
-    #if defined(GLOBAL_STRNCPY)
-        #define CJSON_UTIL_STRNCPY GLOBAL_STRNCPY
-    #elif CJSON_UTIL_CONFIG_PORTING_STDLIB == 1
-        #define CJSON_UTIL_STRNCPY strncpy
-    #else
-        #error The macro CJSON_UTIL_STRNCPY is required but cannot be defined.
-    #endif
-#endif
-
-#ifndef CJSON_UTIL_VSNPRINTF
-    #if defined(GLOBAL_VSNPRINTF)
-        #define CJSON_UTIL_VSNPRINTF GLOBAL_VSNPRINTF
-    #elif CJSON_UTIL_CONFIG_PORTING_STDLIB == 1
-        #define CJSON_UTIL_VSNPRINTF vsnprintf
-    #else
-        #error The macro CJSON_UTIL_VSNPRINTF is required but cannot be defined.
-    #endif
-#endif
-
-#ifndef CJSON_UTIL_SNPRINTF
-    #if defined(GLOBAL_SNPRINTF)
-        #define CJSON_UTIL_SNPRINTF GLOBAL_SNPRINTF
-    #elif CJSON_UTIL_CONFIG_PORTING_STDLIB == 1
-        #define CJSON_UTIL_SNPRINTF snprintf
-    #else
-        #error The macro CJSON_UTIL_SNPRINTF is required but cannot be defined.
-    #endif
-#endif
-
-#ifndef CJSON_UTIL_STRLEN
-    #if defined(GLOBAL_STRLEN)
-        #define CJSON_UTIL_STRLEN GLOBAL_STRLEN
-    #elif CJSON_UTIL_CONFIG_PORTING_STDLIB == 1
-        #define CJSON_UTIL_STRLEN strlen
-    #else
-        #error The macro CJSON_UTIL_STRLEN is required but cannot be defined.
+        #error The macro CJSON_UTIL_SSCANF is required but cannot be defined.
     #endif
 #endif
 
