@@ -247,7 +247,7 @@ bighash_entries_move(bighash_table_t *dst, bighash_table_t *src)
 static void
 bighash_grow(bighash_table_t *table)
 {
-    AIM_ASSERT(aim_is_pow2_u32(table->bucket_count));
+    AIM_ASSERT(aim_is_pow2_u32(table->bucket_count), "Bucket count must be a power of 2");
 
     int new_bucket_count = table->bucket_count * 2;
     bighash_entry_t **new_buckets = aim_malloc(sizeof(new_buckets[0]) * new_bucket_count);
@@ -255,7 +255,7 @@ bighash_grow(bighash_table_t *table)
     /* Bit that decides whether we go in the hi or lo bucket */
     uint32_t bit = table->bucket_count;
 
-    unsigned i;
+    int i;
     for (i = 0; i < table->bucket_count; i++) {
         bighash_entry_t *cur = table->buckets[i];
         bighash_entry_t **new_tail_lo = &new_buckets[i];
