@@ -31,7 +31,7 @@
  *
  *****************************************************************************/
 
-static inline
+static inline AIM_COMPILER_ATTR_UNUSED
 uint8_t data8__(int skip, int advance, uint8_t** data, int* len)
 {
     uint8_t rv;
@@ -63,7 +63,7 @@ uint16_t data16__(int skip, int advance, uint8_t** data, int* len)
     return rv;
 }
 
-static inline
+static inline AIM_COMPILER_ATTR_UNUSED
 uint32_t data32__(int skip, int advance, uint8_t** data, int* len)
 {
     uint32_t rv;
@@ -80,7 +80,7 @@ uint32_t data32__(int skip, int advance, uint8_t** data, int* len)
     return rv;
 }
 
-static inline
+static inline AIM_COMPILER_ATTR_UNUSED
 uint8_t* datap__(int skip, int advance, int size, uint8_t** data, int* len)
 {
     uint8_t* rv;
