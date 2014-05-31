@@ -374,6 +374,7 @@ ppe_dfk_show(ppe_dfk_t* dfk, aim_pvs_t* pvs)
 {
     unsigned int i;
     int offset_bytes = 0;
+    int rv;
     iof_t iof;
     iof_init(&iof, pvs);
 
@@ -398,7 +399,8 @@ ppe_dfk_show(ppe_dfk_t* dfk, aim_pvs_t* pvs)
                 /* fixme */
                 unsigned int i;
                 uint8_t data[256];
-                ppe_wide_field_info_get_header(dfk->data, &fi, data);
+                rv = ppe_wide_field_info_get_header(dfk->data, &fi, data);
+                AIM_ASSERT(rv == 0, "Failed to get field after checking for existence");
                 iof_uprintf(&iof, "%s={ ", ppe_field_name(field));
                 for(i = 0; i < fi.size_bits / 8; i++) {
                     iof_uprintf(&iof, "%.2x", data[i]);
@@ -507,6 +509,7 @@ ppe_packet_dfk(ppe_packet_t* ppep, ppe_dfk_t* dfk)
 {
     unsigned int i;
     int offset_bytes = 0;
+    int rv;
 
     PPE_MEMSET(dfk->data, 0, dfk->size);
     dfk->mask = 0;
@@ -522,7 +525,8 @@ ppe_packet_dfk(ppe_packet_t* ppep, ppe_dfk_t* dfk)
             fi.offset_bytes = offset_bytes;
             if(fi.size_bits <= 32) {
                 uint32_t data;
-                ppe_field_get(ppep, field, &data);
+                rv = ppe_field_get(ppep, field, &data);
+                AIM_ASSERT(rv == 0, "Failed to get field after checking for existence");
                 ppe_field_info_set_header(dfk->data, &fi, data);
             }
             else {
