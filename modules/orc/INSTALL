@@ -1,0 +1,7 @@
+
+On any modern Linux platform:
+
+% make
+% make test         # verify there are no failed assert()'s
+% sudo make install
+

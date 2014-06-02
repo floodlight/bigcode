@@ -1,0 +1,8 @@
+
+
+
+VLAN Notes  -- Coming Soon
+    * Untagged traffic goes to basic inteface, e.g., "eth0"
+    * Can create a virtual interface for tagged traffic, e.g., "eth0.5"
+        This sends all tagged traffic to eth0.5 and it is received off of that port as untagged traffic.
+    * ip link add link eth0 eth0.5 type vlan id 5

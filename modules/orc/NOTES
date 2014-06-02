@@ -1,0 +1,8 @@
+What VLAN do we give interfaces so that they can route?
+    * Try for all in vlan 1; cross fingers
+
+What is order of ops for driver calls:
+    * $intf_id = create_interface($if_index, $hw_mac, $mtu)
+    * $next_hop_id = create_next_hop($nh_hw_mac, $intf_id)
+    * create_route($ip, $mask, $next_hop_id)
+    * need a special $next_hop_id of "to Linux Kernel"

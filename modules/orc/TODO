@@ -1,0 +1,26 @@
+* Fix endian issues: Parsed IPv4 neighbor L3 addr: 110.74.192.10
+
+* Implement daemon/double fork
+
+* Test packet I/O
+
+* Get debug symbols in orc_brcm
+
+
+Pre-add/parse ARP tables with RTM_GETNEIGHTBL in /usr/include/linux/neighbor.h
+
+Figure out why MAC addresses on virtual interfaces are random (garbage?)
+
+Support ports with ADMIN UP/DOWN capabilities
+    * Track the UP/DOWN state of the virtual interface and push to the driver
+    * Need to update the driver API
+
+Add IPv6 support:
+    * Mostly in the netlink_mon.c code, but also in the glue_driver interface
+    * Look for "/* TODO : support IPv6 */"
+
+Add VLANs support
+    * Watch for new interfaces/links, check their VLANs and add then to the ASIC
+    * Consider a default VLAN for all ports, e.g., vlan 1
+
+

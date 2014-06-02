@@ -1,0 +1,58 @@
+    Goal
+------------
+
+Bring up a virtual Linux interface for each physical port on the switch
+and tie the ASIC to the native Linux routing.
+
+
+    Day in the Life of a packet
+----------------------------------------------------------
+1) Start asic-glued
+    a) queries driver for list of ports
+    b) creates a TAP interface for each port
+    c) Calls driver->new_interface($mac,$interface) for each port with MAC address
+2) Admin gives the new interfaces IP addresses
+    a) for interface in $interfaces; do 
+        `ifconfig $interface $ip netmask $netmask` 
+        done
+    b) With each new interface, asic-glued gets an rtnetlink notification
+    c) Each notification, call driver->add_slow_route($ip, $mask=32)
+        This inserts a "host route" of $ip/32 from the ASIC to the CPU/Linux kernel
+3) Packets that arrive at ASIC physical ports directed to one of the interfaces
+    IP addresses are sent "to CPU", caught in the driver, and forwarded "out"
+    one of the Linux virtual interfaces
+4) The Linux kernel intercepts this packet and replies accordingly
+    (e.g., send an Echo Reply given an Echo Request).  We get this
+    functionality largely for free given the Linux kernel stack.
+5) Admin installs a route to an interface
+    a) e.g,. `route add -net 192.168.1.0 netmask 255.255.255.0 dev asic03`
+    b) for each host in the ARP table:
+        i) if host matches $net/$mask, then
+            call driver->add_fast_route($host,$mac, $mask=32, $interface)
+    c) asic-glued calls driver->add_slow_route($net, $mask) to send traffic
+        to the Linux kernel.  NOTE that this route is only used for
+        traffic for which we do not have an ARP/next-hop entry.
+6) asic-glued monitors the ARP table:
+    a) if a new entry comes that matches an existing slow path route,
+        then add a correspoding 'fast_path' route
+    b) if an arp entry expires, remove the corresponding fast path route
+7) An IP packet arriving at the front panel port is matched against the ASIC
+    a) if a next-hop/fast path entry exists (read: if the Linux kernel has 
+        an ARP entry for this next-hop) then the packet is forwarded strictly
+        through the ASIC -- at full line rate
+    b) if not, then the packet is sent up to the kernel to be slow path routed
+        i) once the path/next-hop is resolved, then a new fast-path entry will
+            be created.
+8) Admin starts up Quagga or similar dynamic routing protocol daemon
+    a) configures quagga to use the virtual Linux interfaces
+    b) Quagga installs routes that are learned by asic-glued and copied into the ASIC
+
+
+
+
+ASIC Driver model:
+
+This code is intended to be portable across a variety of ASIC platforms,
+so the critical ASIC-specific bits are broken out into a driver model.
+See ./include/glue_driver.h for the driver API.  Not all API functions
+are required -- see header file for detail.

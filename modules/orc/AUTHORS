@@ -1,0 +1,6 @@
+Like all good open source projects, authorship is determined by:
+
+    `git log | grep Author | sort | uniq -c | sort -n`
+
+     17 Author: Rob Sherwood <rob.sherwood@bigswitch.com>
+
