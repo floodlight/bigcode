@@ -59,6 +59,12 @@ pimu_actions: &pimu_actions
 - FORWARD_PRIORITY
 - DROP
 
+pimu_keyf_ret: &pimu_keyf_ret
+- ERROR
+- CONTINUE
+- DROP
+- FORWARD
+
 definitions:
   cdefs:
     PIMU_CONFIG_HEADER: 
@@ -77,6 +83,9 @@ definitions:
   enum: &enums
     pimu_action:
       members: *pimu_actions
+
+    pimu_keyf_ret:
+      members: *pimu_keyf_ret
 
   xenum:
     PIMU_ENUMERATION_ENTRY:

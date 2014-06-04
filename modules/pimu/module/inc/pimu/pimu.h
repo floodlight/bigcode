@@ -88,6 +88,44 @@ extern aim_map_si_t pimu_action_map[];
 extern aim_map_si_t pimu_action_desc_map[];
 /* <auto.end.enum(pimu_action).header> */
 
+/* <auto.start.enum(pimu_keyf_ret).header> */
+/** pimu_keyf_ret */
+typedef enum pimu_keyf_ret_e {
+    PIMU_KEYF_RET_ERROR,
+    PIMU_KEYF_RET_CONTINUE,
+    PIMU_KEYF_RET_DROP,
+    PIMU_KEYF_RET_FORWARD,
+    PIMU_KEYF_RET_LAST = PIMU_KEYF_RET_FORWARD,
+    PIMU_KEYF_RET_COUNT,
+    PIMU_KEYF_RET_INVALID = -1,
+} pimu_keyf_ret_t;
+
+/** Strings macro. */
+#define PIMU_KEYF_RET_STRINGS \
+{\
+    "ERROR", \
+    "CONTINUE", \
+    "DROP", \
+    "FORWARD", \
+}
+/** Enum names. */
+const char* pimu_keyf_ret_name(pimu_keyf_ret_t e);
+
+/** Enum values. */
+int pimu_keyf_ret_value(const char* str, pimu_keyf_ret_t* e, int substr);
+
+/** Enum descriptions. */
+const char* pimu_keyf_ret_desc(pimu_keyf_ret_t e);
+
+/** validator */
+#define PIMU_KEYF_RET_VALID(_e) \
+    ( (0 <= (_e)) && ((_e) <= PIMU_KEYF_RET_FORWARD))
+
+/** pimu_keyf_ret_map table. */
+extern aim_map_si_t pimu_keyf_ret_map[];
+/** pimu_keyf_ret_desc_map table. */
+extern aim_map_si_t pimu_keyf_ret_desc_map[];
+/* <auto.end.enum(pimu_keyf_ret).header> */
 
 
 /**
@@ -102,6 +140,27 @@ extern aim_map_si_t pimu_action_desc_map[];
  */
 pimu_action_t pimu_packet_in(pimu_t* pimu, int pid, int gid, uint8_t* data,
                              uint32_t size, uint64_t now);
+
+/**
+ * @brief Key constructor.
+ * @param key Output array of PIMU_CONFIG_PACKET_KEY_SIZE bytes containing key;
+     array is zeroed before key constructor is called.
+ * @param pid The ingress port id.
+ * @param data Pointer to bytes from which the key is constructed.
+ * @param size Number of bytes pointed to by data parameter.
+ * @returns PIMU_KEYF_RET_DROP to drop packet, 
+ *    PIMU_KEYF_RET_FORWARD to forward packet without further processing, 
+ *    PIMU_KEYF_RET_CONTINUE to continue processing with constructed key
+ */
+typedef pimu_keyf_ret_t (*pimu_key_f)(uint8_t* key, int pid, 
+                                      uint8_t* data, int size);
+
+/**
+ * @brief Set the key constructor function for the given PIMU object.
+ * @param pimu The PIMU object.
+ * @param keyf Key construction function; see typedef above.
+ */
+int pimu_key_constructor_set(pimu_t* pimu, pimu_key_f keyf);
 
 /**
  * @brief Set the default packet rate for each flow.

@@ -25,6 +25,64 @@
 #include <pimu/pimu.h>
 
 /* <auto.start.enum(ALL).source> */
+aim_map_si_t pimu_keyf_ret_map[] =
+{
+    { "ERROR", PIMU_KEYF_RET_ERROR },
+    { "CONTINUE", PIMU_KEYF_RET_CONTINUE },
+    { "DROP", PIMU_KEYF_RET_DROP },
+    { "FORWARD", PIMU_KEYF_RET_FORWARD },
+    { NULL, 0 }
+};
+
+aim_map_si_t pimu_keyf_ret_desc_map[] =
+{
+    { "None", PIMU_KEYF_RET_ERROR },
+    { "None", PIMU_KEYF_RET_CONTINUE },
+    { "None", PIMU_KEYF_RET_DROP },
+    { "None", PIMU_KEYF_RET_FORWARD },
+    { NULL, 0 }
+};
+
+const char*
+pimu_keyf_ret_name(pimu_keyf_ret_t e)
+{
+    const char* name;
+    if(aim_map_si_i(&name, e, pimu_keyf_ret_map, 0)) {
+        return name;
+    }
+    else {
+        return "-invalid value for enum type 'pimu_keyf_ret'";
+    }
+}
+
+int
+pimu_keyf_ret_value(const char* str, pimu_keyf_ret_t* e, int substr)
+{
+    int i;
+    AIM_REFERENCE(substr);
+    if(aim_map_si_s(&i, str, pimu_keyf_ret_map, 0)) {
+        /* Enum Found */
+        *e = i;
+        return 0;
+    }
+    else {
+        return -1;
+    }
+}
+
+const char*
+pimu_keyf_ret_desc(pimu_keyf_ret_t e)
+{
+    const char* name;
+    if(aim_map_si_i(&name, e, pimu_keyf_ret_desc_map, 0)) {
+        return name;
+    }
+    else {
+        return "-invalid value for enum type 'pimu_keyf_ret'";
+    }
+}
+
+
 aim_map_si_t pimu_action_map[] =
 {
     { "ERROR", PIMU_ACTION_ERROR },
