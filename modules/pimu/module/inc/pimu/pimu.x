@@ -24,6 +24,7 @@
 
 /* <auto.start.xenum(ALL).define> */
 #ifdef PIMU_ENUMERATION_ENTRY
+PIMU_ENUMERATION_ENTRY(pimu_keyf_ret, "")
 PIMU_ENUMERATION_ENTRY(pimu_action, "")
 #undef PIMU_ENUMERATION_ENTRY
 #endif

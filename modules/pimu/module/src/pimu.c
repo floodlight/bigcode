@@ -62,6 +62,9 @@ struct pimu_s {
     /** Flow Packets/sec */
     double flow_pps;
 
+    /* Key construction function */
+    pimu_key_f keyf;
+
     /** Global Group -- applicable to all packets */
     pimu_group_t global;
 
@@ -95,6 +98,13 @@ pimu_destroy(pimu_t* pimu)
 {
     nwac_destroy(pimu->nwac);
     aim_free(pimu);
+}
+
+int 
+pimu_key_constructor_set(pimu_t* pimu, pimu_key_f keyf)
+{
+    pimu->keyf = keyf;
+    return 0;
 }
 
 int
@@ -142,13 +152,29 @@ pimu_flow_action__(pimu_t* pimu, int pid,
         return PIMU_ACTION_FORWARD_NEW;
     }
 
-    if(size < PIMU_CONFIG_PACKET_KEY_SIZE) {
+    /* use key constructor if defined */
+    if(pimu->keyf) {
+      int rv = pimu->keyf(key, pid, data, size);
+        switch(rv) {
+        case PIMU_KEYF_RET_CONTINUE:
+            break;
+        case PIMU_KEYF_RET_DROP:
+            return PIMU_ACTION_DROP;
+        case PIMU_KEYF_RET_FORWARD:
+            return PIMU_ACTION_FORWARD_NEW;
+        case PIMU_KEYF_RET_ERROR:  /* fall-through */
+        default:
+            AIM_LOG_ERROR("key constructor returned unknown error %d", rv);
+            return PIMU_ACTION_ERROR;
+        }
+        data = key;
+    } else if(size < PIMU_CONFIG_PACKET_KEY_SIZE) {
         PIMU_MEMCPY(key, data, size);
         data = key;
     }
     pe = (pimu_entry_t*)nwac_search(pimu->nwac, data, now);
     if(pe) {
-        if(pe->hdr.valid && pe->pid == pid) {
+        if(pe->hdr.valid && (pimu->keyf || pe->pid == pid)) {
             /** Entry exists and the ingress port hasn't changed */
             if(aim_ratelimiter_limit(&pe->rl, now) == 0) {
                 /* Allowed */
