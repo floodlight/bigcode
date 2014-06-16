@@ -61,6 +61,8 @@ struct pimu_s {
     nwac_t* nwac;
     /** Flow Packets/sec */
     double flow_pps;
+    /** Flow burst size */
+    uint32_t flow_burst;
 
     /* Key construction function */
     pimu_key_f keyf;
@@ -108,9 +110,10 @@ pimu_key_constructor_set(pimu_t* pimu, pimu_key_f keyf)
 }
 
 int
-pimu_flow_pps_set(pimu_t* pimu, double pps)
+pimu_flow_pps_set(pimu_t* pimu, double pps, uint32_t burst_size)
 {
     pimu->flow_pps = pps;
+    pimu->flow_burst = burst_size;
     return 0;
 }
 
@@ -189,7 +192,8 @@ pimu_flow_action__(pimu_t* pimu, int pid,
             /** New entry or ingress port change */
             pe->hdr.valid = 1;
             PIMU_MEMCPY(pe->key, data, PIMU_CONFIG_PACKET_KEY_SIZE);
-            aim_ratelimiter_init(&pe->rl, 1000000/pimu->flow_pps, 0, NULL);
+            aim_ratelimiter_init(&pe->rl, 1000000/pimu->flow_pps, 
+                                 pimu->flow_burst, NULL);
             aim_ratelimiter_limit(&pe->rl, now);
             pe->pid = pid;
             return PIMU_ACTION_FORWARD_NEW;

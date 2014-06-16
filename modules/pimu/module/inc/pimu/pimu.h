@@ -166,11 +166,12 @@ int pimu_key_constructor_set(pimu_t* pimu, pimu_key_f keyf);
  * @brief Set the default packet rate for each flow.
  * @param pimu The PIMU object.
  * @param pps Packets per second.
+ * @param burst_size Allowable burst size.
  * @note All flows will be individually rate-limited to this value.
  * @note You must clear the flow cache if you change this
  * while under traffic. See pimu_cache_clear()
  */
-int pimu_flow_pps_set(pimu_t* pimu, double pps);
+int pimu_flow_pps_set(pimu_t* pimu, double pps, uint32_t burst_size);
 
 /**
  * @brief Set the global packet rate for all flows.
