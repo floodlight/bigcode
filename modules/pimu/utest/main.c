@@ -259,7 +259,7 @@ int aim_main(int argc, char* argv[])
         /* Abbreviated tests under valgrind due to running time */
         AIM_LOG_MSG("Running abbreviated tests under valgrind.");
         pimu_cache_clear(pimu);
-        pimu_flow_pps_set(pimu, 1);
+        pimu_flow_pps_set(pimu, 1, 0);
         verify_flow_pps__(pimu, 1, -1);
         pimu_destroy(pimu);
         return 0;
@@ -270,29 +270,29 @@ int aim_main(int argc, char* argv[])
         double pps;
         for(pps = 0.1; pps < 1.0; pps *= 1.5) {
             pimu_cache_clear(pimu);
-            pimu_flow_pps_set(pimu, pps);
+            pimu_flow_pps_set(pimu, pps, 0);
             verify_flow_pps__(pimu, pps, -1);
         }
         for(pps = 1; pps < 10; pps++) {
             pimu_cache_clear(pimu);
-            pimu_flow_pps_set(pimu, pps);
+            pimu_flow_pps_set(pimu, pps, 0);
             verify_flow_pps__(pimu, pps, -1);
         }
         for(pps = 10; pps < 2000; pps+=100) {
             pimu_cache_clear(pimu);
-            pimu_flow_pps_set(pimu, pps);
+            pimu_flow_pps_set(pimu, pps, 0);
             verify_flow_pps__(pimu, pps, -1);
         }
     }
 
     pimu_cache_clear(pimu);
-    pimu_flow_pps_set(pimu, 1000);
+    pimu_flow_pps_set(pimu, 1000, 0);
     pimu_global_pps_set(pimu, 800, 0);
     verify_total_pps__(pimu, 800, 1, -1);
 
     init_packets__(0, 0x88DD, NULL);
     pimu_cache_clear(pimu);
-    pimu_flow_pps_set(pimu, 1000);
+    pimu_flow_pps_set(pimu, 1000, 0);
     pimu_global_pps_set(pimu, 800, 0);
     pimu_prio_ether_type_add(pimu, 0x88DD);
     verify_total_pps__(pimu, 0, 1, -1);
@@ -333,11 +333,12 @@ int aim_main(int argc, char* argv[])
     verify_total_pps__(pimu, 600, 1, 3);
     verify_total_pps__(pimu, 600, 1, -1);
 
+    /* test key constructor */
     init_packets__(0, 0x800, NULL);
     pimu_key_constructor_set(pimu, NULL);
     pimu_cache_clear(pimu);
     pimu_global_pps_set(pimu, 0, 0);
-    pimu_flow_pps_set(pimu, 1);
+    pimu_flow_pps_set(pimu, 1, 0);
     verify_total_pps__(pimu, PACKET_COUNT, 1, -1);
     pimu_key_constructor_set(pimu, keyfunc);
     pimu_cache_clear(pimu);
@@ -351,6 +352,17 @@ int aim_main(int argc, char* argv[])
     pimu_key_constructor_set(pimu, NULL);
     pimu_cache_clear(pimu);
     verify_total_pps__(pimu, PACKET_COUNT, 1, -1);
+
+    /* test flow burst */
+    {
+        int burst;
+        double pps = 16;
+        for(burst = 1; burst < 10; burst *= 2) {
+            pimu_cache_clear(pimu);
+            pimu_flow_pps_set(pimu, pps, burst);
+            verify_flow_pps__(pimu, pps+burst, -1);
+        }
+    }
 
     pimu_destroy(pimu);
     return 0;
