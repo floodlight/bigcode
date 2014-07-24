@@ -140,6 +140,38 @@ test_stress(void)
     slot_allocator_destroy(m);
 }
 
+static void
+test_holes(void)
+{
+    const int n = 1000;
+    struct slot_allocator *m = slot_allocator_create(n);
+    uint32_t slot;
+
+    uint32_t i;
+    for (i = 0; i < n/2; i++) {
+        slot = slot_allocator_alloc(m);
+        assert(slot == i);
+    }
+
+    /* Free one slot, not exceeding the hole limit */
+    slot_allocator_free(m, 0);
+
+    /* Allocation should continue where it left off */
+    slot = slot_allocator_alloc(m);
+    assert(slot == n/2);
+
+    /* Free 99 slots, exceeding the hole limit */
+    for (i = 1; i < 100; i++) {
+        slot_allocator_free(m, i);
+    }
+
+    /* Allocation should restart at 0 */
+    slot = slot_allocator_alloc(m);
+    assert(slot == 0);
+
+    slot_allocator_destroy(m);
+}
+
 int
 aim_main(int argc, char **argv)
 {
@@ -147,6 +179,7 @@ aim_main(int argc, char **argv)
     test_iteration();
     test_stress();
     test_example();
+    test_holes();
 
     return 0;
 }

@@ -69,6 +69,10 @@
  * information in deallocated objects. This means the backing memory can be
  * lazily allocated from the kernel as objects are allocated, rather than
  * all at once, reducing memory consumption.
+ *
+ * The slot allocator attempts to keep allocated slots packed in the lower
+ * portion of the range. This improves iteration efficiency and reduces the
+ * chance of higher pages of backing memory ever being faulted in.
  */
 
 #include <stdint.h>

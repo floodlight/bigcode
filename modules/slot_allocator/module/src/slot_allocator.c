@@ -22,6 +22,13 @@
 #include <AIM/aim_memory.h>
 #include <AIM/aim_bitmap.h>
 
+/*
+ * Fraction of slots allowed to be holes
+ *
+ * A hole is defined as a slot that is both free and smaller than alloc_start.
+ */
+#define HOLE_LIMIT_RATIO 0.01
+
 struct slot_allocator {
     /* Total number of slots */
     uint32_t num_slots;
@@ -31,6 +38,12 @@ struct slot_allocator {
      * of bits in a bitmap word.
      */
     uint32_t alloc_start;
+
+    /* Maximum number of holes allowed */
+    uint32_t max_holes;
+
+    /* Current number of holes */
+    uint32_t num_holes;
 
     /* Bits are set if the corresponding slot is allocated */
     aim_bitmap_t bitmap;
@@ -44,6 +57,8 @@ slot_allocator_create(uint32_t num_slots)
     struct slot_allocator *allocator = aim_zmalloc(sizeof(*allocator));
     allocator->num_slots = num_slots;
     allocator->alloc_start = 0;
+    allocator->max_holes = num_slots * HOLE_LIMIT_RATIO;
+    allocator->num_holes = 0;
     aim_bitmap_alloc(&allocator->bitmap, num_slots);
     return allocator;
 }
@@ -79,6 +94,7 @@ slot_allocator_alloc(struct slot_allocator *allocator)
          */
         if (allocator->alloc_start != 0) {
             allocator->alloc_start = 0;
+            allocator->num_holes = 0;
             return slot_allocator_alloc(allocator);
         }
         return SLOT_INVALID;
@@ -96,6 +112,13 @@ void
 slot_allocator_free(struct slot_allocator *allocator, uint32_t slot)
 {
     AIM_BITMAP_CLR(&allocator->bitmap, slot);
+
+    /* This free may create a hole */
+    allocator->num_holes += slot < allocator->alloc_start;
+    if (allocator->num_holes > allocator->max_holes) {
+        allocator->alloc_start = 0;
+        allocator->num_holes = 0;
+    }
 }
 
 void
