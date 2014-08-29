@@ -1,0 +1,47 @@
+###############################################################################
+#
+# slot_allocator Autogeneration Definitions.
+#
+###############################################################################
+
+cdefs: &cdefs
+- INDEX_ALLOCATOR_CONFIG_INCLUDE_LOGGING:
+    doc: "Include or exclude logging."
+    default: 1
+- INDEX_ALLOCATOR_CONFIG_LOG_OPTIONS_DEFAULT:
+    doc: "Default enabled log options."
+    default: AIM_LOG_OPTIONS_DEFAULT
+- INDEX_ALLOCATOR_CONFIG_LOG_BITS_DEFAULT:
+    doc: "Default enabled log bits."
+    default: AIM_LOG_BITS_DEFAULT
+- INDEX_ALLOCATOR_CONFIG_LOG_CUSTOM_BITS_DEFAULT:
+    doc: "Default enabled custom log bits."
+    default: 0
+- INDEX_ALLOCATOR_CONFIG_PORTING_STDLIB:
+    doc: "Default all porting macros to use the C standard libraries."
+    default: 1
+- INDEX_ALLOCATOR_CONFIG_PORTING_INCLUDE_STDLIB_HEADERS:
+    doc: "Include standard library headers for stdlib porting macros."
+    default: INDEX_ALLOCATOR_CONFIG_PORTING_STDLIB
+- INDEX_ALLOCATOR_CONFIG_INCLUDE_UCLI:
+    doc: "Include generic uCli support."
+    default: 0
+
+
+definitions:
+  cdefs:
+    INDEX_ALLOCATOR_CONFIG_HEADER:
+      defs: *cdefs
+      basename: slot_allocator_config
+
+  portingmacro:
+    INDEX_ALLOCATOR:
+      macros:
+        - malloc
+        - free
+        - memset
+        - memcpy
+        - strncpy
+        - vsnprintf
+        - snprintf
+        - strlen
