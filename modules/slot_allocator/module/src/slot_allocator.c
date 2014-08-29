@@ -82,7 +82,8 @@ slot_allocator_alloc(struct slot_allocator *allocator)
             slot += AIM_BITMAP_BITS_PER_WORD) {
         uint32_t w = bitmap_word_for_slot(allocator, slot);
         if (~w) {
-            /* Bitmap word is not all ones, find the first zero bit */
+            /* Bitmap word is not all ones, find the first zero bit starting
+             * from the lsb */
             int shift = __builtin_ctz(~w);
             slot += shift;
             break;
