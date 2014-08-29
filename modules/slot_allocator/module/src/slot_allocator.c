@@ -51,7 +51,11 @@ struct slot_allocator {
     aim_bitmap_t bitmap;
 };
 
-static uint32_t bitmap_word_for_slot(struct slot_allocator *allocator, uint32_t slot);
+static uint32_t
+bitmap_word_for_slot(struct slot_allocator *allocator, uint32_t slot)
+{
+    return AIM_BITMAP_WORD_GET32(&allocator->bitmap, slot/AIM_BITMAP_BITS_PER_WORD);
+}
 
 struct slot_allocator *
 slot_allocator_create(uint32_t num_slots)
@@ -169,10 +173,4 @@ slot_allocator_iter_next(struct slot_allocator_iter *iter)
     }
 
     return SLOT_INVALID;
-}
-
-static uint32_t
-bitmap_word_for_slot(struct slot_allocator *allocator, uint32_t slot)
-{
-    return AIM_BITMAP_WORD_GET32(&allocator->bitmap, slot/AIM_BITMAP_BITS_PER_WORD);
 }
