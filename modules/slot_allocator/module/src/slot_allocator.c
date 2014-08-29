@@ -74,7 +74,7 @@ uint32_t
 slot_allocator_alloc(struct slot_allocator *allocator)
 {
     /* Search for a free slot */
-    int slot;
+    uint32_t slot;
     for (slot = allocator->alloc_start;
             slot < allocator->num_slots;
             slot += AIM_BITMAP_BITS_PER_WORD) {
@@ -140,7 +140,7 @@ slot_allocator_iter_next(struct slot_allocator_iter *iter)
         iter->cur_bitmap_word >>= shift;
         assert(AIM_BITMAP_GET(&iter->allocator->bitmap, iter->slot));
 
-        int slot = iter->slot;
+        uint32_t slot = iter->slot;
 
         /* Advance to next bit */
         iter->slot++;
