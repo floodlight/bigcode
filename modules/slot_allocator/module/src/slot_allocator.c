@@ -29,6 +29,8 @@
  */
 #define HOLE_LIMIT_RATIO 0.01
 
+#define likely(expr) __builtin_expect(!!(expr), 1)
+
 struct slot_allocator {
     /* Total number of slots */
     uint32_t num_slots;
@@ -133,7 +135,7 @@ uint32_t
 slot_allocator_iter_next(struct slot_allocator_iter *iter)
 {
     /* Fastpath: a bit is set in cur_bitmap_word */
-    if (__builtin_expect(!!iter->cur_bitmap_word, 1)) {
+    if (likely(iter->cur_bitmap_word != 0)) {
         /* Advance to next set bit */
         int shift = __builtin_ctz(iter->cur_bitmap_word);
         iter->slot += shift;
