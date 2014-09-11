@@ -1,0 +1,73 @@
+############################################################
+# <bsn.cl fy=2013 v=epl-1.0>
+#
+#        Copyright 2013, 2014 Big Switch Networks, Inc.
+#
+# Licensed under the Eclipse Public License, Version 1.0 (the
+# "License"); you may not use this file except in compliance
+# with the License. You may obtain a copy of the License at
+#
+#        http://www.eclipse.org/legal/epl-v10.html
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND,
+# either express or implied. See the License for the specific
+# language governing permissions and limitations under the
+# License.
+#
+# </bsn.cl>
+############################################################
+#
+#  ELS Autogen Definitions
+#
+############################################################
+
+cdefs: &cdefs
+- ELS_CONFIG_INCLUDE_LOGGING:
+    doc: "Include or exclude logging."
+    default: 1
+- ELS_CONFIG_LOG_OPTIONS_DEFAULT:
+    doc: "Default enabled log options."
+    default: AIM_LOG_OPTIONS_DEFAULT
+- ELS_CONFIG_LOG_BITS_DEFAULT:
+    doc: "Default enabled log options."
+    default: AIM_LOG_BITS_DEFAULT
+- ELS_CONFIG_LOG_CUSTOM_BITS_DEFAULT:
+    doc: "Default enabled custom log options."
+    default: 0
+- ELS_CONFIG_LOG_OUTPUT_DEFAULT:
+    doc: "Default output function for log messages. Can be changed at runtime."
+    default: ELS_PRINTF
+- ELS_CONFIG_PORTING_STDLIB:
+    doc: "Default all porting macros to use the C standard libraries."
+    default: 1
+- ELS_CONFIG_PORTING_INCLUDE_STDLIB_HEADERS:
+    doc: "Include standard library headers for stdlib porting macros."
+    default: ELS_CONFIG_PORTING_STDLIB
+- ELS_CONFIG_INCLUDE_UCLI:
+    doc: "Include generic UCLI support."
+    default: 0
+- ELS_CONFIG_INCLUDE_EVENTFD:
+    doc: "Include eventfd synchronization."
+    default: 1
+- ELS_CONFIG_MAX_PROMPT:
+    doc: "The maximum prompt length in characters."
+    default: 512
+
+definitions:
+  cdefs:
+    ELS_CONFIG_HEADER:
+      defs: *cdefs
+      basename: els_config
+
+  logger:
+    els:
+
+  portingmacro:
+    ELS:
+      macros:
+        - memset
+        - strncpy
+
+
