@@ -254,3 +254,22 @@ ppe_build_icmp_packet(ppe_packet_t* ppep, uint32_t type, uint32_t code,
 
     return 0;
 }
+
+int
+ppe_build_udp_header(ppe_packet_t* ppep, uint32_t sport, uint32_t dport,
+                     uint32_t length)
+{
+    if (!ppep) return -1;
+
+    if (!ppe_header_get(ppep, PPE_HEADER_UDP)) return -1;
+
+    ppe_field_set(ppep, PPE_FIELD_UDP_SRC_PORT, sport);
+    ppe_field_set(ppep, PPE_FIELD_UDP_DST_PORT, dport);
+    ppe_field_set(ppep, PPE_FIELD_UDP_LENGTH, length);
+    ppe_field_set(ppep, PPE_FIELD_UDP_CHECKSUM, 0);
+
+    /* Update the checksum */
+    ppe_packet_update(ppep);
+
+    return 0;
+}
