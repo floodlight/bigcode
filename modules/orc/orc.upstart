@@ -1,0 +1,14 @@
+# cron - regular background program processing daemon
+#
+# cron is a standard UNIX program that runs user-specified programs at
+# periodic scheduled times
+
+description "Open Route Cache: sync state between software (kernel) and hardware (ASIC) routing tables"
+
+start on runlevel [2345]
+stop on runlevel [!2345]
+
+expect fork
+respawn
+
+exec orc --daemon

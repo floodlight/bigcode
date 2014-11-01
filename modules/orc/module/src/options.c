@@ -52,8 +52,9 @@ void usage(char * msg1, char * msg2)
     fprintf(stderr, "Usage: orc [options] \n"
         "-d, --driver=DRIVER_NAME  -- ASIC driver to load (\"%s\") \n"
         "-D, --debug[=val]         -- Enable debugging (%s)\n"
+        "--daemon                  -- Fork and run in background\n"
         "-h, --help                -- Print this message\n"
-        "-i, --interface-prefix     -- Virtual interface prefix (\"%s\") \n"
+        "-i, --interface-prefix    -- Virtual interface prefix (\"%s\") \n"
         "-p, --dpath=path          -- Add a path to the driver search path\n"
         "-P, --ports-only          -- Only create virtual ports and do TX/RX - no L3\n"
         "-V, --verbose             -- Enable verbose opertations\n",
@@ -78,6 +79,7 @@ void usage(char * msg1, char * msg2)
 static struct option long_options[] = {
         {"driver",              required_argument, 0, 'd' },
         {"debug",               optional_argument, 0, 'D'},
+        {"daemon",              no_argument,       0, 'M'},
         {"help",                optional_argument, 0, 'h'},
         {"interface-prefix",    required_argument, 0, 'i' },
         {"dpath",               required_argument, 0, 'p' },
@@ -96,6 +98,7 @@ int options_init_default( orc_options_t * options)
     options->driver       = Default_Driver;
     options->debug        = DEBUG_THRESHOLD;
     options->drv          = NULL;
+    options->daemon       = 0;  /* foreground by default */
     orc_debug("Setting default driver to \"%s\"\n", options->driver);
     for (i=0; Driver_Search_Paths[i] != NULL; i++)
     {
@@ -138,6 +141,9 @@ int options_parse( orc_options_t * options, char * argv[], int argc)
                     DEBUG_THRESHOLD = options->debug;
                     orc_log("Setting Debug level to %s\n", orc_log_threshold());
 
+                    break;
+            case 'M':
+                    options->daemon = 1;
                     break;
             case 'p':
                     if (options->num_driver_paths >= MAX_DRIVER_PATHS)

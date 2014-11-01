@@ -46,6 +46,7 @@ typedef struct orc_options_s {
     orc_driver_t * drv;
     int verbose;
     int ports_only;         /* no L3 copying; only create ports with TX/RX */
+    int daemon;             /* do we fork to background? */
 } orc_options_t;
 
 
