@@ -37,7 +37,7 @@ char * Debug_Names[] = {
 };
 
 
-enum Debug_Thresholds DEBUG_THRESHOLD = ORC_LOG_TRACE;
+enum Debug_Thresholds DEBUG_THRESHOLD = ORC_LOG_INFO;
 
 
 const char * orc_log_threshold() {
