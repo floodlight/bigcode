@@ -28,6 +28,7 @@
 #include <signal.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <unistd.h>
 
 #include "orc/orc_driver.h"
 #include "orc/orc_logger.h"
@@ -159,14 +160,32 @@ void handle_sigusr1(int ignore)
 int
 orc_main(int argc, char * argv[])
 {
-    int count;
+    int count, err;
     orc_options_t options;
 
     options_init_default(&options);
-    /** TODO: read options from /etc/asic-orc/asic-orc.conf */
+    /** TODO: read options from /etc/orc/orc.conf */
     count = options_parse(&options, argv, argc);
     argc -= count;
     argv += count;
+
+    if (options.daemon)    /** TODO change to aim_daemon() */
+    {
+        err = fork();
+        if ( err > 0)
+        {
+            orc_log("Forking to background\n");
+            exit(0);
+        } else if (err < 0) {
+            orc_fatal("Failed to fork: %s\n", strerror(errno));
+            exit(1);
+        }
+        err = fork();
+        if ( err > 0)
+        {
+            exit(0);
+        }
+    }
 
     options.drv = load_driver(&options);
 
