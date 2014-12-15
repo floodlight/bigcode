@@ -440,9 +440,20 @@ int ppe_build_ipv4_header(ppe_packet_t* ppep, uint32_t src_ip, uint32_t dest_ip,
  * @param icmp_data Pointer to ICMP data, Cannot be NULL.
  * @param icmp_data_len Length of ICMP data in bytes.
  */
-int ppe_build_icmp_packet(ppe_packet_t* ppep, uint32_t type, uint32_t code, 
+int ppe_build_icmp_packet(ppe_packet_t* ppep, uint32_t type, uint32_t code,
                           uint32_t hdr_data, uint8_t *icmp_data,
                           uint32_t icmp_data_len);
+
+
+/**
+ * @brief Build UDP header and fill all fields in the packet.
+ * @param ppep The PPE packet structure.
+ * @param sport UDP source port.
+ * @param dport UDP dest port.
+ * @param length Total length including UDP header and payload.
+ */
+int ppe_build_udp_header(ppe_packet_t* ppep, uint32_t sport, uint32_t dport,
+                         uint32_t length);
 
 #endif /* __PPE_H__ */
 /*@}*/
