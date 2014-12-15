@@ -188,7 +188,7 @@ ppe_icmp_header_checksum_update(ppe_packet_t* ppep)
     int csum = 0;
     uint32_t ip_hdr, ip_total_len;
     /* ICMP HDR (8 bytes) + Variable Size Data */
-    uint32_t size = 0; 
+    uint32_t size = 0;
 
     /* Only for ICMP Packets */
     if(icmp_header) {
@@ -222,20 +222,20 @@ ppe_build_ipv4_header(ppe_packet_t* ppep, uint32_t src_ip, uint32_t dest_ip,
     ppe_field_set(ppep, PPE_FIELD_IP4_TOTAL_LENGTH, total_len);
     ppe_field_set(ppep, PPE_FIELD_IP4_PROTOCOL, proto);
     ppe_field_set(ppep, PPE_FIELD_IP4_SRC_ADDR, src_ip);
-    ppe_field_set(ppep, PPE_FIELD_IP4_DST_ADDR, dest_ip); 
-   
+    ppe_field_set(ppep, PPE_FIELD_IP4_DST_ADDR, dest_ip);
+
     /* Update the checksum */
-    ppe_packet_update(ppep);      
- 
+    ppe_packet_update(ppep);
+
     /* Need to reparse to recognize proto */
     ppe_parse(ppep);
- 
+
     return 0;
 }
 
 int
 ppe_build_icmp_packet(ppe_packet_t* ppep, uint32_t type, uint32_t code,
-                      uint32_t hdr_data, uint8_t *icmp_data, 
+                      uint32_t hdr_data, uint8_t *icmp_data,
                       uint32_t icmp_data_len)
 {
     if (!ppep || !icmp_data) return -1;
@@ -246,8 +246,27 @@ ppe_build_icmp_packet(ppe_packet_t* ppep, uint32_t type, uint32_t code,
     ppe_field_set(ppep, PPE_FIELD_ICMP_CODE, code);
     ppe_field_set(ppep, PPE_FIELD_ICMP_HEADER_DATA, hdr_data);
 
-    PPE_MEMCPY(ppe_fieldp_get(ppep, PPE_FIELD_ICMP_PAYLOAD), icmp_data, 
+    PPE_MEMCPY(ppe_fieldp_get(ppep, PPE_FIELD_ICMP_PAYLOAD), icmp_data,
                icmp_data_len);
+
+    /* Update the checksum */
+    ppe_packet_update(ppep);
+
+    return 0;
+}
+
+int
+ppe_build_udp_header(ppe_packet_t* ppep, uint32_t sport, uint32_t dport,
+                     uint32_t length)
+{
+    if (!ppep) return -1;
+
+    if (!ppe_header_get(ppep, PPE_HEADER_UDP)) return -1;
+
+    ppe_field_set(ppep, PPE_FIELD_UDP_SRC_PORT, sport);
+    ppe_field_set(ppep, PPE_FIELD_UDP_DST_PORT, dport);
+    ppe_field_set(ppep, PPE_FIELD_UDP_LENGTH, length);
+    ppe_field_set(ppep, PPE_FIELD_UDP_CHECKSUM, 0);
 
     /* Update the checksum */
     ppe_packet_update(ppep);
