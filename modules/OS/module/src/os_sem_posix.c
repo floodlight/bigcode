@@ -24,6 +24,8 @@
 
 
 #include <semaphore.h>
+#include <errno.h>
+#include <time.h>
 
 struct os_sem_s {
     sem_t sem;
@@ -40,26 +42,89 @@ os_sem_create(int count)
 void
 os_sem_destroy(os_sem_t sem)
 {
-    if(sem) {
-        sem_destroy(&sem->sem);
-        aim_free(sem);
-    }
+    AIM_TRUE_OR_DIE(sem != NULL);
+    sem_destroy(&sem->sem);
+    aim_free(sem);
 }
 
 int
 os_sem_take(os_sem_t sem)
 {
-    if(sem) {
-        sem_wait(&sem->sem);
+    AIM_TRUE_OR_DIE(sem != NULL);
+
+    for(;;) {
+        if(sem_wait(&sem->sem) == 0) {
+            return 0;
+        }
+        switch(errno)
+            {
+            case EINTR:
+                break;
+            case EINVAL:
+                AIM_DIE("Invalid or corrupted semaphore in os_sem_take().");
+                break;
+            default:
+                AIM_DIE("Unhandled error condition in os_sem_take() for errno=%{errno}", errno);
+                break;
+            }
     }
-    return 0;
 }
 
 void
 os_sem_give(os_sem_t sem)
 {
-    if(sem) {
-        sem_post(&sem->sem);
+    AIM_TRUE_OR_DIE(sem != NULL);
+    sem_post(&sem->sem);
+}
+
+
+/**
+ * Initialize a timespec structure for the given timeout interval.
+ */
+static void
+timespec_init_timeout__(struct timespec* ts, uint64_t us)
+{
+    clock_gettime(CLOCK_REALTIME, ts);
+    ts->tv_sec += (us / 1000000);
+    us %= 1000000;
+    ts->tv_nsec += (us*1000);
+    ts->tv_sec += (ts->tv_nsec / 1000000000);
+    ts->tv_nsec %= 1000000000;
+}
+
+int
+os_sem_take_timeout(os_sem_t sem, uint64_t usecs)
+{
+    AIM_TRUE_OR_DIE(sem != NULL);
+
+    if(usecs == 0) {
+        /** Normal wait */
+        return os_sem_take(sem);
+    }
+    else {
+
+        struct timespec ts;
+        timespec_init_timeout__(&ts, usecs);
+
+        for(;;) {
+            if(sem_timedwait(&sem->sem, &ts) == 0) {
+                return 0;
+            }
+            switch(errno)
+                {
+                case EINTR:
+                    break;
+                case ETIMEDOUT:
+                    return -1;
+
+                case EINVAL:
+                    AIM_DIE("Invalid or corrupted semaphore or the timespec was invalid in os_sem_take_timeout().");
+                    break;
+                default:
+                    AIM_DIE("Unhandled error condition in os_sem_take() for errno=%{errno}", errno);
+                    break;
+                }
+        }
     }
 }
 

@@ -56,5 +56,13 @@ int os_sem_take(os_sem_t sem);
  */
 void os_sem_give(os_sem_t sem);
 
+/**
+ * @brief Take a semaphore (with timeout).
+ * @param sem The semaphore.
+ * @param to usecs timeout in usecs
+ * @returns 0 on success. -1 on timeout.
+ */
+int os_sem_take_timeout(os_sem_t sem, uint64_t usecs);
+
 
 #endif /* __OS_SEMAPHORE_H__ */
