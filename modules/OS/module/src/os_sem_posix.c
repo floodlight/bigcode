@@ -39,10 +39,12 @@ os_sem_create(int count)
     return s;
 }
 
+#define VALIDATE(_sem) AIM_TRUE_OR_DIE(_sem != NULL, "null semaphore passed to  %s", __FUNCTION__)
+
 void
 os_sem_destroy(os_sem_t sem)
 {
-    AIM_TRUE_OR_DIE(sem != NULL);
+    VALIDATE(sem);
     sem_destroy(&sem->sem);
     aim_free(sem);
 }
@@ -50,7 +52,7 @@ os_sem_destroy(os_sem_t sem)
 int
 os_sem_take(os_sem_t sem)
 {
-    AIM_TRUE_OR_DIE(sem != NULL);
+    VALIDATE(sem);
 
     for(;;) {
         if(sem_wait(&sem->sem) == 0) {
@@ -73,7 +75,7 @@ os_sem_take(os_sem_t sem)
 void
 os_sem_give(os_sem_t sem)
 {
-    AIM_TRUE_OR_DIE(sem != NULL);
+    VALIDATE(sem);
     sem_post(&sem->sem);
 }
 
@@ -95,7 +97,7 @@ timespec_init_timeout__(struct timespec* ts, uint64_t us)
 int
 os_sem_take_timeout(os_sem_t sem, uint64_t usecs)
 {
-    AIM_TRUE_OR_DIE(sem != NULL);
+    VALIDATE(sem);
 
     if(usecs == 0) {
         /** Normal wait */
