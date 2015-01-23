@@ -64,6 +64,19 @@ int main(int argc, char* argv[])
         }
         printf("\n");
     }
+    {
+        int i;
+        os_sem_t s = os_sem_create(1);
+        printf("Should print every second...");
+        for(i = 0; i <= 5; i++) {
+            aim_printf(&aim_pvs_stdout, "%d ", i);
+            AIM_TRUE_OR_DIE(os_sem_take_timeout(s, 0) == 0);
+            AIM_TRUE_OR_DIE(os_sem_take_timeout(s, 1000000) == -1);
+            os_sem_give(s);
+            AIM_TRUE_OR_DIE(os_sem_take_timeout(s, 1000000) == 0);
+            os_sem_give(s);
+        }
+    }
 
     return 0;
 }
