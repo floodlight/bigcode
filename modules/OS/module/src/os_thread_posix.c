@@ -17,13 +17,34 @@
  *
  ***************************************************************/
 
-#ifndef __OS_H__
-#define __OS_H__
-
 #include <OS/os_config.h>
-#include <OS/os_sem.h>
-#include <OS/os_time.h>
-#include <OS/os_sleep.h>
 #include <OS/os_thread.h>
 
-#endif /* __OS_H__ */
+#if OS_CONFIG_INCLUDE_POSIX == 1
+
+/** Not posix or portable. */
+
+#define _GNU_SOURCE
+#include <pthread.h>
+
+int pthread_setname_np(pthread_t thread, const char *name);
+int pthread_getname_np(pthread_t thread,
+                       char *name, size_t len);
+void
+os_thread_name_set(const char* name)
+{
+    pthread_setname_np(pthread_self(), name);
+}
+
+char*
+os_thread_name_get(char* name, int max)
+{
+    if(name) {
+        name[0] = 0;
+        pthread_getname_np(pthread_self(), name, max);
+    }
+    return name;
+}
+
+#endif
+

@@ -16,14 +16,25 @@
  * License.
  *
  ***************************************************************/
-
-#ifndef __OS_H__
-#define __OS_H__
+/************************************************************//**
+ *
+ * @file
+ * @brief Trivial Thread Abstractions
+ *
+ ***************************************************************/
+#ifndef __OS_THREAD_H__
+#define __OS_THREAD_H__
 
 #include <OS/os_config.h>
-#include <OS/os_sem.h>
-#include <OS/os_time.h>
-#include <OS/os_sleep.h>
-#include <OS/os_thread.h>
 
-#endif /* __OS_H__ */
+/**
+ * @brief Set the current thread's name.
+ */
+void os_thread_name_set(const char* name);
+
+/**
+ * @brief Get the current thread's name.
+ */
+char* os_thread_name_get(char* name, int max);
+
+#endif /* __OS_THREAD_H__ */
