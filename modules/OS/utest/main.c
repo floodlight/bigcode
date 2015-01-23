@@ -22,9 +22,6 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-
-#include <OS/os_sem.h>
-#include <OS/os_time.h>
 #include <inttypes.h>
 
 int main(int argc, char* argv[])
@@ -76,6 +73,14 @@ int main(int argc, char* argv[])
             AIM_TRUE_OR_DIE(os_sem_take_timeout(s, 1000000) == 0);
             os_sem_give(s);
         }
+    }
+
+    {
+        const char* name = "thready";
+        char n[32];
+        os_thread_name_set(name);
+        os_thread_name_get(n, sizeof(n));
+        AIM_TRUE_OR_DIE(!strcmp(name, n));
     }
 
     return 0;
