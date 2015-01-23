@@ -33,6 +33,7 @@
 #include <signal.h>
 #include <unistd.h>
 #include <errno.h>
+#include <OS/os_thread.h>
 
 #if ELS_CONFIG_INCLUDE_EVENTFD == 1
 #include <sys/eventfd.h>
@@ -163,6 +164,8 @@ els_thread__(void* arg)
 {
     els_ctl_t* ctl = (els_ctl_t*) arg;
     int count;
+
+    os_thread_name_set("els");
 
     /*
      * We depend upon cancellation points to terminate,
