@@ -11,10 +11,11 @@ include ../../../init.mk
 
 MODULE := ELS_utest
 TEST_MODULE :=  ELS
-DEPENDMODULES := AIM
+DEPENDMODULES := AIM OS
 
 GLOBAL_LINK_LIBS += -lpthread -ledit
 PEDANTIC := 1
+GLOBAL_CFLAGS += -DAIM_CONFIG_INCLUDE_POSIX=1
 
 include $(BUILDER)/build-unit-test.mk
 

@@ -19,8 +19,36 @@
 
 #include <debug_counter/debug_counter.h>
 
+DEBUG_COUNTER(static_debug_counter, "static counter", "Static debug counter");
+
+static bool
+is_counter_registered(const debug_counter_t *target)
+{
+    list_head_t *counters;
+    list_links_t *cur, *next;
+    counters = debug_counter_list();
+    LIST_FOREACH_SAFE(counters, cur, next) {
+        debug_counter_t *counter = container_of(cur, links, debug_counter_t);
+        if (target == counter) {
+            return true;
+        }
+    }
+
+    return false;
+}
+
 int aim_main(int argc, char* argv[])
 {
+    /* Test static counter */
+    {
+        AIM_ASSERT(is_counter_registered(&static_debug_counter));
+        AIM_ASSERT(debug_counter_get(&static_debug_counter) == 0);
+        debug_counter_inc(&static_debug_counter);
+        AIM_ASSERT(debug_counter_get(&static_debug_counter) == 1);
+        debug_counter_unregister(&static_debug_counter);
+        AIM_ASSERT(!is_counter_registered(&static_debug_counter));
+    }
+
     /* Unregister existing counters */
     {
         list_head_t *counters;
