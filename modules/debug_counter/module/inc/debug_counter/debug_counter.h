@@ -45,6 +45,13 @@
 #define DEBUG_COUNTER_NAME_SIZE 64
 #define DEBUG_COUNTER_DESCRIPTION_SIZE 256
 
+#define DEBUG_COUNTER(ident, name, description) \
+    static debug_counter_t ident; \
+    static void __attribute__((constructor)) ident ## _constructor(void) \
+    { \
+        debug_counter_register(&ident, name, description); \
+    }
+
 /**
  * Debug counter
  *
