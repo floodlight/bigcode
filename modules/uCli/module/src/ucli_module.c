@@ -37,6 +37,38 @@ typedef struct ucli_thread_context_s {
     ucli_context_t* uc;
 } ucli_thread_context_t;
 
+
+static ucli_pargs_t*
+ucli_pargs_dup__(ucli_pargs_t* pargs)
+{
+    int i;
+
+    /*
+     * Duplicate all strings and preserve the current
+     * argument pointer.
+     */
+    int offset = (pargs->args - pargs->args__);
+
+    ucli_pargs_t* rv = aim_zmalloc(sizeof(*rv));
+    for(i = 0; i < AIM_ARRAYSIZE(pargs->args__); i++) {
+        rv->args__[i] = (pargs->args__[i]) ? aim_strdup(pargs->args__[i]) : NULL;
+    }
+    rv->args = rv->args__+offset;
+
+    return rv;
+}
+void
+ucli_pargs_free__(ucli_pargs_t* pargs)
+{
+    int i;
+    for(i = 0; i < AIM_ARRAYSIZE(pargs->args__); i++) {
+        if(pargs->args__[i]) {
+            aim_free((char*)pargs->args__[i]);
+        }
+    }
+    aim_free(pargs);
+}
+
 /**
  * Threaded handler execution.
  */
@@ -45,10 +77,12 @@ handler_thread__(void* p)
 {
     ucli_thread_context_t* utc = (ucli_thread_context_t*)p;
     utc->cp->handler(utc->uc);
+    ucli_pargs_free__(utc->uc->pargs);
     aim_free(utc->uc);
     aim_free(utc);
     return NULL;
 }
+
 
 /**
  * Execute a command handler.
@@ -74,6 +108,7 @@ handler_execute__(ucli_command_t* cp, ucli_context_t* uc)
         ctx->uc->epvs = uc->epvs;
         ctx->uc->pvs = uc->pvs;
         ctx->uc->cookie = uc->cookie;
+        ctx->uc->pargs = ucli_pargs_dup__(uc->pargs);
         pthread_create(&pth, NULL, handler_thread__, ctx);
         return UCLI_STATUS_OK;
     }
