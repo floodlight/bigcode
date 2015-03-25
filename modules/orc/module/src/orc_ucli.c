@@ -24,6 +24,7 @@
  ***********************************************************/
 
 #include <orc/orc_config.h>
+#include "orc/options.h"
 
 #if ORC_CONFIG_INCLUDE_UCLI == 1
 
@@ -37,6 +38,16 @@ orc_ucli_ucli__config__(ucli_context_t* uc)
     UCLI_HANDLER_MACRO_MODULE_CONFIG(orc)
 }
 
+static ucli_status_t
+orc_ucli_ucli__hello__(ucli_context_t* uc)
+{
+    UCLI_COMMAND_INFO(uc,
+            "hello", 0,
+            "$summary#test command.");
+    ucli_printf(uc, "hello world\n");
+    return UCLI_STATUS_OK;
+}
+
 /* <auto.ucli.handlers.start> */
 /******************************************************************************
  *
@@ -47,6 +58,7 @@ orc_ucli_ucli__config__(ucli_context_t* uc)
 static ucli_command_handler_f orc_ucli_ucli_handlers__[] =
 {
     orc_ucli_ucli__config__,
+    orc_ucli_ucli__hello__,
     NULL
 };
 /******************************************************************************/
@@ -63,7 +75,7 @@ orc_ucli_module__ =
     };
 
 ucli_node_t*
-orc_ucli_node_create(void)
+orc_ucli_node_create(orc_options_t *options)
 {
     ucli_node_t* n;
     ucli_module_init(&orc_ucli_module__);

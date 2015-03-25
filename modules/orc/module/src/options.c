@@ -75,7 +75,7 @@ void usage(char * msg1, char * msg2)
 }
 
 
-#define OPT_STRING "d:D::hp:P:i:V"
+#define OPT_STRING "d:D::hp:Pi:V"
 static struct option long_options[] = {
         {"driver",              required_argument, 0, 'd' },
         {"debug",               optional_argument, 0, 'D'},
@@ -107,6 +107,8 @@ int options_init_default( orc_options_t * options)
                         options->driver_paths[i]);
     }
     options->num_driver_paths = i;
+    options->ucli = NULL;
+    options->els = NULL;
     return 0;
 }
 

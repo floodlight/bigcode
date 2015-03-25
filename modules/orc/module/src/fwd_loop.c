@@ -72,6 +72,9 @@ read_packet_from_port(orc_driver_t * drv, port_t * port)
     return 0;
 }
 
+/**** needed for CLI ***/
+int orc_els_callback(void *);
+
 /*****
  * Loop infinitely, epoll() on the fds in ports[] and on read,
  * call read_packet_from_port()
@@ -127,6 +130,20 @@ packet_forwarding_loop(orc_options_t * options,
         }
     }
 
+    /* Add the CLI if configured */
+    if (options->els)
+    {
+        ev.events = EPOLLIN;
+        ev.data.ptr = &options->els->eventfd;
+        num_ports ++;
+        if (epoll_ctl(epoll_fd, EPOLL_CTL_ADD, options->els->eventfd, &ev) == -1)
+        {
+            orc_err("epoll_ctl(cli) : %s\n", strerror(errno));
+            return -1;
+        }
+
+    }
+
 
     orc_debug("Going into epoll() loop\n");
     err = 0;
@@ -146,6 +163,8 @@ packet_forwarding_loop(orc_options_t * options,
             /** TODO come back and add a thread poll here for efficency **/
             if ( events[i].data.ptr == &netlink_sock)
                 err = netlink_mon_handler(options, drv, netlink_sock);
+            else if ( events[i].data.ptr == &options->els->eventfd)
+                err = orc_els_callback(options);
             else
                 read_packet_from_port(drv, (port_t *) events[i].data.ptr);
         }
