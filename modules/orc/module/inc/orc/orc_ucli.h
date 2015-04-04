@@ -4,7 +4,7 @@
  * @brief ORC uCli Definitions. 
  *
  *
- * @addtogroup ivs-ucli
+ * @addtogroup orc-ucli
  * @{
  *
  *
@@ -18,7 +18,7 @@
 /**
  * @brief Get the configuration ucli node. 
  */
-ucli_node_t* orc_ucli_node_create(orc_options_t* ivs); 
+ucli_node_t* orc_ucli_node_create();
 
 #endif /* __ORC_UCLI_H__ */
 /*@}*/

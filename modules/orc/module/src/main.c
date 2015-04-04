@@ -40,6 +40,8 @@
 #include "orc/tap_utils.h"
 #include "orc/fwd_loop.h"
 
+#include <AIM/aim.h>
+#include <AIM/aim_log.h>
 #include <uCli/ucli.h>
 
 
@@ -231,10 +233,10 @@ orc_main(int argc, char * argv[])
     }
 
     /* setup CLI  */
-    ucli_node_t *n = orc_ucli_node_create(&options);
+    ucli_node_t *n = orc_ucli_node_create();
     options.ucli = ucli_create("orc", NULL, n);
 
-    /* only start the CLI if stdout is a tty  and not daemon */
+    /* only start the CLI if stdout is a tty and not daemon */
     if(!options.daemon && aim_pvs_isatty(&aim_pvs_stdout)) {
         options.els = els_create("orc", orc_console_prompt, &options);
         options.ucli = ucli_copy(options.ucli);

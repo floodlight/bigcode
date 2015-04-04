@@ -34,12 +34,18 @@
 #include "orc/orc_logger.h"
 #include "orc/options.h"
 
-static void * Driver_Symbols_Handle;
 
 int locate_driver(orc_options_t * options, char * filename, int len);
 
+#ifndef ORC_STATIC_DRIVER
+static void * Driver_Symbols_Handle;
+#else
+extern orc_driver_t DRIVER_HOOKS;
+#endif
+
 orc_driver_t * load_driver(orc_options_t * options)
 {
+#ifndef ORC_STATIC_DRIVER
     void * sym;
     char filename[BUFLEN];
     if (!locate_driver(options, filename, BUFLEN))
@@ -61,6 +67,10 @@ orc_driver_t * load_driver(orc_options_t * options)
     }
 
     return (orc_driver_t *) sym;
+#else
+    orc_log("Using statically linked driver -- ignoring dynamic\n");
+    return &DRIVER_HOOKS;    /* can only have one defined at a time */
+#endif
 }
 
 
