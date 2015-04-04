@@ -35,7 +35,9 @@
 typedef int l3_intf_id_t;               /* unique ID for l3 interfaces */
 typedef int l3_next_hop_id_t;           /* unique ID for next_hop entries */
 
+struct orc_driver_s;
 #include "orc/ports.h"
+#include "orc/options.h"
 #include "orc/utils.h"
 
 #include <limits.h>     /* for INT_MAX */
@@ -47,7 +49,7 @@ typedef struct orc_driver_s {
      * the command line to the driver
      */
 
-    int (*init_driver)(int argc, char * argv[]);
+    int (*init_driver)(struct orc_options_s * options, int argc, char * argv[]);
 
     /***
      * Get a list of physical ports from the driver.

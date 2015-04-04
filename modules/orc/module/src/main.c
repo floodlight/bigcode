@@ -69,7 +69,7 @@ run_driver(orc_options_t * options, int argc, char * argv[])
      * initialize driver
      */
     if (drv->init_driver != NULL)   /* init is optional for a driver */
-       err = drv->init_driver(argc, argv);
+       err = drv->init_driver(options, argc, argv);
     if (err)
         orc_fatal("Driver init_driver() function failed: err=%d\n",
                         err);
