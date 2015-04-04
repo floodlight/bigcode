@@ -211,10 +211,13 @@ ucli_module_complete(ucli_module_t* mod, const char** tokens)
          */
         char* help;
         possibilities = NULL;
-        count = UCLI_STRLEN(cp->command)+UCLI_STRLEN(cp->help.args)+2;
+        count = UCLI_STRLEN(cp->command)+2;
+        if (cp->help.args)
+            count += UCLI_STRLEN(cp->help.args);
 
         help = aim_zmalloc(count);
-        aim_snprintf(help, count, "%s %s", cp->command, cp->help.args);
+        aim_snprintf(help, count, "%s %s", cp->command, cp->help.args?
+                                                        cp->help.args:"");
         possibilities = biglist_append(possibilities, help);
         ucomp = aim_zmalloc(sizeof(*ucomp));
         ucomp->possibilities.list = possibilities;
