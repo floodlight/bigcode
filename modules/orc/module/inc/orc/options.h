@@ -29,6 +29,9 @@
 #include "orc_logger.h"
 #include "orc_driver.h"
 
+#include <ELS/els.h>
+#include <uCli/ucli.h>
+
 #ifndef MAX_DRIVER_PATHS
 #define MAX_DRIVER_PATHS 256
 #endif
@@ -47,6 +50,8 @@ typedef struct orc_options_s {
     int verbose;
     int ports_only;         /* no L3 copying; only create ports with TX/RX */
     int daemon;             /* do we fork to background? */
+    ucli_t * ucli;          /* pointer to our CLI context, if non-Null */
+    els_t * els;            /* edit line server context, if non-Null */
 } orc_options_t;
 
 

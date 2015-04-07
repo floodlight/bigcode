@@ -18,7 +18,7 @@
  * 
  * </bsn.cl>
  ************************************************************
- *
+ * Open Route Cache
  *
  *
  ***********************************************************/
@@ -30,13 +30,17 @@
 #include <stdlib.h>
 #include <unistd.h>
 
+
 #include "orc/orc_driver.h"
 #include "orc/orc_logger.h"
+#include "orc/orc_ucli.h"
 #include "orc/load_driver.h"
 #include "orc/netlink_mon.h"
 #include "orc/options.h"
 #include "orc/tap_utils.h"
 #include "orc/fwd_loop.h"
+
+#include <uCli/ucli.h>
 
 
 #ifndef MAX_PORTS
@@ -151,6 +155,44 @@ void handle_sigusr1(int ignore)
     signal( SIGUSR1, handle_sigusr1);
 }
 
+
+/**
+ * Callback for the editline server:
+ *  just pass on to uCli
+ */
+
+int
+orc_els_callback(void* cookie)
+{
+    orc_options_t* options = (orc_options_t*)cookie;
+    char* line = els_getline(options->els);
+    if(line) {
+        if(line && line[0] == '^' && line[1] == 'D') {
+            aim_printf(&aim_pvs_stdout, "\nExiting from CLI\n");
+            exit(0);
+        }
+        else {
+            ucli_dispatch_string(options->ucli, &aim_pvs_stdout, line);
+            els_prompt(options->els);
+        }
+    }
+    return 0;   // success
+}
+
+
+/** 
+ * Setup the default prompt for the cli
+ */
+
+static int
+orc_console_prompt(char* p, int size, void* cookie)
+{
+    orc_options_t* options = (orc_options_t*)cookie;
+    ucli_prompt_get(options->ucli, p, size,
+            ORC_CONFIG_CONSOLE_PROMPT_DEFAULT);
+    return 0;
+}
+
 /**********
  * main program:
  *  - parse args
@@ -163,6 +205,7 @@ orc_main(int argc, char * argv[])
     int count, err;
     orc_options_t options;
 
+    ucli_init();
     options_init_default(&options);
     /** TODO: read options from /etc/orc/orc.conf */
     count = options_parse(&options, argv, argc);
@@ -187,6 +230,20 @@ orc_main(int argc, char * argv[])
         }
     }
 
+    /* setup CLI  */
+    ucli_node_t *n = orc_ucli_node_create(&options);
+    options.ucli = ucli_create("orc", NULL, n);
+
+    /* only start the CLI if stdout is a tty  and not daemon */
+    if(!options.daemon && aim_pvs_isatty(&aim_pvs_stdout)) {
+        options.els = els_create("orc", orc_console_prompt, &options);
+        options.ucli = ucli_copy(options.ucli);
+        ucli_pvs_set(options.ucli, &aim_pvs_stdout);
+        els_complete_set(options.els, (els_complete_f)ucli_complete_hook,
+                options.ucli);
+    }
+
+
     options.drv = load_driver(&options);
 
     if (options.drv == NULL)
@@ -194,6 +251,11 @@ orc_main(int argc, char * argv[])
                         options.driver);
     Options = &options;  // for signal handler
     signal(SIGUSR1, handle_sigusr1);
+    if (options.els)
+    {
+        els_start(options.els);     // start cli if configured
+        els_prompt(options.els);
+    }
     return run_driver(&options, argc, argv);
 }
 
