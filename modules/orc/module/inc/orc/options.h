@@ -26,6 +26,8 @@
 #ifndef OPTIONS_H
 #define OPTIONS_H
 
+struct orc_options_s;
+
 #include "orc_logger.h"
 #include "orc_driver.h"
 
@@ -46,7 +48,7 @@ typedef struct orc_options_s {
     int num_driver_paths;   /* number of path entires */
     char * driver_paths[MAX_DRIVER_PATHS];   /* paths to drivers */
     enum Debug_Thresholds debug; /* mininum debug threshold - higher is more */
-    orc_driver_t * drv;
+    struct orc_driver_s * drv;
     int verbose;
     int ports_only;         /* no L3 copying; only create ports with TX/RX */
     int daemon;             /* do we fork to background? */

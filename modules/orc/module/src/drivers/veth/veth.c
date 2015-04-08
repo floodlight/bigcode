@@ -55,7 +55,7 @@ typedef struct veth_port {
  */
 
 int
-veth_init_driver(int argc, char * argv[])
+veth_init_driver(orc_options_t *options, int argc, char * argv[])
 {
     int i;
     for (i=0; i<argc; i++)
