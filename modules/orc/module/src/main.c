@@ -49,6 +49,10 @@
 #define MAX_PORTS 256
 #endif
 
+#ifndef ORC_CONFIG_CONSOLE_PROMPT_DEFAULT
+#define ORC_CONFIG_CONSOLE_PROMPT_DEFAULT "orc"
+#endif
+
 static orc_options_t * Options = NULL;
 
 /***
