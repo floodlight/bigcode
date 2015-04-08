@@ -75,9 +75,13 @@ orc_ucli_module__ =
     };
 
 ucli_node_t*
-orc_ucli_node_create(orc_options_t *options)
+orc_ucli_node_create(void)
 {
-    ucli_node_t* n;
+    static ucli_node_t* n = NULL;
+
+    if ( n != NULL)
+        return NULL;        /** hack to prevent duplicate entries */
+
     ucli_module_init(&orc_ucli_module__);
     n = ucli_node_create("orc", NULL, &orc_ucli_module__);
     ucli_node_subnode_add(n, ucli_module_log_node_create("orc"));
