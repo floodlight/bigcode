@@ -40,7 +40,23 @@ int locate_driver(orc_options_t * options, char * filename, int len);
 #ifndef ORC_STATIC_DRIVER
 static void * Driver_Symbols_Handle;
 #else
-extern orc_driver_t DRIVER_HOOKS;
+    /* prototypes for all of the ORC BRCM functions - for static linking for debugging */
+     int brcm_init_driver(struct orc_options_s * options, int argc, char * argv[]);
+     int brcm_discover_ports(port_t * ports[], int * num);
+     int discover_ports(port_t * ports[], int * num);
+     int brcm_start_rx(port_t * ports[], int num_ports);
+     int brcm_stop_rx(void);
+     int brcm_tx_pkt(port_t *port, u8 *pkt, unsigned int len);
+     int brcm_raw_port_enable(port_t * port);
+     int brcm_raw_port_disable(port_t * port);
+     int brcm_add_l3_v4_interface( port_t *port, u8 hw_mac[6], int mtu, u32 ipv4_addr, l3_intf_id_t *l3_intf_id);
+     int brcm_update_l3_v4_interface( port_t *port, u8 hw_mac[6], int mtu, u32 ipv4_addr, l3_intf_id_t l3_intf_id); 
+     int brcm_del_l3_interface(port_t * port, l3_intf_id_t l3_intf_id);
+     int brcm_add_l3_v4_next_hop( port_t * port,                         l3_intf_id_t l3_intf_id,    u8 next_hop_hw_mac[6], l3_next_hop_id_t * l3_next_hop_id);
+     int brcm_del_l3_next_hop(l3_next_hop_id_t l3_next_hop_id);
+     int brcm_add_l3_v4_route( u32 ip_dst, u32 netmask, l3_next_hop_id_t l3_next_hop_id);
+     int brcm_del_l3_v4_route( u32 ip_dst, u32 netmask, l3_next_hop_id_t l3_next_hop_id);
+     void brcm_log_debug_info();
 #endif
 
 orc_driver_t * load_driver(orc_options_t * options)
@@ -69,7 +85,23 @@ orc_driver_t * load_driver(orc_options_t * options)
     return (orc_driver_t *) sym;
 #else
     orc_log("Using statically linked driver -- ignoring dynamic\n");
-    return &DRIVER_HOOKS;    /* can only have one defined at a time */
+
+
+    static orc_driver_t driver;
+    driver.init_driver = brcm_init_driver,
+    driver.discover_ports = brcm_discover_ports;
+    driver.tx_pkt = brcm_tx_pkt;
+    driver.start_rx = brcm_start_rx;
+    driver.stop_rx = brcm_stop_rx;
+    driver.raw_port_enable = brcm_raw_port_enable;
+    driver.add_l3_v4_interface = brcm_add_l3_v4_interface;
+    driver.del_l3_interface = brcm_del_l3_interface;
+    driver.add_l3_v4_next_hop = brcm_add_l3_v4_next_hop;
+    driver.del_l3_next_hop = brcm_del_l3_next_hop;
+    driver.add_l3_v4_route    = brcm_add_l3_v4_route;
+    driver.del_l3_v4_route    = brcm_del_l3_v4_route;
+    driver.log_debug_info = brcm_log_debug_info;
+    return &driver;    /* can only have one defined at a time */
 #endif
 }
 
