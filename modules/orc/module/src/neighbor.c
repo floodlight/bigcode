@@ -277,7 +277,7 @@ static int pending_next_hop_cmp(
 static int pending_add(next_hop_db * db, pending_next_hop_t * entry)
 {
     pending_next_hop_t * curr, *prev = NULL;
-    int cmp;
+    int cmp = 1;
 
     curr = db->head;
 
