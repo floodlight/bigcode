@@ -449,9 +449,8 @@ static int handle_v4_route(
                     entry.dst_ip,
                     netmask)) != 0)
             {
-                orc_warn("pending_next_hop_add_gateway() failed: %d\n",
+                orc_debug("pending_next_hop_add_gateway() failed: %d\n",
                         err);
-                return -1;
             }
             call_add_l3_v4_route(options,
                     entry.dst_ip,
@@ -464,9 +463,8 @@ static int handle_v4_route(
                     entry.dst_ip,
                     netmask)) != 0)
             {
-                orc_warn("pending_next_hop_add_direct() failed: %d\n",
+                orc_debug("pending_next_hop_add_direct() failed: %d\n",
                         err);
-                return -1;
             }
         }
     }
@@ -493,9 +491,8 @@ static int handle_v4_route(
                     entry.dst_ip,
                     netmask)) != 0)
             {
-                orc_warn("pending_next_hop_del_gateway() failed: %d\n",
+                orc_debug("pending_next_hop_del_gateway() failed: %d\n",
                         err);
-                return -1;
             }
         } else {    /* direct route */
             if ((err = pending_next_hop_del_direct(
@@ -503,9 +500,8 @@ static int handle_v4_route(
                     entry.dst_ip,
                     netmask)) != 0)
             {
-                orc_warn("pending_next_hop_del_gateway() failed: %d\n",
+                orc_debug("pending_next_hop_del_gateway() failed: %d\n",
                         err);
-                return -1;
             }
         }
     }
