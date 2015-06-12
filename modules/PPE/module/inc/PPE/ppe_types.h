@@ -121,6 +121,10 @@ typedef enum ppe_field_e {
     PPE_FIELD_ICMP_CHECKSUM,
     PPE_FIELD_ICMP_HEADER_DATA,
     PPE_FIELD_ICMP_PAYLOAD,
+    PPE_FIELD_IGMP_TYPE,
+    PPE_FIELD_IGMP_MAX_RESP_TIME,
+    PPE_FIELD_IGMP_CHECKSUM,
+    PPE_FIELD_IGMP_GROUP_ADDRESS,
     PPE_FIELD_IP4_VERSION,
     PPE_FIELD_IP4_HEADER_SIZE,
     PPE_FIELD_IP4_TOS,
@@ -252,7 +256,8 @@ typedef enum ppe_header_e {
     PPE_HEADER_DHCP,
     PPE_HEADER_ETHERTYPE_MISSING,
     PPE_HEADER_OF10,
-    PPE_HEADER_LAST = PPE_HEADER_OF10,
+    PPE_HEADER_IGMP,
+    PPE_HEADER_LAST = PPE_HEADER_IGMP,
     PPE_HEADER_COUNT,
     PPE_HEADER_INVALID = -1,
 } ppe_header_t;
@@ -282,6 +287,7 @@ typedef enum ppe_header_e {
     "DHCP", \
     "ETHERTYPE_MISSING", \
     "OF10", \
+    "IGMP", \
 }
 /** Enum names. */
 const char* ppe_header_name(ppe_header_t e);
@@ -294,7 +300,7 @@ const char* ppe_header_desc(ppe_header_t e);
 
 /** validator */
 #define PPE_HEADER_VALID(_e) \
-    ( (0 <= (_e)) && ((_e) <= PPE_HEADER_OF10))
+    ( (0 <= (_e)) && ((_e) <= PPE_HEADER_IGMP))
 
 /** ppe_header_map table. */
 extern aim_map_si_t ppe_header_map[];
@@ -304,6 +310,7 @@ extern aim_map_si_t ppe_header_desc_map[];
 /** ppe_ip_protocol */
 typedef enum ppe_ip_protocol_e {
     PPE_IP_PROTOCOL_ICMP = 1,
+    PPE_IP_PROTOCOL_IGMP = 2,
     PPE_IP_PROTOCOL_TCP = 6,
     PPE_IP_PROTOCOL_UDP = 17,
 } ppe_ip_protocol_t;
@@ -328,6 +335,36 @@ int ppe_ip_protocol_valid(ppe_ip_protocol_t e);
 extern aim_map_si_t ppe_ip_protocol_map[];
 /** ppe_ip_protocol_desc_map table. */
 extern aim_map_si_t ppe_ip_protocol_desc_map[];
+
+/** ppe_igmp_type */
+typedef enum ppe_igmp_type_e {
+    PPE_IGMP_TYPE_QUERY = 17,
+    PPE_IGMP_TYPE_V1_REPORT = 18,
+    PPE_IGMP_TYPE_V2_REPORT = 22,
+    PPE_IGMP_TYPE_V3_REPORT = 34,
+    PPE_IGMP_TYPE_LEAVE = 23,
+} ppe_igmp_type_t;
+
+/** Enum names. */
+const char* ppe_igmp_type_name(ppe_igmp_type_t e);
+
+/** Enum values. */
+int ppe_igmp_type_value(const char* str, ppe_igmp_type_t* e, int substr);
+
+/** Enum descriptions. */
+const char* ppe_igmp_type_desc(ppe_igmp_type_t e);
+
+/** Enum validator. */
+int ppe_igmp_type_valid(ppe_igmp_type_t e);
+
+/** validator */
+#define PPE_IGMP_TYPE_VALID(_e) \
+    (ppe_igmp_type_valid((_e)))
+
+/** ppe_igmp_type_map table. */
+extern aim_map_si_t ppe_igmp_type_map[];
+/** ppe_igmp_type_desc_map table. */
+extern aim_map_si_t ppe_igmp_type_desc_map[];
 
 /** ppe_pservice_port */
 typedef enum ppe_pservice_port_e {

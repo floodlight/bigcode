@@ -193,6 +193,13 @@ ppe_parse_ip_protocol_ICMP__(ppe_packet_t* ppep, uint8_t* data, int size)
     PPE_PACKET_HEADER_SET(ppep, PPE_HEADER_ICMP, data);
     return 0;
 }
+static inline int
+ppe_parse_ip_protocol_IGMP__(ppe_packet_t* ppep, uint8_t* data, int size)
+{
+    AIM_REFERENCE(size);
+    PPE_PACKET_HEADER_SET(ppep, PPE_HEADER_IGMP, data);
+    return 0;
+}
 
 static inline int
 ppe_parse_ip_protocol(ppe_packet_t* ppep, uint8_t protocol,
