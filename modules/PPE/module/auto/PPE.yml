@@ -174,6 +174,19 @@ pservice_ports: &pservice_ports
 
 ###############################################################################
 #
+# IGMP types
+#
+###############################################################################
+igmp_types: &igmp_types
+- QUERY : 0x11
+- V1_REPORT : 0x12
+- V2_REPORT : 0x16
+- V3_REPORT : 0x22
+- LEAVE : 0x17
+
+
+###############################################################################
+#
 # Packet Headers
 #
 ###############################################################################
@@ -200,6 +213,7 @@ headers: &headers
 - DHCP
 - ETHERTYPE_MISSING
 - OF10
+- IGMP
 
 ###############################################################################
 #
@@ -278,6 +292,11 @@ fields: &fields
 - [ ICMP,               CHECKSUM,       16, 2,  0 ]
 - [ ICMP,               HEADER_DATA,    32, 4,  0 ]
 - [ ICMP,               PAYLOAD,         8, 8,  0 ]
+
+- [ IGMP,               TYPE,           8,  0,  0 ]
+- [ IGMP,               MAX_RESP_TIME,  8,  1,  0 ]
+- [ IGMP,               CHECKSUM,       16, 2,  0 ]
+- [ IGMP,               GROUP_ADDRESS,  32, 4,  0 ]
 
 - [ IP4,                VERSION,         4, 0,  4 ]
 - [ IP4,                HEADER_SIZE,     4, 0,  0 ]
@@ -380,6 +399,7 @@ fields: &fields
 ###############################################################################
 ip_protocols: &ip_protocols
 - ICMP :  1
+- IGMP :  2
 - TCP  :  6
 - UDP  : 17
 
@@ -440,6 +460,9 @@ definitions:
     ppe_pservice_port:
       members: *pservice_ports
       desc: "PPE Parsable Service Port."
+    ppe_igmp_type:
+      members: *igmp_types
+      desc: "PPE Igmp Type."
 
   aim_custom_log_macro:
     ppe:
