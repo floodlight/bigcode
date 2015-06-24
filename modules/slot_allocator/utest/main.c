@@ -172,6 +172,105 @@ test_holes(void)
     slot_allocator_destroy(m);
 }
 
+/* Iteration over a full slot allocator */
+static void
+test_full_iteration(void)
+{
+    const int n = 256;
+    struct slot_allocator *m = slot_allocator_create(n);
+    uint32_t slot;
+
+    uint32_t i;
+    for (i = 0; i < n; i++) {
+        slot = slot_allocator_alloc(m);
+        assert(slot == i);
+    }
+
+    struct slot_allocator_iter iter;
+    slot_allocator_iter_init(m, &iter);
+    for (i = 0; i < n; i++) {
+        assert(slot_allocator_iter_next(&iter) == i);
+    }
+    assert(slot_allocator_iter_next(&iter) == SLOT_INVALID);
+
+    slot_allocator_destroy(m);
+}
+
+/* Iteration over an empty slot allocator */
+static void
+test_empty_iteration(void)
+{
+    const int n = 256;
+    struct slot_allocator *m = slot_allocator_create(n);
+
+    struct slot_allocator_iter iter;
+    slot_allocator_iter_init(m, &iter);
+    assert(slot_allocator_iter_next(&iter) == SLOT_INVALID);
+
+    slot_allocator_destroy(m);
+}
+
+/* Iteration over a slot allocator where the first half is free */
+static void
+test_suffix_iteration(void)
+{
+    const int n = 256;
+    struct slot_allocator *m = slot_allocator_create(n);
+    uint32_t slot;
+
+    uint32_t i;
+    for (i = 0; i < n; i++) {
+        slot = slot_allocator_alloc(m);
+        assert(slot == i);
+    }
+
+    for (i = 0; i < n/2; i++) {
+        slot_allocator_free(m, i);
+    }
+
+    struct slot_allocator_iter iter;
+    slot_allocator_iter_init(m, &iter);
+    for (i = n/2; i < n; i++) {
+        assert(slot_allocator_iter_next(&iter) == i);
+    }
+    assert(slot_allocator_iter_next(&iter) == SLOT_INVALID);
+
+    slot_allocator_destroy(m);
+}
+
+/* Iteration over a slot allocator where every other chunk of 32 is free */
+static void
+test_striped_iteration(void)
+{
+    const int n = 256;
+    struct slot_allocator *m = slot_allocator_create(n);
+    uint32_t slot;
+
+    uint32_t i;
+    for (i = 0; i < n; i++) {
+        slot = slot_allocator_alloc(m);
+        assert(slot == i);
+    }
+
+    for (i = 0; i < n; i++) {
+        if ((i / 32) % 2 == 0) {
+            slot_allocator_free(m, i);
+        }
+    }
+
+    struct slot_allocator_iter iter;
+    slot_allocator_iter_init(m, &iter);
+    for (i = 0; i < n/64; i++) {
+        int j;
+        for (j = 0; j < 32; j++) {
+            assert(slot_allocator_iter_next(&iter) == i*64+32+j);
+        }
+    }
+    assert(slot_allocator_iter_next(&iter) == SLOT_INVALID);
+
+    slot_allocator_destroy(m);
+}
+
 int
 aim_main(int argc, char **argv)
 {
@@ -180,6 +279,10 @@ aim_main(int argc, char **argv)
     test_stress();
     test_example();
     test_holes();
+    test_full_iteration();
+    test_empty_iteration();
+    test_suffix_iteration();
+    test_striped_iteration();
 
     return 0;
 }
