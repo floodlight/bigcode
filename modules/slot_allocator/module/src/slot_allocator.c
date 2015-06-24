@@ -157,7 +157,7 @@ slot_allocator_iter_next(struct slot_allocator_iter *iter)
     }
 
     /* Advance to next bitmap word */
-    iter->slot += AIM_BITMAP_BITS_PER_WORD;
+    iter->slot += AIM_BITMAP_BITS_PER_WORD-1;
     iter->slot &= ~(AIM_BITMAP_BITS_PER_WORD-1);
 
     /* Find the next nonzero bitmap word */
