@@ -38,7 +38,7 @@ int main(int argc, char* argv[])
 
     {
         os_sem_t sem = os_sem_create(1);
-        printf("sem=%p\n", sem);
+        printf("sem(regular)=%p\n", sem);
         printf("take\n");
         os_sem_take(sem);
         printf("give\n");
@@ -47,9 +47,22 @@ int main(int argc, char* argv[])
         os_sem_take(sem);
         os_sem_destroy(sem);
     }
+
+    {
+        os_sem_t sem = os_sem_create(1, OS_SEM_CREATE_F_TRUE_RELATIVE_TIMEOUTS);
+        printf("sem(relative timeout)=%p\n", sem);
+        printf("take\n");
+        os_sem_take(sem);
+        printf("give\n");
+        os_sem_give(sem);
+        printf("take\n");
+        os_sem_take(sem);
+        os_sem_destroy(sem);
+    }
+
     {
         int i;
-        printf("Should print every second...");
+        printf("Should print every second (sleep)...");
         for(i = 0; i <= 5; i++) {
             aim_printf(&aim_pvs_stdout, "%d ", i);
             if(i & 1) {
@@ -64,7 +77,7 @@ int main(int argc, char* argv[])
     {
         int i;
         os_sem_t s = os_sem_create(1);
-        printf("Should print every second...");
+        printf("Should print every second (sem)...");
         for(i = 0; i <= 5; i++) {
             aim_printf(&aim_pvs_stdout, "%d ", i);
             AIM_TRUE_OR_DIE(os_sem_take_timeout(s, 0) == 0);
@@ -73,8 +86,22 @@ int main(int argc, char* argv[])
             AIM_TRUE_OR_DIE(os_sem_take_timeout(s, 1000000) == 0);
             os_sem_give(s);
         }
+        printf("\n");
     }
-
+    {
+        int i;
+        os_sem_t s = os_sem_create(1, OS_SEM_CREATE_F_TRUE_RELATIVE_TIMEOUTS);
+        printf("Should print every second (relative-timeout)...");
+        for(i = 0; i <= 5; i++) {
+            aim_printf(&aim_pvs_stdout, "%d ", i);
+            AIM_TRUE_OR_DIE(os_sem_take_timeout(s, 0) == 0);
+            AIM_TRUE_OR_DIE(os_sem_take_timeout(s, 1000000) == -1);
+            os_sem_give(s);
+            AIM_TRUE_OR_DIE(os_sem_take_timeout(s, 1000000) == 0);
+            os_sem_give(s);
+        }
+        printf("\n");
+    }
     {
         const char* name = "thready";
         char n[32];

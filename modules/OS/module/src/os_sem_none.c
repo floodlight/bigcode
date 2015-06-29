@@ -27,7 +27,7 @@ struct os_sem_s {
 };
 
 os_sem_t
-os_sem_create(int count)
+os_sem_create(int count, ...)
 {
     os_sem_t s = aim_zmalloc(sizeof(*s));
     s->count = count;

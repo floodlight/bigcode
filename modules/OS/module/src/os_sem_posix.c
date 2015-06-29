@@ -27,17 +27,39 @@
 #include <errno.h>
 #include <time.h>
 
+#include <sys/eventfd.h>
+#include <unistd.h>
+#include <poll.h>
+
+
 struct os_sem_s {
     sem_t sem;
+    int efd;
 };
 
 os_sem_t
-os_sem_create(int count)
+os_sem_create(int count, ...)
 {
+    va_list vargs;
+    va_start(vargs, count);
+    uint32_t flags = va_arg(vargs, uint32_t);
+    va_end(vargs);
+
     os_sem_t s = aim_zmalloc(sizeof(*s));
-    sem_init(&s->sem, 0, count);
+
+    if(flags & OS_SEM_CREATE_F_TRUE_RELATIVE_TIMEOUTS) {
+        s->efd = eventfd(count, EFD_SEMAPHORE);
+        if(s->efd == -1) {
+            AIM_DIE("eventfd() failed - %s", strerror(errno));
+        }
+    }
+    else {
+        sem_init(&s->sem, 0, count);
+    }
     return s;
 }
+
+
 
 #define VALIDATE(_sem) AIM_TRUE_OR_DIE(_sem != NULL, "null semaphore passed to  %s", __FUNCTION__)
 
@@ -45,7 +67,13 @@ void
 os_sem_destroy(os_sem_t sem)
 {
     VALIDATE(sem);
-    sem_destroy(&sem->sem);
+
+    if(sem->efd) {
+        close(sem->efd);
+    } else {
+        sem_destroy(&sem->sem);
+    }
+
     aim_free(sem);
 }
 
@@ -55,9 +83,20 @@ os_sem_take(os_sem_t sem)
     VALIDATE(sem);
 
     for(;;) {
-        if(sem_wait(&sem->sem) == 0) {
-            return 0;
+
+        if(sem->efd) {
+            eventfd_t value;
+            int rv = eventfd_read(sem->efd, &value);
+            if(rv == 0 && value == 1) {
+                return 0;
+            }
         }
+        else {
+            if(sem_wait(&sem->sem) == 0) {
+                return 0;
+            }
+        }
+
         switch(errno)
             {
             case EINTR:
@@ -76,7 +115,13 @@ void
 os_sem_give(os_sem_t sem)
 {
     VALIDATE(sem);
-    sem_post(&sem->sem);
+
+    if(sem->efd) {
+        eventfd_write(sem->efd, 1);
+    }
+    else {
+        sem_post(&sem->sem);
+    }
 }
 
 
@@ -94,10 +139,60 @@ timespec_init_timeout__(struct timespec* ts, uint64_t us)
     ts->tv_nsec %= 1000000000;
 }
 
-int
-os_sem_take_timeout(os_sem_t sem, uint64_t usecs)
+static int
+os_sem_take_timeout_efd__(os_sem_t sem, uint64_t usecs)
 {
-    VALIDATE(sem);
+    AIM_TRUE_OR_DIE(sem->efd > 0);
+
+
+    if(usecs == 0) {
+        /** Normal wait. */
+        return os_sem_take(sem);
+    }
+    else {
+
+        /** poll() with timeout (in ms) */
+        struct pollfd fds;
+
+        fds.fd = sem->efd;
+        fds.events = POLLIN;
+        fds.revents = 0;
+
+        int to = usecs / 1000;
+        int rv;
+
+        switch( (rv = poll(&fds, 1, to)) )
+            {
+            case 0:
+                {
+                    /* Timed out */
+                    return -1;
+                }
+                break;
+            case 1:
+                {
+                    if(fds.revents & POLLIN) {
+                        /* Descriptor Ready */
+                        return os_sem_take(sem);
+                    }
+                    AIM_DIE("Unexpected revents from poll(): 0x%x", fds.revents);
+                }
+                break;
+
+            default:
+                {
+                    AIM_DIE("Unexpected return value from poll() - %d", rv);
+                }
+                break;
+            }
+    }
+}
+
+
+static int
+os_sem_take_timeout_sem__(os_sem_t sem, uint64_t usecs)
+{
+    AIM_TRUE_OR_DIE(sem->efd == 0);
 
     if(usecs == 0) {
         /** Normal wait */
@@ -127,6 +222,18 @@ os_sem_take_timeout(os_sem_t sem, uint64_t usecs)
                     break;
                 }
         }
+    }
+}
+
+int
+os_sem_take_timeout(os_sem_t sem, uint64_t usecs)
+{
+    VALIDATE(sem);
+    if(sem->efd > 0) {
+        return os_sem_take_timeout_efd__(sem, usecs);
+    }
+    else {
+        return os_sem_take_timeout_sem__(sem, usecs);
     }
 }
 
