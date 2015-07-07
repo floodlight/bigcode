@@ -171,8 +171,12 @@ pimu_flow_action__(pimu_t* pimu, int pid,
             return PIMU_ACTION_ERROR;
         }
         data = key;
-    } else if(size < PIMU_CONFIG_PACKET_KEY_SIZE) {
-        PIMU_MEMCPY(key, data, size);
+    } else {
+        if(size < PIMU_CONFIG_PACKET_KEY_SIZE) {
+            PIMU_MEMCPY(key, data, size);
+        } else {
+            PIMU_MEMCPY(key, data, PIMU_CONFIG_PACKET_KEY_SIZE - 1);
+        }
         data = key;
     }
     pe = (pimu_entry_t*)nwac_search(pimu->nwac, data, now);
