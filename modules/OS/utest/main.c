@@ -49,7 +49,7 @@ int main(int argc, char* argv[])
     }
 
     {
-        os_sem_t sem = os_sem_create(1, OS_SEM_CREATE_F_TRUE_RELATIVE_TIMEOUTS);
+        os_sem_t sem = os_sem_create_flags(1, OS_SEM_CREATE_F_TRUE_RELATIVE_TIMEOUTS);
         printf("sem(relative timeout)=%p\n", sem);
         printf("take\n");
         os_sem_take(sem);
@@ -90,7 +90,7 @@ int main(int argc, char* argv[])
     }
     {
         int i;
-        os_sem_t s = os_sem_create(1, OS_SEM_CREATE_F_TRUE_RELATIVE_TIMEOUTS);
+        os_sem_t s = os_sem_create_flags(1, OS_SEM_CREATE_F_TRUE_RELATIVE_TIMEOUTS);
         printf("Should print every second (relative-timeout)...");
         for(i = 0; i <= 5; i++) {
             aim_printf(&aim_pvs_stdout, "%d ", i);
@@ -109,6 +109,13 @@ int main(int argc, char* argv[])
         os_thread_name_get(n, sizeof(n));
         AIM_TRUE_OR_DIE(!strcmp(name, n));
     }
-
+    {
+        /* From semtest.c */
+        extern void sem_test_multiple(uint32_t flags, int givers, int takers);
+        printf("Semaphore timeout test (normal)...\n");
+        sem_test_multiple(OS_SEM_CREATE_F_TRUE_RELATIVE_TIMEOUTS, 512, 1024);
+        printf("Semaphore timeout test (relative)...\n");
+        sem_test_multiple(OS_SEM_CREATE_F_TRUE_RELATIVE_TIMEOUTS, 512, 1024);
+    }
     return 0;
 }

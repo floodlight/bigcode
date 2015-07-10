@@ -35,20 +35,23 @@ typedef struct os_sem_s* os_sem_t;
 /**
  * @brief Create a semaphore.
  * @param count Initial count.
- * @param ... Optional uint32_t creation flags.
  */
-os_sem_t os_sem_create(int count, ...);
+os_sem_t os_sem_create(int count);
 
 /**
- * Specify this flag in os_sem_create() if you plan to
+ * Specify this flag in os_sem_create_flags() if you plan to
  * used timeouts with your semaphore. This option
  * will implement true relative timeouts that are immune
  * to clock adjustments (but will not perform as well).
  */
 #define OS_SEM_CREATE_F_TRUE_RELATIVE_TIMEOUTS 0x1
 
-
-
+/**
+ * @brief Create a semaphore.
+ * @param count Initial count.
+ * @param ... Optional uint32_t creation flags.
+ */
+os_sem_t os_sem_create_flags(int count, uint32_t flags);
 
 
 /**

@@ -27,11 +27,17 @@ struct os_sem_s {
 };
 
 os_sem_t
-os_sem_create(int count, ...)
+os_sem_create_flags(int count, uint32_t flags)
 {
     os_sem_t s = aim_zmalloc(sizeof(*s));
     s->count = count;
     return s;
+}
+
+os_sem_t
+os_sem_create(int count)
+{
+    return os_sem_create_flags(count, 0);
 }
 
 void

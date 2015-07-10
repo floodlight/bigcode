@@ -22,7 +22,7 @@
 
 #if OS_CONFIG_INCLUDE_POSIX == 1
 
-
+#include <OS/os_time.h>
 #include <semaphore.h>
 #include <errno.h>
 #include <time.h>
@@ -31,34 +31,37 @@
 #include <unistd.h>
 #include <poll.h>
 
-
 struct os_sem_s {
     sem_t sem;
     int efd;
 };
 
-os_sem_t
-os_sem_create(int count, ...)
-{
-    va_list vargs;
-    va_start(vargs, count);
-    uint32_t flags = va_arg(vargs, uint32_t);
-    va_end(vargs);
+#define EFD_INVALID -1
+#define USES_EFD(sem) ((sem->efd != EFD_INVALID))
 
+os_sem_t
+os_sem_create_flags(int count, uint32_t flags)
+{
     os_sem_t s = aim_zmalloc(sizeof(*s));
 
     if(flags & OS_SEM_CREATE_F_TRUE_RELATIVE_TIMEOUTS) {
-        s->efd = eventfd(count, EFD_SEMAPHORE);
+        s->efd = eventfd(count, EFD_SEMAPHORE | EFD_NONBLOCK);
         if(s->efd == -1) {
             AIM_DIE("eventfd() failed - %s", strerror(errno));
         }
     }
     else {
+        s->efd = EFD_INVALID;
         sem_init(&s->sem, 0, count);
     }
     return s;
 }
 
+os_sem_t
+os_sem_create(int count)
+{
+    return os_sem_create_flags(count, 0);
+}
 
 
 #define VALIDATE(_sem) AIM_TRUE_OR_DIE(_sem != NULL, "null semaphore passed to  %s", __FUNCTION__)
@@ -68,7 +71,7 @@ os_sem_destroy(os_sem_t sem)
 {
     VALIDATE(sem);
 
-    if(sem->efd) {
+    if(USES_EFD(sem)) {
         close(sem->efd);
     } else {
         sem_destroy(&sem->sem);
@@ -84,12 +87,8 @@ os_sem_take(os_sem_t sem)
 
     for(;;) {
 
-        if(sem->efd) {
-            eventfd_t value;
-            int rv = eventfd_read(sem->efd, &value);
-            if(rv == 0 && value == 1) {
-                return 0;
-            }
+        if(USES_EFD(sem)) {
+            return os_sem_take_timeout(sem, 0);
         }
         else {
             if(sem_wait(&sem->sem) == 0) {
@@ -105,7 +104,7 @@ os_sem_take(os_sem_t sem)
                 AIM_DIE("Invalid or corrupted semaphore in os_sem_take().");
                 break;
             default:
-                AIM_DIE("Unhandled error condition in os_sem_take() for errno=%{errno}", errno);
+                AIM_DIE("Unhandled error condition in os_sem_take(): errno=%s", strerror(errno));
                 break;
             }
     }
@@ -116,7 +115,7 @@ os_sem_give(os_sem_t sem)
 {
     VALIDATE(sem);
 
-    if(sem->efd) {
+    if(USES_EFD(sem)) {
         eventfd_write(sem->efd, 1);
     }
     else {
@@ -142,57 +141,81 @@ timespec_init_timeout__(struct timespec* ts, uint64_t us)
 static int
 os_sem_take_timeout_efd__(os_sem_t sem, uint64_t usecs)
 {
-    AIM_TRUE_OR_DIE(sem->efd > 0);
+    AIM_TRUE_OR_DIE(USES_EFD(sem));
 
+    /** poll() with timeout (in ms) */
+    struct pollfd fds;
+
+    fds.fd = sem->efd;
+    fds.events = POLLIN;
+    fds.revents = 0;
+
+    uint64_t t_start = os_time_monotonic();
+    uint64_t t_poll_started = t_start;
+    int timeout_ms;
 
     if(usecs == 0) {
-        /** Normal wait. */
-        return os_sem_take(sem);
+        /* Infinite timeout value when calling poll() */
+        timeout_ms = -1;
     }
     else {
+        timeout_ms = usecs / 1000;
+    }
 
-        /** poll() with timeout (in ms) */
-        struct pollfd fds;
+    for(;;) {
 
-        fds.fd = sem->efd;
-        fds.events = POLLIN;
-        fds.revents = 0;
+        int rv = poll(&fds, 1, timeout_ms);
 
-        int to = usecs / 1000;
-        int rv;
-
-        switch( (rv = poll(&fds, 1, to)) )
-            {
-            case 0:
-                {
-                    /* Timed out */
+        if(rv == 0) {
+            /* Timed out */
+            return -1;
+        }
+        if(rv == 1) {
+            if(fds.revents & POLLIN) {
+                /* Descriptor Ready */
+                uint64_t v;
+                if(eventfd_read(sem->efd, &v) == 0) {
+                    /* Acquired. */
+                    return 0;
+                }
+                else {
+                    /**
+                     * Acquired by someone else.
+                     * Retry handled along with EINTR below.
+                     */
+                }
+            }
+        }
+        if(rv == 1 || errno == EINTR) {
+            /*
+             * Calculate remaining timeout (if necessary) and retry.
+             */
+            if(timeout_ms != -1) {
+                uint64_t now = os_time_monotonic();
+                if( (now - t_start) >= usecs ) {
+                    /* Total timeout has elapsed */
                     return -1;
                 }
-                break;
-            case 1:
-                {
-                    if(fds.revents & POLLIN) {
-                        /* Descriptor Ready */
-                        return os_sem_take(sem);
-                    }
-                    AIM_DIE("Unexpected revents from poll(): 0x%x", fds.revents);
+                else {
+                    /* Remaining time to wait. */
+                    timeout_ms -= (now - t_poll_started) / 1000;
+                    t_poll_started = now;
                 }
-                break;
-
-            default:
-                {
-                    AIM_DIE("Unexpected return value from poll() - %d", rv);
-                }
-                break;
             }
+            continue;
+        }
+        else {
+            AIM_DIE("Unexpected return value from poll(): %s", strerror(errno));
+        }
     }
 }
+
 
 
 static int
 os_sem_take_timeout_sem__(os_sem_t sem, uint64_t usecs)
 {
-    AIM_TRUE_OR_DIE(sem->efd == 0);
+    AIM_TRUE_OR_DIE(!USES_EFD(sem));
 
     if(usecs == 0) {
         /** Normal wait */
@@ -229,7 +252,7 @@ int
 os_sem_take_timeout(os_sem_t sem, uint64_t usecs)
 {
     VALIDATE(sem);
-    if(sem->efd > 0) {
+    if(USES_EFD(sem)) {
         return os_sem_take_timeout_efd__(sem, usecs);
     }
     else {
