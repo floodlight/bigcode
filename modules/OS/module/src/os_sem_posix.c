@@ -141,7 +141,7 @@ timespec_init_timeout__(struct timespec* ts, uint64_t us)
 static int
 os_sem_take_timeout_efd__(os_sem_t sem, uint64_t usecs)
 {
-    AIM_TRUE_OR_DIE(USES_EFD(sem));
+    AIM_TRUE_OR_DIE(USES_EFD(sem), "timeout_efd__ called when efd is not valid.");
 
     /** poll() with timeout (in ms) */
     struct pollfd fds;
@@ -213,7 +213,7 @@ os_sem_take_timeout_efd__(os_sem_t sem, uint64_t usecs)
 static int
 os_sem_take_timeout_sem__(os_sem_t sem, uint64_t usecs)
 {
-    AIM_TRUE_OR_DIE(!USES_EFD(sem));
+    AIM_TRUE_OR_DIE(!USES_EFD(sem), "timout_sem__ called while EFD in use.");
 
     if(usecs == 0) {
         /** Normal wait */
