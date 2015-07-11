@@ -151,7 +151,6 @@ os_sem_take_timeout_efd__(os_sem_t sem, uint64_t usecs)
     fds.revents = 0;
 
     uint64_t t_start = os_time_monotonic();
-    uint64_t t_poll_started = t_start;
     int timeout_ms;
 
     if(usecs == 0) {
@@ -198,8 +197,7 @@ os_sem_take_timeout_efd__(os_sem_t sem, uint64_t usecs)
                 }
                 else {
                     /* Remaining time to wait. */
-                    timeout_ms -= (now - t_poll_started) / 1000;
-                    t_poll_started = now;
+                    timeout_ms = (usecs - (now - t_start) + 999)/1000;
                 }
             }
             continue;

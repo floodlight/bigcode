@@ -26,7 +26,7 @@
 
 int main(int argc, char* argv[])
 {
-    printf("OS Utest Is Empty\n");
+
     os_config_show(&aim_pvs_stdout);
 
     printf("os_sem_create=%p\n", os_sem_create);
@@ -113,7 +113,7 @@ int main(int argc, char* argv[])
         /* From semtest.c */
         extern void sem_test_multiple(uint32_t flags, int givers, int takers);
         printf("Semaphore timeout test (normal)...\n");
-        sem_test_multiple(OS_SEM_CREATE_F_TRUE_RELATIVE_TIMEOUTS, 512, 1024);
+        sem_test_multiple(0, 512, 1024);
         printf("Semaphore timeout test (relative)...\n");
         sem_test_multiple(OS_SEM_CREATE_F_TRUE_RELATIVE_TIMEOUTS, 512, 1024);
     }
