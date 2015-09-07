@@ -92,7 +92,7 @@ sem_t rx_lock;
  * Unique ID generators
  */
 sem_t next_hop_id_lock;
-sem_t l3_iface_id_lock;
+sem_t l3_intf_id_lock;
 
 /***************
  * ofdpa_init_driver: start up ofdpa
@@ -107,7 +107,7 @@ int ofdpa_init_driver(orc_options_t *options, int argc, char * argv[])
     {
         orc_log("semaphore init for rx_lock failed: %d", c);
     }
-    if ((c = sem_init(&l3_iface_id_lock, 1, 1)) < 0)
+    if ((c = sem_init(&l3_intf_id_lock, 1, 1)) < 0)
     {
         orc_log("semaphore init for l3_iface_id_lock failed: %d", c);
     }
@@ -649,22 +649,22 @@ uint16_t compute_vlan_id(uint32_t port) {
 }
 
 /******
- * Generate unique l3_intf_id_t
+ * Generate unique l3_intf_id_t. Note that l3_intf_id_t is just an int (i.e. so we can add to it).
  */
 l3_intf_id_t generate_l3_intf_id() {
     static l3_intf_id_t l3_intf_id; /* initially 0 */
     l3_intf_id_t tmp;
 
-    sem_wait(&l3_iface_id_lock);
+    sem_wait(&l3_intf_id_lock);
     l3_intf_id = l3_intf_id + 1;
     tmp = l3_intf_id; /* store to thread/process local copy so that we can unlock and know what we're returning */
-    sem_post(&l3_iface_id_lock);
+    sem_post(&l3_intf_id_lock);
 
     return tmp;
 }
 
 /******
- * Generate unique l3_next_hop_id_t
+ * Generate unique l3_next_hop_id_t. Note that l3_next_hop_id_t is just an int (i.e. so we can add to it).
  */
 l3_next_hop_id_t generate_l3_next_hop_id() {
     static l3_next_hop_id_t next_hop_id; /* initially 0 */
