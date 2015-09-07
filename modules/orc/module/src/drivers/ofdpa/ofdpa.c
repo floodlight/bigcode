@@ -39,7 +39,7 @@
 #include <netinet/in.h>
 
 #include "orc/utils.h"
-#include "orc/orc_debugger.h"
+#include "orc/orc_logger.h"
 #include "orc/orc_driver.h"
 #include "orc/tap_utils.h"
 #include "ofdpa_api.h"
