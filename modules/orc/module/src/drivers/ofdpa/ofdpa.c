@@ -285,6 +285,13 @@ int ofdpa_stop_rx()
      * Now free all the memory we ate
      */
     free_ports();
+
+    /*
+     * And don't forget to destroy our locks/semaphores
+     */
+    sem_destroy(&rx_lock);
+    sem_destroy(&l3_intf_id_lock);
+    sem_destroy(&next_hop_id_lock);
 }
 
 /******
@@ -475,6 +482,11 @@ int ofdpa_add_l3_v4_interface(port_t * port, u8 hw_mac[6], int mtu, u32 ipv4_add
             return -1;
         }
     }
+
+    /*
+     * If we get here, then all flows should be inserted w/o error
+     */
+    *l3_intf_id = generate_l3_intf_id();
 
     return 0;
 }
