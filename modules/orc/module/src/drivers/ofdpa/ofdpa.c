@@ -80,9 +80,9 @@ typedef struct ofdpa_port {
  * that ID.
  */
 typedef struct ofdpa_next_hop {
-    l3_next_hop_id_t next_hop_id;
+    l3_next_hop_id_t id;
     ofdpa_port_t * port;
-    u8 next_hop_mac[6];
+    u8 mac[6];
 } ofdpa_next_hop_t;
 
 /*
@@ -139,7 +139,7 @@ sem_t next_hop_id_lock;
 sem_t l3_intf_id_lock;
 
 /*
- * TODO need locks for next hop and iterface list traversing
+ * TODO need locks for next hop and interface list traversing
  */
 
 /***************
@@ -153,17 +153,17 @@ int ofdpa_init_driver(orc_options_t *options, int argc, char * argv[])
     int c;
     if ((c = sem_init(&rx_lock, 1 /* shared b/t threads and processes */, 1 /* count from 1 (i.e. only one at a time) */)) < 0)
     {
-        orc_debug("semaphore init for rx_lock failed: %d", c);
+        orc_fatal("semaphore init for rx_lock failed: %d", c);
         return -1;
     }
     if ((c = sem_init(&l3_intf_id_lock, 1, 1)) < 0)
     {
-        orc_debug("semaphore init for l3_iface_id_lock failed: %d", c);
+        orc_fatal("semaphore init for l3_intf_id_lock failed: %d", c);
         return -1;
     }
     if ((c = sem_init(&add_hop_id_lock, 1, 1)) < 0)
     {
-        orc_debug("semaphore init for add_hop_id_lock failed: %d", c);
+        orc_fatal("semaphore init for add_hop_id_lock failed: %d", c);
         return -1;
     }
 
@@ -172,9 +172,9 @@ int ofdpa_init_driver(orc_options_t *options, int argc, char * argv[])
      */
     OFDPA_ERROR_t rc = ofdpaClientInitialize(CLIENT_NAME);
     if (rc == OFDPA_E_NONE) {
-        orc_debug("ofdpa initialized");
+        orc_warn("ofdpa initialized");
     } else {
-        orc_debug("ofdpa initialization returned error %d", rc);
+        orc_fatal("ofdpa initialization returned error %d", rc);
         return -1;
     }
 
@@ -186,9 +186,9 @@ int ofdpa_init_driver(orc_options_t *options, int argc, char * argv[])
      */
     rc = ofdpaClientPktSockBind();
     if (rc == OFDPA_E_NONE) {
-        orc_debug("ofdpa RX socket bound");
+        orc_warn("ofdpa RX socket bound");
     } else {
-        orc_debug("ofdpa RX socket bind returned error %d", rc);
+        orc_fatal("ofdpa RX socket bind returned error %d", rc);
         return -1;
     }
     return 0;
@@ -227,7 +227,7 @@ int ofdpa_discover_ports(port_t * ports[], int * num)
         ofport = malloc(sizeof(*ofport));
         if (ofport == NULL)
         {
-            orc_err("Out of mem allocating ports\n");
+            orc_err("Malloc failed allocating ports\n");
             return -1;
         }
         ofport->rx = 0; /* we don't want to receive packets from this port at present; set in start_rx below */
@@ -254,14 +254,14 @@ int ofdpa_discover_ports(port_t * ports[], int * num)
 int ofdpa_tx_pkt(port_t *port, u8 *pkt, unsigned int len)
 {
     struct ofdpa_port * ofdpa = (struct ofdpa_port *) port;
-    orc_debug("TX %d byte packet %s\n", len, ofdpa->port.name);
 
     /* in-port ignored if flag is not set */
     OFDPA_ERROR_t rc = ofdpaPktSend(pkt, 0, port->index, OFDPA_PORT_CONTROLLER);
-    orc_debug("TX packet out port %s returned code %d", ofdpa->port.name, rc);
     if (rc == OFDPA_E_NONE) {
+        orc_debug("TX packet out port %s, ID %d returned success code %d", ofdpa->port.name, ofdpa->port.index, rc);
         return 0;
     } else {
+        orc_err("TX packet out port %s, ID %d, returned error %d", ofdpa->port.name, ofdpa->port.index, rc);
         return -1;
     }
 }
@@ -289,23 +289,27 @@ int ofdpa_start_rx(port_t * ports[], int num_ports)
      */
     sem_wait(&rx_lock);
 
+    orc_warn("Setting RX on %d ports", num_ports);
+
     int i;
     for (i = 0; i < num_ports; i++)
     {
+        orc_trace("Starting RX on port %d", ports[i].index);
         ((ofdpa_port_t *) ports[i]).rx = 1; /* set flag to RX packets on this port */
     }
 
     if (rx_thread == NULL)
     {
-        orc_debug("Starting RX thread");
         int rc = pthread_create(&rx_thread, NULL /* default attributes */, port_rx_monitor, NULL /* no args to function ptr <-- */);
         if (rc != 0)
         {
-            orc_debug("RX thread creation failed with error code %d", rc);
+            orc_fatal("RX thread creation failed with error code %d", rc);
             return -1;
         }
+        orc_warn("Started RX thread");
     }
     sem_post(&rx_lock);
+
     return 0;
 }
 
@@ -324,13 +328,18 @@ int ofdpa_stop_rx()
     int fd = ofdpaClientPktSockFdGet();
     if (fd > 0)
     {
-        orc_debug("Closing RX socket file descriptor: %d", fd); /* seeing the FD probably isn't important, but we'll do it anyway (initially) */
+        orc_warn("Closing RX socket file descriptor: %d", fd); /* seeing the FD probably isn't important, but we'll do it anyway (initially) */
         close(fd);
         return 0;
-    } else {
-        orc_debug("ofdpa did not return a valid file descriptor when attempting to close the RX socket: %d", fd);
+    } else { /* Just log error so that we can continue killing stuff */
+        orc_err("ofdpa did not return a valid file descriptor when attempting to close the RX socket: %d", fd);
         return -1;
     }
+
+    /*
+     * Kill thread 
+     */
+    pthread_cancel(rx_thread);
 
     /*
      * Now free all the memory we ate
@@ -361,7 +370,7 @@ int ofdpa_add_l3_v4_interface(port_t * port, u8 hw_mac[6], int mtu, u32 ipv4_add
     rc = ofdpaFlowEntryInit(OFDPA_FLOW_TABLE_ID_VLAN, &flow);
     if (rc != OFDPA_E_NONE)
     {
-        orc_debug("Failed to initialize VLAN flow. rc=%d", rc);
+        orc_err("Failed to initialize VLAN flow. rc=%d", rc);
         return -1;
     } else
     {
@@ -394,7 +403,7 @@ int ofdpa_add_l3_v4_interface(port_t * port, u8 hw_mac[6], int mtu, u32 ipv4_add
         rc = ofdpaFlowAdd(flow);
         if (rc != OFDPA_E_NONE)
         {
-            orc_debug("Failed to push VLAN flow. rc=%d", rc);
+            orc_err("Failed to push VLAN flow. rc=%d", rc);
             return -1;
         }
     }
@@ -403,7 +412,7 @@ int ofdpa_add_l3_v4_interface(port_t * port, u8 hw_mac[6], int mtu, u32 ipv4_add
     rc = ofdpaFlowEntryInit(OFDPA_FLOW_TABLE_ID_VLAN, &flow);
     if (rc != OFDPA_E_NONE)
     {
-        orc_debug("Failed to initialize termination MAC flow. rc=%d", rc);
+        orc_err("Failed to initialize termination MAC flow. rc=%d", rc);
         return -1;
     } else
     {
@@ -427,7 +436,7 @@ int ofdpa_add_l3_v4_interface(port_t * port, u8 hw_mac[6], int mtu, u32 ipv4_add
         rc = ofdpaFlowAdd(flow);
         if (rc != OFDPA_E_NONE)
         {
-            orc_debug("Failed to push termination MAC flow. rc=%d", rc);
+            orc_err("Failed to push termination MAC flow. rc=%d", rc);
             return -1;
         }
     }
@@ -436,7 +445,7 @@ int ofdpa_add_l3_v4_interface(port_t * port, u8 hw_mac[6], int mtu, u32 ipv4_add
     rc = ofdpaFlowEntryInit(OFDPA_FLOW_TABLE_ID_UNICAST_ROUTING, &flow);
     if (rc != OFDPA_E_NONE)
     {
-        orc_debug("Failed to initialize unicast routing flow. rc=%d", rc);
+        orc_err("Failed to initialize unicast routing flow. rc=%d", rc);
         return -1;
     } else
     {
@@ -466,7 +475,7 @@ int ofdpa_add_l3_v4_interface(port_t * port, u8 hw_mac[6], int mtu, u32 ipv4_add
         rc = ofdpaFlowAdd(flow);
         if (rc != OFDPA_E_NONE)
         {
-            orc_debug("Failed to push unicast routing flow. rc=%d", rc);
+            orc_err("Failed to push unicast routing flow. rc=%d", rc);
             return -1;
         }
     }
@@ -475,7 +484,7 @@ int ofdpa_add_l3_v4_interface(port_t * port, u8 hw_mac[6], int mtu, u32 ipv4_add
     rc = ofdpaFlowEntryInit(OFDPA_FLOW_TABLE_ID_ACL_POLICY, &flow);
     if (rc != OFDPA_E_NONE)
     {
-        orc_debug("Failed to initialize policy ACL flow. rc=%d", rc);
+        orc_err("Failed to initialize policy ACL flow. rc=%d", rc);
         return -1;
     } else
     {
@@ -499,7 +508,7 @@ int ofdpa_add_l3_v4_interface(port_t * port, u8 hw_mac[6], int mtu, u32 ipv4_add
         rc = ofdpaFlowAdd(flow);
         if (rc != OFDPA_E_NONE)
         {
-            orc_debug("Failed to push policy ACL flow. rc=%d", rc);
+            orc_err("Failed to push policy ACL flow. rc=%d", rc);
             return -1;
         }
     }
@@ -508,7 +517,7 @@ int ofdpa_add_l3_v4_interface(port_t * port, u8 hw_mac[6], int mtu, u32 ipv4_add
     rc = ofdpaFlowEntryInit(OFDPA_FLOW_TABLE_ID_BRIDGING, &flow);
     if (rc != OFDPA_E_NONE)
     {
-        orc_debug("Failed to initialize bridging flow. rc=%d", rc);
+        orc_err("Failed to initialize bridging flow. rc=%d", rc);
         return -1;
     } else
     {
@@ -529,7 +538,7 @@ int ofdpa_add_l3_v4_interface(port_t * port, u8 hw_mac[6], int mtu, u32 ipv4_add
         rc = ofdpaFlowAdd(flow);
         if (rc != OFDPA_E_NONE)
         {
-            orc_debug("Failed to push bridging flow. rc=%d", rc);
+            orc_err("Failed to push bridging flow. rc=%d", rc);
             return -1;
         }
     }
@@ -541,7 +550,7 @@ int ofdpa_add_l3_v4_interface(port_t * port, u8 hw_mac[6], int mtu, u32 ipv4_add
     ofdpa_interface_t * iface = (ofdpa_interface_t *) malloc(sizeof(ofdpa_interface_t));
     if (iface == NULL)
     {
-        orc_debug("mallocing ofdpa_interface_t failed");
+        orc_fatal("Mallocing ofdpa_interface_t failed");
         return -1;
     } else
     {
@@ -553,7 +562,6 @@ int ofdpa_add_l3_v4_interface(port_t * port, u8 hw_mac[6], int mtu, u32 ipv4_add
         memcpy(&(iface->mac), &hw_mac, 6);
         iface->ip = ipv4_addr;
         iface->next_hop = NULL;
-        orc_debug("adding interface %d", iface->id);
         add_interface(iface); /* insert into the list */
     }
 
@@ -586,19 +594,19 @@ int ofdpa_add_l3_v4_next_hop(port_t * port, l3_intf_id_t l3_intf_id, u8 next_hop
     ofdpa_interface_t * iface = get_interface(l3_intf_id);
     if (iface == NULL)
     {
-        orc_debug("could not lookup interface ID %d", l3_intf_id);
+        orc_err("Could not lookup interface ID %d. Not adding next hop.", l3_intf_id);
         return -1;
     }
     else if (iface->next_hop != NULL)
     {
-        org_debug("tried adding a next hop to an interface that already has a next hop");
+        org_err("Tried adding a next hop to an interface that already has a next hop. Not adding next hop. First present remove next hop %d.", iface->next_hop.id);
         return -1;
     }
 
     ofdpa_next_hop_t * next_hop = (ofdpa_next_hop_t *) malloc(sizeof(ofdpa_next_hop_t));
     if (next_hop == NULL)
     {
-        orc_debug("ofdpa_next_hop_t malloc failed");
+        orc_fatal("ofdpa_next_hop_t malloc failed");
         return -1;
     }
 
@@ -617,7 +625,6 @@ int ofdpa_add_l3_v4_next_hop(port_t * port, l3_intf_id_t l3_intf_id, u8 next_hop
      * Just wait until a route is added, then we'll 
      * know the GW MAC to use as the next hop.
      */
-
     return 0;
 }
 
@@ -630,9 +637,20 @@ int ofdpa_del_l3_v4_next_hop(l3_next_hop_id_t * l3_next_hop_id) {
 }
 
 /******
- * ofdpa_add_l3_v4_route: add a CIDR route provided a next hop
+ * ofdpa_add_l3_v4_route: add a CIDR route provided a next hop. This involves
+ * adding flows in the unicast routing table in order to match on the correct
+ * subnet. The next hop ID allows us to lookup the next hop MAC address for
+ * use in the OpenFlow groups.
  */
-int ofdpa_add_l3_v4_route(u32 ip_dst, u32 netmask, l3_next_hop_id_t * l3_next_hop_id) {
+int ofdpa_add_l3_v4_route(u32 ip_dst, u32 netmask, l3_next_hop_id_t l3_next_hop_id) {
+    ofdpa_next_hop_t * next_hop = get_next_hop(l3_next_hop);
+    if (next_hop == NULL)
+    {
+        orc_err("Could not find next hop %d. Not adding route.", l3_next_hop_id);
+        return -1;
+    }
+
+
 
     return 0;
 }
@@ -685,6 +703,8 @@ int get_num_ofdpa_ports() {
     {
         ports++;
     }
+
+    orc_debug("Got %d ports returned from ofdpa", ports);
     return ports;
 }
 
@@ -697,8 +717,7 @@ void * port_rx_monitor() {
         ofdpaPacket_t * pkt = malloc(sizeof(ofdpaPacket_t));
         if (pkt == NULL)
         {
-            orc_debug("malloc failed during packet RX");
-            exit(1); /* TODO what should the correct behavior be here? */
+            orc_fatal("Malloc failed during packet RX");
         }
         ofdpaPktReceive(NULL /* no timeout -- block */, pkt);
 
@@ -718,22 +737,26 @@ void * port_rx_monitor() {
                )
             {
                 int rc = write(ofdpa_ports[i]->fd, pkt->pktData.pstart, pkt->pktData.size);
+                orc_debug("Writing packet out port %d", ofdpa_ports[i]->index);
 
                 /* Don't forget to free the packet we malloced -- we can do this after write() */
-
                 free(pkt);
 
                 if (rc < 0)
                 {
-                    orc_debug("write to FD failed during packet RX");
+                    orc_err("Write to FD failed during packet RX");
                 }
                 /* We found the port that we received the packet on, so we're done */
                 break;
             } else if (ofdpa_ports[i] == NULL)
             {
                 /* We've reached the last port */
+                orc_trace("Reached last port in rx monitor thread. Index into port list is %d", i);
                 break;
             } /* else keep looping and searching */
+            else {
+                orc_trace("Not sending packet out for port %d. RX flag set to %d", ofdpa_ports[i]->port.index, ofdpa_ports[i]->rx);
+            }
         }
         sem_post(&rx_lock);
     }
@@ -747,10 +770,11 @@ void free_ports() {
     int i;
     for (i = 0; i < MAX_PORTS; i++)
     {
+        orc_trace("Freeing memory for port %d", ofdpa_ports[i]->index);
         free(ofdpa_ports[i]);
         ofdpa_ports[i] = NULL; /* NULL for reuse/detection of end of ports */
     }
-    orc_debug("freed memory for ofdpa_port_t's");
+    orc_debug("Freed memory for ofdpa_port_t's");
 }
 
 /******
@@ -763,10 +787,11 @@ void add_interface(ofdpa_interface_t * iface) {
         if (ofdpa_interfaces[i] == NULL)
         {
             ofdpa_interfaces[i] = iface;
-            orc_debug("adding interface %d", iface->id);
-            break;
+            orc_warn("Adding interface %d", iface->id);
+            return;
         }
     }
+    orc_fatal("Ran out of space in the interface list. Could not add interface %d", iface->id);
     return;
 }
 
@@ -779,10 +804,11 @@ ofdpa_interface_t * get_interface(l3_intf_id_t id) {
     {
         if (ofdpa_interfaces[i]->id == id)
         {
+            orc_debug("Found interface %d. Retrieving it.", id);
             return ofdpa_interfaces[i];
         }
     }
-    orc_debug("could not find interface %d to retrieve", id);
+    orc_err("Could not find interface %d to retrieve", id);
     return NULL;
 }
 
@@ -795,13 +821,13 @@ void del_interface(l3_intf_id_t id) {
     {
         if (ofdpa_interfaces[i]->id == id)
         {
-            orc_debug("removing interface %d", id);
+            orc_warn("Removing/freeing interface %d", id);
             free(ofdpa_interfaces[i]);
             ofdpa_interfaces[i] = NULL; /* reset */
             return;
         }
     }
-    orc_debug("could not find interface %d to remove", id);
+    orc_err("Could not find interface %d to remove", id);
     return;
 }
 
@@ -815,10 +841,11 @@ void add_next_hop(ofdpa_next_hop_t * next_hop) {
         if (ofdpa_next_hops[i] == NULL)
         {
             ofdpa_next_hops[i] = next_hop;
-            orc_debug("adding next hop %d", next_hop->id);
-            break;
+            orc_warn("Adding next hop %d", next_hop->id);
+            return;
         }
     }
+    orc_fatal("Ran out of space in next hop list. Could not add next hop %d", next_hop->id);
     return;
 }
 
@@ -831,10 +858,11 @@ ofdpa_next_hop_t * get_next_hop(l3_next_hop_id_t id) {
     {
         if (ofdpa_next_hops[i]->id == id)
         {
+            orc_debug("Got next hop %d. Retrieving it.", id);
             return ofdpa_next_hops[i];
         }
     }
-    orc_debug("could not find next hop %d to retrieve", id);
+    orc_err("Could not find next hop %d to retrieve", id);
     return NULL;
 }
 
@@ -847,13 +875,13 @@ void del_next_hop(l3_next_hop_id_t id) {
     {
         if (ofdpa_next_hops[i]->id == id)
         {
-            orc_debug("removing next hop %d", id);
+            orc_warn("Removing/freeing next hop %d", id);
             free(ofdpa_next_hops[i]);
             ofdpa_next_hops[i] = NULL; /* reset */
             return;
         }
     }
-    orc_debug("could not find next hop %d to remove", id);
+    orc_err("Could not find next hop %d to remove", id);
     return;
 }
 
@@ -878,6 +906,7 @@ l3_intf_id_t generate_l3_intf_id() {
     tmp = l3_intf_id; /* store to thread/process local copy so that we can unlock and know what we're returning */
     sem_post(&l3_intf_id_lock);
 
+    orc_trace("Generated unique l3_intf_id_t of %d", tmp);
     return tmp;
 }
 
@@ -893,5 +922,6 @@ l3_next_hop_id_t generate_l3_next_hop_id() {
     tmp = next_hop_id; /* store to thread/process local copy so that we can unlock and know what we're returning */
     sem_post(&next_hop_id_lock);
 
+    orc_trace("Generated unique l3_next_hop_id_t of %d", tmp);
     return tmp;
 }
