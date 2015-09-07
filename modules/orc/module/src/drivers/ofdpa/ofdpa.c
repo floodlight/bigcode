@@ -265,8 +265,10 @@ int ofdpa_stop_rx()
 
 /******
  * ofdpa_add_l3_v4_interface: associate an IPv4 address with a port. Anything destined for it will be sent to the Linux iface FD.
- * (1) add an entry to the VLAN table -- we'll assume the packet arrives untagged (TODO until I figure out how to get the VLAN of the iface)
- * (2) add an entry to the termination MAC table -- match on ethertype and dst MAC provided as argument (cannot match on exact IP, so we won't at all); output to CONTROLLER
+ * (1) add an entry to the VLAN table
+ * (2) add an entry to the termination MAC table -- match on ethertype and dst MAC provided as argument, goto routing; default bridging
+ * (3a) add an entry to the routing table -- match on ethertype, dst MAC/IP, output to CONTROLLER
+ * (3b) add an entry to the bridging table -- match on dst MAC (must be non-IP, otherwise would have been picked up by routing tbl), output to CONTROLLER
  * (l3_intf_id_t is an int)
  */
 int ofdpa_add_l3_v4_interface(port_t * port, u8 hw_mac[6], int mtu, u32 ipv4_addr, l3_intf_id_t * l3_intf_id) {
@@ -417,6 +419,38 @@ int ofdpa_add_l3_v4_interface(port_t * port, u8 hw_mac[6], int mtu, u32 ipv4_add
             orc_log("Failed to push policy ACL flow. rc=%d", rc);
             return -1;
         }
+    }
+
+    /* Now do the bridging flow -- for non-IP packet delivery to ORC's RX func */
+    rc = ofdpaFlowEntryInit(OFDPA_FLOW_TABLE_ID_BRIDGING, &flow);
+    if (rc != OFDPA_E_NONE)
+    {
+        orc_log("Failed to initialize bridging flow. rc=%d", rc);
+        return -1;
+    } else
+    {
+        /* 
+         * Clear the entire structure to avoid having to set
+         * "default" values that we do not care about.
+         */
+        memset(&(flow.flowData), 0, sizeof(ofDpaBridgingFlowEntry_t));
+
+        /* Matches */
+        memcpy(&(flow.flowData.bridgingFlowEntry.match_criteria.destMac), &hw_mac, 6);
+        memset(&(flow.flowData.bridgingFlowEntry.match_criteria.destMacMask), 0xff, 6); /* exact MAC match -- TODO might be redundant? */
+        
+        /* Apply Actions Instruction */
+        flow.flowData.bridgingFlowEntry.outputPort = OFPDA_PORT_CONTROLLER; /* punt non-IP packets up to ORC's RX func */
+
+        /* Now we're finally ready to add the flow */
+        rc = ofdpaFlowAdd(flow);
+        if (rc != OFDPA_E_NONE)
+        {
+            orc_log("Failed to push bridging flow. rc=%d", rc);
+            return -1;
+        }
+    }
+
     return 0;
 }
 
