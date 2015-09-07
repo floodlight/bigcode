@@ -31,6 +31,7 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include <pthread.h> /* we'll use a POSIX thread for packet RX */
+#include <semaphore.h> /* not sure if we're going inter-process or inter-thread, so we'll use sem_t insead of pthread locks */
 #include <string.h>
 
 #include <sys/socket.h>
@@ -85,13 +86,36 @@ ofdpa_port_t * ofdpa_ports[MAX_PORTS];
  * Maintain a hold on our RX thread
  */
 pthread_t rx_thread = NULL;
-pthread_mutex_t rx_lock = PTHREAD_MUTEX_INITIALIZER;
+sem_t rx_lock;
+
+/*
+ * Unique ID generators
+ */
+sem_t next_hop_id_lock;
+sem_t l3_iface_id_lock;
 
 /***************
  * ofdpa_init_driver: start up ofdpa
  */
 int ofdpa_init_driver(orc_options_t *options, int argc, char * argv[])
 {
+    /*
+     * Our mutexes
+     */
+    int c;
+    if ((c = sem_init(&rx_lock, 1 /* shared b/t threads and processes */, 1 /* count from 1 (i.e. only one at a time) */)) < 0)
+    {
+        orc_log("semaphore init for rx_lock failed: %d", c);
+    }
+    if ((c = sem_init(&l3_iface_id_lock, 1, 1)) < 0)
+    {
+        orc_log("semaphore init for l3_iface_id_lock failed: %d", c);
+    }
+    if ((c = sem_init(&add_hop_id_lock, 1, 1)) < 0)
+    {
+        orc_log("semaphore init for add_hop_id_lock failed: %d", c);
+    }
+
     /*
      * First initialize
      */
@@ -141,7 +165,7 @@ int ofdpa_discover_ports(port_t * ports[], int * num)
      * In case we call this more than once,
      * make sure we aren't RXing now.
      */
-    pthread_mutex_lock(&rx_lock);
+    sem_wait(&rx_lock);
 
     /* Clear all driver-local ports */
     free_ports();
@@ -167,7 +191,7 @@ int ofdpa_discover_ports(port_t * ports[], int * num)
     /*
      * Don't forget to release the lock.
      */
-    pthread_mutex_unlock(&rx_lock);
+    sem_post(&rx_lock);
 
     return 0;
 }
@@ -212,7 +236,7 @@ int ofdpa_start_rx(port_t * ports[], int num_ports)
      * should receive from the port indicated in the
      * packet-in message.
      */
-    pthread_mutex_lock(&rx_lock);
+    sem_wait(&rx_lock);
 
     int i;
     for (i = 0; i < num_ports; i++)
@@ -230,7 +254,7 @@ int ofdpa_start_rx(port_t * ports[], int num_ports)
             return -1;
         }
     }
-    pthread_mutex_unlock(&rx_lock);
+    sem_post(&rx_lock);
     return 0;
 }
 
@@ -267,8 +291,9 @@ int ofdpa_stop_rx()
  * ofdpa_add_l3_v4_interface: associate an IPv4 address with a port. Anything destined for it will be sent to the Linux iface FD.
  * (1) add an entry to the VLAN table
  * (2) add an entry to the termination MAC table -- match on ethertype and dst MAC provided as argument, goto routing; default bridging
- * (3a) add an entry to the routing table -- match on ethertype, dst MAC/IP, output to CONTROLLER
- * (3b) add an entry to the bridging table -- match on dst MAC (must be non-IP, otherwise would have been picked up by routing tbl), output to CONTROLLER
+ * (3) add an entry to the routing table -- match on ethertype, dst MAC/IP, goto policy ACL, since we can't output to controller here
+ * (4a) add an entry to the policy ACL table -- match same as routing table flow, output to CONTROLLER
+ * (4b) add an entry to the bridging table -- match on dst MAC (must be non-IP, otherwise would have been picked up by routing tbl), output to CONTROLLER
  * (l3_intf_id_t is an int)
  */
 int ofdpa_add_l3_v4_interface(port_t * port, u8 hw_mac[6], int mtu, u32 ipv4_addr, l3_intf_id_t * l3_intf_id) {
@@ -437,7 +462,7 @@ int ofdpa_add_l3_v4_interface(port_t * port, u8 hw_mac[6], int mtu, u32 ipv4_add
 
         /* Matches */
         memcpy(&(flow.flowData.bridgingFlowEntry.match_criteria.destMac), &hw_mac, 6);
-        memset(&(flow.flowData.bridgingFlowEntry.match_criteria.destMacMask), 0xff, 6); /* exact MAC match -- TODO might be redundant? */
+        memset(&(flow.flowData.bridgingFlowEntry.match_criteria.destMacMask), 0xff, 6); /* exact MAC match */
         
         /* Apply Actions Instruction */
         flow.flowData.bridgingFlowEntry.outputPort = OFPDA_PORT_CONTROLLER; /* punt non-IP packets up to ORC's RX func */
@@ -473,6 +498,8 @@ int ofdpa_del_l3_v4_interface(port_t * port, l3_intf_id_t * l3_intf_id) {
 
 /******
  * ofdpa_add_l3_v4_next_hop: set the next hop of a route. This is the next destination MAC address of routed packets.
+ * (0) we assume the flows in ofdpa_add_l3_v4_interface are already present. They have to be if we're given an l3_intf_id_t for it.
+ * (1) insert flow in routing to match on subnet as indicated here
  * (l3_next_hop_id_t is an int)
  */
 int ofdpa_add_l3_v4_next_hop(port_t * port, l3_intf_id_t l3_intf_id, u8 next_hop_hw_mac[6], l3_next_hop_id_t * l3_next_hop_id) {
@@ -562,7 +589,7 @@ void * port_rx_monitor() {
         ofdpaPktReceive(NULL /* no timeout -- block */, pkt);
 
         /* We have a packet if we get here */
-        pthread_mutex_lock(&rx_lock);
+        sem_wait(&rx_lock);
         int i;
         for (i = 0; i < MAX_PORTS; i++)
         {
@@ -594,7 +621,7 @@ void * port_rx_monitor() {
                 break;
             } /* else keep looping and searching */
         }
-        pthread_mutex_unlock(&rx_lock);
+        sem_post(&rx_lock);
     }
 }
 
@@ -619,4 +646,34 @@ void free_ports() {
  */
 uint16_t compute_vlan_id(uint32_t port) {
     return port + 100;
+}
+
+/******
+ * Generate unique l3_intf_id_t
+ */
+l3_intf_id_t generate_l3_intf_id() {
+    static l3_intf_id_t l3_intf_id; /* initially 0 */
+    l3_intf_id_t tmp;
+
+    sem_wait(&l3_iface_id_lock);
+    l3_intf_id = l3_intf_id + 1;
+    tmp = l3_intf_id; /* store to thread/process local copy so that we can unlock and know what we're returning */
+    sem_post(&l3_iface_id_lock);
+
+    return tmp;
+}
+
+/******
+ * Generate unique l3_next_hop_id_t
+ */
+l3_next_hop_id_t generate_l3_next_hop_id() {
+    static l3_next_hop_id_t next_hop_id; /* initially 0 */
+    l3_next_hop_id_t tmp;
+
+    sem_wait(&next_hop_id_lock);
+    next_hop_id = next_hop_id + 1;
+    tmp = next_hop_id; /* store to thread/process local copy so that we can unlock and know what we're returning */
+    sem_post(&next_hop_id_lock);
+
+    return tmp;
 }
