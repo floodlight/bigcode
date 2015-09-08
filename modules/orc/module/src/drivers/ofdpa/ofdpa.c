@@ -345,6 +345,8 @@ int ofdpa_stop_rx()
      * Now free all the memory we ate
      */
     free_ports();
+    free_interfaces();
+    free_next_hops();
 
     /*
      * And don't forget to destroy our locks/semaphores
@@ -660,7 +662,7 @@ int ofdpa_add_l3_v4_route(u32 ip_dst, u32 netmask, l3_next_hop_id_t l3_next_hop_
         return -1;
     }
 
-
+    
 
     return 0;
 }
@@ -842,6 +844,38 @@ void del_interface(l3_intf_id_t id) {
 }
 
 /******
+ * del_next_hop_from_interfaces: locate and remove (set NULL) next hop
+ * from any interfaces that have it as their next hop.
+ */
+void del_next_hop_from_interfaces(ofdpa_next_hop_t * next_hop) {
+    int i;
+    for (i = 0; i < MAX_INTERFACES; i++)
+    {
+        if (ofdpa_interfaces[i]->next_hop == next_hop) /* check if they point to the same place (shallow) */
+        {
+            orc_warn("Removing next hop %d from interface %d", next_hop->id, ofdpa_interfaces[i]->id);
+            ofdpa_interfaces[i]->next_hop = NULL; /* reset */
+        }
+    }
+    return;
+}
+
+/******
+ * free_interfaces
+ */
+void free_interfaces() {
+    int i;
+    for (i = 0; i < MAX_INTERFACES; i++)
+    {
+        orc_trace("Removing/freeing interface %d", ofdpa_interfaces[i]->id);
+        free(ofdpa_interfaces[i]);
+        ofdpa_interfaces[i] = NULL; /* reset */
+    }
+    orc_warn("Freed %d interfaces", i);
+    return;
+}
+
+/******
  * add_next_hop: add a next hop to the list of next hops
  */
 void add_next_hop(ofdpa_next_hop_t * next_hop) {
@@ -886,12 +920,29 @@ void del_next_hop(l3_next_hop_id_t id) {
         if (ofdpa_next_hops[i]->id == id)
         {
             orc_warn("Removing/freeing next hop %d", id);
+            /* Remove any pointers that will break after freeing */
+            del_next_hop_from_interfaces(ofdpa_next_hops[i]);
             free(ofdpa_next_hops[i]);
             ofdpa_next_hops[i] = NULL; /* reset */
             return;
         }
     }
     orc_err("Could not find next hop %d to remove", id);
+    return;
+}
+
+/******
+ * free_next_hops
+ */
+void free_next_hops() {
+    int i;
+    for (i = 0; i < MAX_NEXT_HOPS; i++)
+    {
+        orc_trace("Removing/freeing next_hop %d", ofdpa_next_hops[i]->id);
+        free(ofdpa_next_hops[i]);
+        ofdpa_next_hops[i] = NULL; /* reset */
+    }
+    orc_warn("Freed %d next_hops", i);
     return;
 }
 
