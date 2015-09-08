@@ -599,7 +599,7 @@ int ofdpa_add_l3_v4_next_hop(port_t * port, l3_intf_id_t l3_intf_id, u8 next_hop
     }
     else if (iface->next_hop != NULL)
     {
-        org_err("Tried adding a next hop to an interface that already has a next hop. Not adding next hop. First present remove next hop %d.", iface->next_hop.id);
+        org_err("Tried adding a next hop to an interface that already has a next hop. Not adding next hop. Remove the existing next hop %d first.", iface->next_hop.id);
         return -1;
     }
 
@@ -611,11 +611,21 @@ int ofdpa_add_l3_v4_next_hop(port_t * port, l3_intf_id_t l3_intf_id, u8 next_hop
     }
 
     /* Fill in our next hop */
-    *l3_next_hop_id = generate_next_hop_id();
-    iface->next_hop = next_hop; /* add it to the interface itself */
+    *l3_next_hop_id = generate_next_hop_id(); /* ID is guaranteed to be unique */
     next_hop->id = *l3_next_hop_id;
-    next_hop->port = port; //TODO
-    memcpy(&(next_hop->mac), next_hop_hw_mac, 6);
+    iface->next_hop = next_hop; /* Give interface access to next hop info */
+    /*
+     * Here, we set the next hop's port as the port supplied
+     * as an argument to this function. We do not use the
+     * port of the interface we looked up from the l3_intf_id_t
+     * supplied, since that is the port of the interface, not
+     * the port of the next hop. Different interfaces on different
+     * switch ports can share the same next hop. It only makes
+     * sense to use the interface-independent port supplied as an
+     * argument to this function.
+     */
+    next_hop->port = port;
+    memcpy(&(next_hop->mac), next_hop_hw_mac, 6); /* Last but not least, the MAC itself */
     
     /* Add to our internal list of next hops */
     add_next_hop(next_hop);
