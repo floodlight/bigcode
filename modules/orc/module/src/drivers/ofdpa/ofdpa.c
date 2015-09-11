@@ -633,10 +633,139 @@ int ofdpa_add_l3_v4_next_hop(port_t * port, l3_intf_id_t l3_intf_id, u8 next_hop
     add_next_hop(next_hop);
 
     /*
-     * We don't need to do anything flow-wise here.
-     * Just wait until a route is added, then we'll 
-     * know the GW MAC to use as the next hop.
+     * Insert L3 Unicast group entry AND L2 Interface group entry
+     * on port of the next hop.
      */
+    ofdpaGroupEntry_t group;
+    ofdpaGroupBucketEntry_t group_bucket;
+    uint32_t group_id; /* used for both */
+    uint32_t l2_group_id; /* save L2 Interface here to reference in L3 group */
+    uint32_t port_id; /* only for L2 Interface */
+    uint32_t vlan_id; /* ditto */
+    uint32_t group_type;
+
+    /* 
+     * First do the L2 Interface group, since we need to reference it
+     * in the L3 Unicast group as a bucket.
+     */
+    port_id = port->index;
+    vlan_id = compute_vlan_id(port->index);
+    group_type = (uint32_t) OFDPA_GROUP_ENTRY_TYPE_L2_INTERFACE;
+    
+    rc = ofdpaGroupTypeSet(&group_id, group_type); /* encodes type in ID */
+    if (rc != OFDPA_E_NONE)
+    {
+        orc_err("Failed to set L2 interface group type. rc=%d", rc);
+        return -1;
+    }
+
+    rc = ofdpaGroupVlanSet(&group_id, group_vlan); /* encodes VLAN in ID */
+    if (rc != OFDPA_E_NONE)
+    {
+        orc_err("Failed to set L2 interface group VLAN. rc=%d", rc);
+        return -1;
+    }
+
+    rc = ofdpaGroupPortIdSet(&group_id, port_id); /* encodes port in ID */
+    if (rc != OFDPA_E_NONE)
+    {
+        orc_err("Failed to set L2 interface group port. rc=%d", rc);
+        return -1;
+    }
+
+    rc = ofdpaGroupEntryInit(group_type, &group);
+    if (rc != OFDPA_E_NONE)
+    {
+        orc_err("Failed to initialize L2 interface group. rc=%d", rc);
+        return -1;
+    }
+
+    group.groupId = group_id; /* this is the only thing to set */
+    l2_group_id = group_id; /* save for reference by L3 group below */    
+    rc = ofdpaGroupAdd(&group);
+    if (rc != OFDPA_E_NONE)
+    {
+        orc_err("Failed to push L2 interface group. rc=%d", rc);
+        return -1;
+    }
+    orc_warn("L2 interface group %d added", group_id);
+
+    /* Add the bucket */
+    memset(&group_bucket, 0, sizeof(ofdpaGroupBucketEntry_t));
+    rc = ofdpaGroupBucketEntryInit(group_type, &group_bucket);
+    if (rc != OFDPA_E_NONE)
+    {
+        orc_err("Failed to initialize L2 interface bucket. rc=%d", rc);
+        return -1;
+    }
+    
+    group_bucket.groupId = group_id;
+    group_bucket.bucketIndex = 0; /* the only bucket, so 0 */
+    group_bucket.l2Interface.outputPort = port_id; /* union, just like the flows; only need output port here */
+
+    rc = ofdpaGroupBucketEntryAdd(&group_bucket);
+    if (rc != OFDPA_E_NONE)
+    {
+        orc_err("Failed to add L2 interface bucket. rc=%d", rc);
+        return -1;
+    }
+    orc_warn("L2 interface group %d bucket added out port %d", group_id, port_id);
+
+    /*
+     * Now, we can do the L3 Unicast group.
+     */
+    memset(&group, 0, sizeof(ofdpaGroupEntry_t));
+    group_id = next_hop->id; /* Use the next hop ID as the group ID */
+    group_type = (uint32_t) OFDPA_GROUP_ENTRY_TYPE_L3_UNICAST;
+    
+    rc = ofdpaGroupTypeSet(&group_id, group_type); /* encodes type in ID */
+    if (rc != OFDPA_E_NONE)
+    {
+        orc_err("Failed to set L3 unicast group type. rc=%d", rc);
+        return -1;
+    }
+
+    rc = ofdpaGroupEntryInit(group_type, &group);
+    if (rc != OFDPA_E_NONE)
+    {
+        orc_err("Failed to initialize L3 unicast group. rc=%d", rc);
+        return -1;
+    }
+
+    /* Now we're finally ready to add the group */
+    group.groupId = group_id; /* this is the only thing to set */
+    rc = ofdpaGroupAdd(&group);
+    if (rc != OFDPA_E_NONE)
+    {
+        orc_err("Failed to push L3 unicast group. rc=%d", rc);
+        return -1;
+    }
+    orc_warn("L3 unicast group entry %d added.", group_id);
+
+    /* Add the bucket */
+    memset(&group_bucket, 0, sizeof(ofdpaGroupBucketEntry_t));
+    rc = ofdpaGroupBucketEntryInit(group_type, &group_bucket);
+    if (rc != OFDPA_E_NONE)
+    {
+        orc_err("Failed to initialize L3 unicast bucket. rc=%d", rc);
+        return -1;
+    }
+    
+    group_bucket.groupId = group_id;
+    group_bucket.referenceGroupId = l2_group_id; /* retrieve saved ID from L2 group inserted above */
+    group_bucket.bucketIndex = 0; /* the only bucket, so 0 */
+    group_bucket.l3Unicast.vlanId = vlan_id; /* set VLAN to VLAN out next hop's port */
+    memcpy(&(group_bucket.l3Unicast.srcMac), &(iface->mac), 6); /* source is the switch port MAC */
+    memcpy(&(group_bucket.l3Unicast.dstMac), &(next_hop->mac), 6); /* dest is the next hop MAC */
+
+    rc = ofdpaGroupBucketEntryAdd(&group_bucket);
+    if (rc != OFDPA_E_NONE)
+    {
+        orc_err("Failed to add L3 unicast bucket. rc=%d", rc);
+        return -1;
+    }
+    orc_warn("L3 unicast group %d bucket added out port %d, VLAN %d", group_id, port_id, vlan_id);
+
     return 0;
 }
 
@@ -661,6 +790,7 @@ int ofdpa_add_l3_v4_route(u32 ip_dst, u32 netmask, l3_next_hop_id_t l3_next_hop_
         orc_err("Could not find next hop %d. Not adding route.", l3_next_hop_id);
         return -1;
     }
+
 
     
 
