@@ -142,9 +142,27 @@ sem_t l3_intf_id_lock;
  * TODO need locks for next hop and interface list traversing
  */
 
+/*********
+ * Function prototypes
+ */
+int get_num_ofdpa_ports(void);
+void * port_rx_monitor(void);
+void free_ports(void);
+void add_interface(ofdpa_interface_t *);
+ofdpa_interface_t * get_interface(l3_intf_id_t);
+void del_interface(l3_intf_id_t);
+void del_next_hop_from_interfaces(ofdpa_next_hop_t *);
+void free_interfaces(void);
+void add_next_hop(ofdpa_next_hop_t *);
+ofdpa_next_hop_t * get_next_hop(l3_next_hop_id_t);
+void del_next_hop(l3_next_hop_id_t);
+void free_next_hops(void);
+l3_intf_id_t generate_l3_intf_id(void);
+l3_next_hop_id_t generate_l3_next_hop_id(void);
+
 /***************
  * ofdpa_init_driver: start up ofdpa
- */
+
 int ofdpa_init_driver(orc_options_t *options, int argc, char * argv[])
 {
     /*
