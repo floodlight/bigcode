@@ -652,7 +652,7 @@ int ofdpa_add_l3_v4_next_hop(port_t * port, l3_intf_id_t l3_intf_id, u8 next_hop
     vlan_id = compute_vlan_id(port->index);
     group_type = (uint32_t) OFDPA_GROUP_ENTRY_TYPE_L2_INTERFACE;
     
-    rc = ofdpaGroupTypeSet(&group_id, group_type); /* encodes type in ID */
+    OFDPA_ERROR_t rc = ofdpaGroupTypeSet(&group_id, group_type); /* encodes type in ID */
     if (rc != OFDPA_E_NONE)
     {
         orc_err("Failed to set L2 interface group type. rc=%d", rc);
@@ -715,13 +715,20 @@ int ofdpa_add_l3_v4_next_hop(port_t * port, l3_intf_id_t l3_intf_id, u8 next_hop
      * Now, we can do the L3 Unicast group.
      */
     memset(&group, 0, sizeof(ofdpaGroupEntry_t));
-    group_id = next_hop->id; /* Use the next hop ID as the group ID */
+    group_id = 0;
     group_type = (uint32_t) OFDPA_GROUP_ENTRY_TYPE_L3_UNICAST;
     
     rc = ofdpaGroupTypeSet(&group_id, group_type); /* encodes type in ID */
     if (rc != OFDPA_E_NONE)
     {
         orc_err("Failed to set L3 unicast group type. rc=%d", rc);
+        return -1;
+    }
+
+    rc = ofdpaGroupIndexSet(&group_id, next_hop->id); /* encodes index (next hop ID) in ID */
+    if (rc != OFDPA_E_NONE)
+    {
+        orc_err("Failed to set L3 unicast group index/ID. rc=%d", rc);
         return -1;
     }
 
@@ -780,8 +787,12 @@ int ofdpa_del_l3_v4_next_hop(l3_next_hop_id_t * l3_next_hop_id) {
 /******
  * ofdpa_add_l3_v4_route: add a CIDR route provided a next hop. This involves
  * adding flows in the unicast routing table in order to match on the correct
- * subnet. The next hop ID allows us to lookup the next hop MAC address for
- * use in the OpenFlow groups.
+ * subnet.
+ *
+ * Since a next hop must be provided, that means groups will already have been
+ * installed. All we need to do is insert a masked-match flow in the unicast
+ * routing table in order to send matches to the L3 unicast group (which will
+ * then chain into the L2 interface group, which will then output the packet).
  */
 int ofdpa_add_l3_v4_route(u32 ip_dst, u32 netmask, l3_next_hop_id_t l3_next_hop_id) {
     ofdpa_next_hop_t * next_hop = get_next_hop(l3_next_hop);
@@ -791,8 +802,65 @@ int ofdpa_add_l3_v4_route(u32 ip_dst, u32 netmask, l3_next_hop_id_t l3_next_hop_
         return -1;
     }
 
+    ofdpaFlowEntry_t flow;
+    OFDPA_ERROR_t rc = ofdpaFlowEntryInit(OFDPA_FLOW_TABLE_ID_UNICAST_ROUTING, &flow);
+    if (rc != OFDPA_E_NONE)
+    {
+        orc_err("Failed to initialize unicast routing flow for masked-match route. rc=%d", rc);
+        return -1;
+    } else
+    {
+        /* 
+         * Clear the entire structure to avoid having to set
+         * "default" values that we do not care about.
+         */
+        memset(&(flow.flowData), 0, sizeof(ofDpaUnicastRoutingFlowEntry_t));
 
+        /* Matches */
+        flow.flowData.unicastRoutingFlowEntry.match_criteria.ethertype = 0x0800; /* we assume IPv4 */
+        flow.flowData.unicastRoutingFlowEntry.match_criteria.destIp4 = ip_dst;
+        flow.flowData.unicastRoutingFlowEntry.match_criteria.destIp4Mask = netmask; /* exact IPv4 match */
+        
+        /*
+         * Compute the correct L3 unicast group ID and use in write-actions.
+         *
+         * The L3 group ID is defined by merely the group type + next hop ID.
+         */
+        uint32_t group_id;
+        uint32_t group_type = (uint32_t) OFDPA_GROUP_ENTRY_TYPE_L3_UNICAST;
     
+        rc = ofdpaGroupTypeSet(&group_id, group_type); /* encodes type in ID */
+        if (rc != OFDPA_E_NONE)
+        {
+            orc_err("Failed to set L3 unicast group type for masked-match route. rc=%d", rc);
+            return -1;
+        }
+
+        rc = ofdpaGroupIndexSet(&group_id, next_hop->id); /* encodes index (next hop ID) in ID */
+        if (rc != OFDPA_E_NONE)
+        {
+            orc_err("Failed to set L3 unicast group index/ID for masked-match route. rc=%d", rc);
+            return -1;
+        }
+
+        /* Write Actions Instruction: Group ID should now be correctly set */
+        flow.groupId = group_id;
+
+        /* 
+         * Goto Table Instruction: Still need to send here or will drop. 
+         * Policy ACL will then do the saved write-actions and send to the
+         * L3 unicast group.
+         */
+        flow.flowData.unicastRoutingFlowEntry.gotoTableId = OFPDA_FLOW_TABLE_ID_ACL_POLICY;
+
+        /* Now we're finally ready to add the flow */
+        rc = ofdpaFlowAdd(flow);
+        if (rc != OFDPA_E_NONE)
+        {
+            orc_err("Failed to push unicast routing flow for masked-match route. rc=%d", rc);
+            return -1;
+        }
+    }
 
     return 0;
 }
