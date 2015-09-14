@@ -28,3 +28,11 @@ orc_INCLUDES := -I $(THIS_DIR)inc
 orc_INTERNAL_INCLUDES := -I $(THIS_DIR)src
 orc_DEPENDMODULE_ENTRIES := init:orc ucli:orc
 
+OFDPA_HEADERS := $(dir $(shell $(ONL_PKG_INSTALL) ofdpa-2.0-closed:powerpc --find-file ofdpa_api.h))
+OFDPA_CLIENT_LIB := $(shell $(ONL_PKG_INSTALL) ofdpa-2.0-closed:powerpc --find-file libofdpa_rpc_client.so.1)
+
+GLOBAL_CFLAGS += -I$(OFDPA_HEADERS)
+GLOBAL_CFLAGS += -g
+
+GLOBAL_LINK_LIBS += -lpthread -lm
+GLOBAL_LINK_LIBS += $(OFDPA_CLIENT_LIB)
