@@ -143,7 +143,24 @@ sem_t l3_intf_id_lock;
  */
 
 /*********
- * Function prototypes
+ * Driver function prototypes
+ */
+int ofdpa_init_driver(struct orc_options_s *, int, char **);
+int ofdpa_discover_ports(port_t **, int *);
+int ofdpa_tx_pkt(port_t *, u8 *, unsigned int);
+int ofdpa_start_rx(port_t **, int);
+int ofdpa_stop_rx(void);
+int ofdpa_add_l3_v4_interface(port_t *, u8 *, int, u32, l3_intf_id_t *);
+int ofdpa_update_l3_v4_interface(port_t *, u8 *, int, u32, l3_intf_id_t);
+int ofdpa_del_l3_v4_interface(port_t *, l3_intf_id_t);
+int ofdpa_add_l3_v4_next_hop(port_t *, l3_intf_id_t, u8 *, l3_next_hop_id_t *);
+int ofdpa_del_l3_v4_next_hop(l3_next_hop_id_t);
+int ofdpa_add_l3_v4_route(u32, u32, l3_next_hop_id_t);
+int ofdpa_del_l3_v4_route(u32, u32, l3_next_hop_id_t);
+void ofdpa_log_debug_info(void);
+
+/*********
+ * Helper function prototypes
  */
 int get_num_ofdpa_ports(void);
 void * port_rx_monitor(void *);
@@ -597,14 +614,236 @@ int ofdpa_add_l3_v4_interface(port_t * port, u8 hw_mac[6], int mtu, u32 ipv4_add
  * ofdpa_update_l3_v4_interface: modify an existing IPv4 interface
  */
 int ofdpa_update_l3_v4_interface(port_t * port, u8 hw_mac[6], int mtu, u32 ipv4_addr, l3_intf_id_t l3_intf_id) {
+    /*
+     * To update an interface, we need to remove the flows
+     * first, since a flow-modify will not allow us to
+     * change the match of the flow (might be modified).
+     * Optimization could be done in theory to only modify
+     * the impacted flows, but we'll do a complete delete
+     * and re-add for simplicity for now.
+     */
 
-    return 0;
+    if (ofdpa_del_l3_v4_interface(port, l3_intf_id) < 0)
+    {
+        orc_err("Error removing interface %d on port %d", l3_intf_id, port->index);
+        return -1;
+    }
+
+    /* TODO this does not correctly handle re-using the same ID */
+    return ofdpa_add_l3_v4_interface(port, hw_mac, mtu, ipv4_addr, &l3_intf_id);
 }
 
 /******
  * ofdpa_del_l3_v4_interface: delete an existing IPv4 interface
  */
 int ofdpa_del_l3_v4_interface(port_t * port, l3_intf_id_t l3_intf_id) {
+    OFDPA_ERROR_t rc;
+    ofdpaFlowEntry_t flow;
+
+    /*
+     * Lookup L3 interface to find the IP, MAC, etc.
+     */
+    ofdpa_interface_t * iface = get_interface(l3_intf_id);
+    if (iface == NULL)
+    {
+        orc_err("Could not locate L3 interface ID %d in local store", l3_intf_id);
+        return -1;
+    }
+    else if (port != (port_t *) iface->port) /* pointer address check should be sufficient */
+    {
+        orc_err("Port provided inconsistent with port in L3 interface. Not deleting L3 iface %d", l3_intf_id);
+        return -1;
+    }
+
+    /*
+     * We found our interface, so get the info
+     * we need.
+     */
+    u8 hw_mac[6];
+    u32 ipv4_addr;
+    memcpy(&hw_mac, &(iface->mac), 6);
+    ipv4_addr = iface->ipv4;
+        
+    rc = ofdpaFlowEntryInit(OFDPA_FLOW_TABLE_ID_VLAN, &flow);
+    if (rc != OFDPA_E_NONE)
+    {
+        orc_err("Failed to initialize VLAN flow. rc=%d", rc);
+        return -1;
+    } else
+    {
+        /* 
+         * Clear the entire structure to avoid having to set
+         * "default" values that we do not care about.
+         */
+        memset(&(flow.flowData), 0, sizeof(ofdpaVlanFlowEntry_t));
+
+        /*
+         * flow instance of ofdpaFlowEntry_t
+         * flowData union of flow types
+         * vlanFlowEntry instance of ofDpaVlanFlowEntry_t
+         * match_criteria instance of ofdpaVlanFlowMatch_t
+         */
+        
+        /* Matches */
+        flow.flowData.vlanFlowEntry.match_criteria.inPort = port->index;
+        flow.flowData.vlanFlowEntry.match_criteria.vlanId = compute_vlan_id(port->index);
+        flow.flowData.vlanFlowEntry.match_criteria.vlanIdMask = 0x1fff;
+
+        /* Goto Table Instruction */
+        flow.flowData.vlanFlowEntry.gotoTableId = OFDPA_FLOW_TABLE_ID_TERMINATION_MAC;
+        
+        /* Apply Actions Instruction */
+        flow.flowData.vlanFlowEntry.setVlanIdAction = ACTION;
+        flow.flowData.vlanFlowEntry.newVlanId = compute_vlan_id(port->index);
+
+        /* Now we're finally ready to add the flow */
+        rc = ofdpaFlowDelete(&flow);
+        if (rc != OFDPA_E_NONE)
+        {
+            orc_err("Failed to delete VLAN flow. rc=%d", rc);
+            return -1;
+        }
+    }
+
+    /* Now do the termination MAC flow */
+    rc = ofdpaFlowEntryInit(OFDPA_FLOW_TABLE_ID_VLAN, &flow);
+    if (rc != OFDPA_E_NONE)
+    {
+        orc_err("Failed to initialize termination MAC flow. rc=%d", rc);
+        return -1;
+    } else
+    {
+        /* 
+         * Clear the entire structure to avoid having to set
+         * "default" values that we do not care about.
+         */
+        memset(&(flow.flowData), 0, sizeof(ofdpaTerminationMacFlowEntry_t));
+
+        /* Matches */
+        flow.flowData.terminationMacFlowEntry.match_criteria.inPort = port->index;
+        flow.flowData.terminationMacFlowEntry.match_criteria.inPortMask = 0xffff;
+        flow.flowData.terminationMacFlowEntry.match_criteria.etherType = 0x0800; /* we assume IPv4 */
+        memcpy(&(flow.flowData.terminationMacFlowEntry.match_criteria.destMac), &hw_mac, 6);
+        memset(&(flow.flowData.terminationMacFlowEntry.match_criteria.destMacMask), 0xff, 6);
+
+        /* Goto Table Instruction */
+        flow.flowData.terminationMacFlowEntry.gotoTableId = OFDPA_FLOW_TABLE_ID_UNICAST_ROUTING;
+
+        /* Now we're finally ready to add the flow */
+        rc = ofdpaFlowDelete(&flow);
+        if (rc != OFDPA_E_NONE)
+        {
+            orc_err("Failed to delete termination MAC flow. rc=%d", rc);
+            return -1;
+        }
+    }
+    
+    /* Now do the unicast routing flow */
+    rc = ofdpaFlowEntryInit(OFDPA_FLOW_TABLE_ID_UNICAST_ROUTING, &flow);
+    if (rc != OFDPA_E_NONE)
+    {
+        orc_err("Failed to initialize unicast routing flow. rc=%d", rc);
+        return -1;
+    } else
+    {
+        /* 
+         * Clear the entire structure to avoid having to set
+         * "default" values that we do not care about.
+         */
+        memset(&(flow.flowData), 0, sizeof(ofdpaUnicastRoutingFlowEntry_t));
+
+        /* Matches */
+        flow.flowData.unicastRoutingFlowEntry.match_criteria.etherType = 0x0800; /* we assume IPv4 */
+        flow.flowData.unicastRoutingFlowEntry.match_criteria.dstIp4 = ipv4_addr;
+        flow.flowData.unicastRoutingFlowEntry.match_criteria.dstIp4Mask = 0xffFFffFF; /* exact IPv4 match */
+        
+        /*
+         * Note we do not specify an L3 group as a write-actions. This is
+         * because we're matching on the router's IP. In the next table
+         * (policy ACL), we'll perform the match again and punt it up to
+         * the CONTROLLER. For some reason we can't send to controller
+         * here unless the TTL expires... Why? (We can in bridging.)
+         */
+
+        /* Goto Table Instruction */
+        flow.flowData.unicastRoutingFlowEntry.gotoTableId = OFDPA_FLOW_TABLE_ID_ACL_POLICY;
+
+        /* Now we're finally ready to add the flow */
+        rc = ofdpaFlowDelete(&flow);
+        if (rc != OFDPA_E_NONE)
+        {
+            orc_err("Failed to delete unicast routing flow. rc=%d", rc);
+            return -1;
+        }
+    }
+    
+    /* Now do the policy ACL flow */
+    rc = ofdpaFlowEntryInit(OFDPA_FLOW_TABLE_ID_ACL_POLICY, &flow);
+    if (rc != OFDPA_E_NONE)
+    {
+        orc_err("Failed to initialize policy ACL flow. rc=%d", rc);
+        return -1;
+    } else
+    {
+        /* 
+         * Clear the entire structure to avoid having to set
+         * "default" values that we do not care about.
+         */
+        memset(&(flow.flowData), 0, sizeof(ofdpaPolicyAclFlowEntry_t));
+
+        /* Matches */
+        memcpy(&(flow.flowData.policyAclFlowEntry.match_criteria.destMac), &hw_mac, 6);
+        memset(&(flow.flowData.policyAclFlowEntry.match_criteria.destMacMask), 0xff, 6); /* exact MAC match -- TODO might be redundant? */
+        flow.flowData.policyAclFlowEntry.match_criteria.etherType = 0x0800; /* we assume IPv4 */
+        flow.flowData.policyAclFlowEntry.match_criteria.destIp4 = ipv4_addr;
+        flow.flowData.policyAclFlowEntry.match_criteria.destIp4Mask = 0xffFFffFF; /* exact IPv4 match */
+
+        /* Apply Actions Instruction */
+        flow.flowData.policyAclFlowEntry.outputPort = OFDPA_PORT_CONTROLLER; /* punt up to ORC (will pass into RX thread) */
+
+        /* Now we're finally ready to add the flow */
+        rc = ofdpaFlowDelete(&flow);
+        if (rc != OFDPA_E_NONE)
+        {
+            orc_err("Failed to delete policy ACL flow. rc=%d", rc);
+            return -1;
+        }
+    }
+
+    /* Now do the bridging flow -- for non-IP packet delivery to ORC's RX func */
+    rc = ofdpaFlowEntryInit(OFDPA_FLOW_TABLE_ID_BRIDGING, &flow);
+    if (rc != OFDPA_E_NONE)
+    {
+        orc_err("Failed to initialize bridging flow. rc=%d", rc);
+        return -1;
+    } else
+    {
+        /* 
+         * Clear the entire structure to avoid having to set
+         * "default" values that we do not care about.
+         */
+        memset(&(flow.flowData), 0, sizeof(ofdpaBridgingFlowEntry_t));
+
+        /* Matches */
+        memcpy(&(flow.flowData.bridgingFlowEntry.match_criteria.destMac), &hw_mac, 6);
+        memset(&(flow.flowData.bridgingFlowEntry.match_criteria.destMacMask), 0xff, 6); /* exact MAC match */
+        
+        /* Apply Actions Instruction */
+        flow.flowData.bridgingFlowEntry.outputPort = OFDPA_PORT_CONTROLLER; /* punt non-IP packets up to ORC's RX func */
+
+        /* Now we're finally ready to add the flow */
+        rc = ofdpaFlowDelete(&flow);
+        if (rc != OFDPA_E_NONE)
+        {
+            orc_err("Failed to delete bridging flow. rc=%d", rc);
+            return -1;
+        }
+    }
+
+    /*
+     * If we get here, then all flows should be deleted w/o error
+     */
+    del_interface(l3_intf_id);
 
     return 0;
 }
