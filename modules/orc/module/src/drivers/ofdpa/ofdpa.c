@@ -1042,6 +1042,106 @@ int ofdpa_add_l3_v4_next_hop(port_t * port, l3_intf_id_t l3_intf_id, u8 next_hop
  * ofdpa_del_l3_v4_next_hop: delete a next hop entry
  */
 int ofdpa_del_l3_v4_next_hop(l3_next_hop_id_t l3_next_hop_id) {
+    ofdpa_next_hop_t * next_hop = get_next_hop(l3_next_hop_id);
+    if (next_hop == NULL)
+    {
+        orc_err("Could not lookup next hop %d for removal.", l3_next_hop_id);
+        return -1;
+    }
+
+    port_t * port = &(next_hop->port->port);
+    
+    uint32_t group_id;
+    uint32_t port_id; /* only for L2 Interface */
+    uint32_t vlan_id; /* ditto */
+    uint32_t group_type;
+
+    /* 
+     * First do the L2 Interface group
+     */
+    port_id = port->index;
+    vlan_id = compute_vlan_id(port->index);
+    group_type = (uint32_t) OFDPA_GROUP_ENTRY_TYPE_L2_INTERFACE;
+    
+    OFDPA_ERROR_t rc = ofdpaGroupTypeSet(&group_id, group_type); /* encodes type in ID */
+    if (rc != OFDPA_E_NONE)
+    {
+        orc_err("Failed to set L2 interface group type. rc=%d", rc);
+        return -1;
+    }
+
+    rc = ofdpaGroupVlanSet(&group_id, vlan_id); /* encodes VLAN in ID */
+    if (rc != OFDPA_E_NONE)
+    {
+        orc_err("Failed to set L2 interface group VLAN. rc=%d", rc);
+        return -1;
+    }
+
+    rc = ofdpaGroupPortIdSet(&group_id, port_id); /* encodes port in ID */
+    if (rc != OFDPA_E_NONE)
+    {
+        orc_err("Failed to set L2 interface group port. rc=%d", rc);
+        return -1;
+    }
+
+    rc = ofdpaGroupBucketsDeleteAll(group_id);
+    if (rc != OFDPA_E_NONE)
+    {
+        orc_err("Failed to delete L2 interface group buckets. rc=%d", rc);
+        return -1;
+    }
+    orc_warn("L2 interface group %d bucket delete from port %d", group_id, port_id);
+
+    rc = ofdpaGroupDelete(group_id);
+    if (rc != OFDPA_E_NONE)
+    {
+        orc_err("Failed to delete L2 interface group. rc=%d", rc);
+        return -1;
+    }
+    orc_warn("L2 interface group %d deleted", group_id);
+
+    /*
+     * Now, we can do the L3 Unicast group.
+     */
+    group_id = 0;
+    group_type = (uint32_t) OFDPA_GROUP_ENTRY_TYPE_L3_UNICAST;
+    
+    rc = ofdpaGroupTypeSet(&group_id, group_type); /* encodes type in ID */
+    if (rc != OFDPA_E_NONE)
+    {
+        orc_err("Failed to set L3 unicast group type. rc=%d", rc);
+        return -1;
+    }
+
+    rc = ofdpaGroupIndexSet(&group_id, next_hop->id); /* encodes index (next hop ID) in ID */
+    if (rc != OFDPA_E_NONE)
+    {
+        orc_err("Failed to set L3 unicast group index/ID. rc=%d", rc);
+        return -1;
+    }
+
+    rc = ofdpaGroupBucketsDeleteAll(group_id);
+    if (rc != OFDPA_E_NONE)
+    {
+        orc_err("Failed to delete L3 unicast bucket. rc=%d", rc);
+        return -1;
+    }
+    orc_warn("L3 unicast group %d bucket deleted from port %d, VLAN %d", group_id, port_id, vlan_id);
+
+    rc = ofdpaGroupDelete(group_id);
+    if (rc != OFDPA_E_NONE)
+    {
+        orc_err("Failed to delete L3 unicast group. rc=%d", rc);
+        return -1;
+    }
+    orc_warn("L3 unicast group entry %d deleted.", group_id);
+
+    /* 
+     * Remove from our internal list of next hops.
+     * This will remove the next hop from all 
+     * interfaces too.
+     */
+    del_next_hop(l3_next_hop_id);
 
     return 0;
 }
