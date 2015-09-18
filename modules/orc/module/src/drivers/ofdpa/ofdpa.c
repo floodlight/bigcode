@@ -177,6 +177,7 @@ void free_next_hops(void);
 l3_intf_id_t generate_l3_intf_id(void);
 l3_next_hop_id_t generate_l3_next_hop_id(void);
 uint16_t compute_vlan_id(uint32_t);
+int ofdpa_add_or_update_l3_v4_interface(port_t *, u8 *, int, u32, l3_intf_id_t *, bool);
 
 /***************
  * ofdpa_init_driver: start up ofdpa
@@ -406,6 +407,14 @@ int ofdpa_stop_rx()
  * (l3_intf_id_t is an int)
  */
 int ofdpa_add_l3_v4_interface(port_t * port, u8 hw_mac[6], int mtu, u32 ipv4_addr, l3_intf_id_t * l3_intf_id) {
+    return ofdpa_add_or_update_l3_v4_interface(port, hw_mac, mtu, ipv4_addr, l3_intf_id, false);
+}
+
+/******
+ * ofdpa_add_or_update_l3_v4_interface: add new or update existing L3 interface.
+ * If an update, assumes flows have already been deleted.
+ */
+int ofdpa_add_or_update_l3_v4_interface(port_t * port, u8 hw_mac[6], int mtu, u32 ipv4_addr, l3_intf_id_t * l3_intf_id, bool is_update) {
     OFDPA_ERROR_t rc;
     ofdpaFlowEntry_t flow;
 
@@ -588,21 +597,37 @@ int ofdpa_add_l3_v4_interface(port_t * port, u8 hw_mac[6], int mtu, u32 ipv4_add
     /*
      * If we get here, then all flows should be inserted w/o error
      */
-    *l3_intf_id = generate_l3_intf_id();
-    ofdpa_interface_t * iface = (ofdpa_interface_t *) malloc(sizeof(ofdpa_interface_t));
-    if (iface == NULL)
+    ofdpa_interface_t * iface = NULL;
+    if (!is_update)
     {
-        orc_fatal("Mallocing ofdpa_interface_t failed");
-        return -1;
-    } else
+        *l3_intf_id = generate_l3_intf_id();
+        iface = (ofdpa_interface_t *) malloc(sizeof(ofdpa_interface_t));
+        if (iface == NULL)
+        {
+            orc_fatal("Mallocing ofdpa_interface_t failed");
+            return -1;
+        }
+    }
+    else
     {
-        /*
-         * init interface structure
-         */
+        iface = get_interface(*l3_intf_id);
+        if (iface == NULL)
+        {
+            orc_fatal("Could not locate ofdpa_interface_t in local store for ID %d", *l3_intf_id);
+            return -1;
+        }
+    }
+
+   /*
+    * init/update interface structure (iface will not be NULL here)
+    */
+    iface->port = (ofdpa_port_t *) port; /* pointer already */
+    memcpy(&(iface->mac), &hw_mac, 6);
+    iface->ipv4 = ipv4_addr;
+    if (!is_update)
+    {
+        /* Only do these if it's not an update */
         iface->id = *l3_intf_id;
-        iface->port = (ofdpa_port_t *) port; /* pointer already */
-        memcpy(&(iface->mac), &hw_mac, 6);
-        iface->ipv4 = ipv4_addr;
         iface->next_hop = NULL;
         add_interface(iface); /* insert into the list */
     }
@@ -629,8 +654,7 @@ int ofdpa_update_l3_v4_interface(port_t * port, u8 hw_mac[6], int mtu, u32 ipv4_
         return -1;
     }
 
-    /* TODO this does not correctly handle re-using the same ID */
-    return ofdpa_add_l3_v4_interface(port, hw_mac, mtu, ipv4_addr, &l3_intf_id);
+    return ofdpa_add_or_update_l3_v4_interface(port, hw_mac, mtu, ipv4_addr, &l3_intf_id, true /* yes, this is an update */);
 }
 
 /******
@@ -1039,7 +1063,12 @@ int ofdpa_add_l3_v4_next_hop(port_t * port, l3_intf_id_t l3_intf_id, u8 next_hop
 }
 
 /******
- * ofdpa_del_l3_v4_next_hop: delete a next hop entry
+ * ofdpa_del_l3_v4_next_hop: delete a next hop entry. Note that
+ * due to a simple implementation choice, at least until all the
+ * initial bugs are worked out, the caller must first delete all
+ * routes that are using this next hop PRIOR to deleting the next
+ * hop here. TODO Record route IP and subnet mask so we can remove
+ * routes automatically when a next hop is removed.
  */
 int ofdpa_del_l3_v4_next_hop(l3_next_hop_id_t l3_next_hop_id) {
     ofdpa_next_hop_t * next_hop = get_next_hop(l3_next_hop_id);
@@ -1227,7 +1256,8 @@ int ofdpa_add_l3_v4_route(u32 ip_dst, u32 netmask, l3_next_hop_id_t l3_next_hop_
 }
 
 /******
- * ofdpa_del_l3_v4_route: delete an existing CIDR route
+ * ofdpa_del_l3_v4_route: delete an existing CIDR route. The next hop should be
+ * preserved, since other routes might rely on it.
  */
 int ofdpa_del_l3_v4_route(u32 ip_dst, u32 netmask, l3_next_hop_id_t l3_next_hop_id) {
     ofdpa_next_hop_t * next_hop = get_next_hop(l3_next_hop_id);
