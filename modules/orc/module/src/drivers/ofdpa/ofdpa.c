@@ -204,6 +204,19 @@ int ofdpa_init_driver(orc_options_t *options, int argc, char * argv[])
         return -1;
     }
 
+    ofdpaDebugLevels_t level = OFDPA_DEBUG_VERY_VERBOSE;
+    OFDPA_CONTROL_t ctrl = OFDPA_ENABLE;
+    orc_warn("Setting OF-DPA debug level to %d", level);
+    ofdpaDebugLvl(level);
+    ofdpaDebugComponentSet(OFDPA_COMPONENT_API, ctrl);
+    ofdpaDebugComponentSet(OFDPA_COMPONENT_MAPPING, ctrl);
+    ofdpaDebugComponentSet(OFDPA_COMPONENT_RPC, ctrl);
+    ofdpaDebugComponentSet(OFDPA_COMPONENT_OFDB, ctrl);
+    ofdpaDebugComponentSet(OFDPA_COMPONENT_DATAPATH, ctrl);
+    ofdpaDebugComponentSet(OFDPA_COMPONENT_G8131, ctrl);
+    ofdpaDebugComponentSet(OFDPA_COMPONENT_MPLS_TP, ctrl);
+    ofdpaDebugComponentSet(OFDPA_COMPONENT_Y1731, ctrl);
+
     /*
      * First initialize
      */
@@ -235,19 +248,6 @@ int ofdpa_init_driver(orc_options_t *options, int argc, char * argv[])
         orc_fatal("ofdpa event socket bind returned error %d\r\n", rc);
         return -1;
     }
-
-    ofdpaDebugLevels_t level = OFDPA_DEBUG_VERY_VERBOSE;
-    OFDPA_CONTROL_t ctrl = OFDPA_ENABLE;
-    orc_warn("Setting OF-DPA debug level to %d", level);
-    ofdpaDebugLvl(level);
-    ofdpaDebugComponentSet(OFDPA_COMPONENT_API, ctrl);
-    ofdpaDebugComponentSet(OFDPA_COMPONENT_MAPPING, ctrl);
-    ofdpaDebugComponentSet(OFDPA_COMPONENT_RPC, ctrl);
-    ofdpaDebugComponentSet(OFDPA_COMPONENT_OFDB, ctrl);
-    ofdpaDebugComponentSet(OFDPA_COMPONENT_DATAPATH, ctrl);
-    ofdpaDebugComponentSet(OFDPA_COMPONENT_G8131, ctrl);
-    ofdpaDebugComponentSet(OFDPA_COMPONENT_MPLS_TP, ctrl);
-    ofdpaDebugComponentSet(OFDPA_COMPONENT_Y1731, ctrl);
 
     return 0;
 }
@@ -469,7 +469,7 @@ int ofdpa_add_or_update_l3_v4_interface(port_t * port, u8 hw_mac[6], int mtu, u3
         
         /* Matches */
         flow.flowData.vlanFlowEntry.match_criteria.inPort = port->index;
-        flow.flowData.vlanFlowEntry.match_criteria.vlanId = compute_vlan_id(port->index);
+        flow.flowData.vlanFlowEntry.match_criteria.vlanId = compute_vlan_id(port->index) | 0x1000;
         flow.flowData.vlanFlowEntry.match_criteria.vlanIdMask = 0x1fff;
 
         /* Goto Table Instruction */
@@ -477,13 +477,17 @@ int ofdpa_add_or_update_l3_v4_interface(port_t * port, u8 hw_mac[6], int mtu, u3
         
         /* Apply Actions Instruction */
         flow.flowData.vlanFlowEntry.setVlanIdAction = ACTION;
-        flow.flowData.vlanFlowEntry.newVlanId = compute_vlan_id(port->index) | 0x1000;
+        flow.flowData.vlanFlowEntry.newVlanId = compute_vlan_id(port->index);
         
         orc_debug("Pushing VLAN flow for port %d with VLAN %d\r\n", flow.flowData.vlanFlowEntry.match_criteria.inPort, flow.flowData.vlanFlowEntry.newVlanId);
 
         /* Now we're finally ready to add the flow */
         rc = ofdpaFlowAdd(&flow);
-        if (rc != OFDPA_E_NONE)
+        if (rc == OFDPA_E_EXISTS)
+        {
+            orc_warn("VLAN flow already exists for port %d with VLAN %d. Continuing", flow.flowData.vlanFlowEntry.match_criteria.inPort, flow.flowData.vlanFlowEntry.newVlanId);
+        }
+        else if (rc != OFDPA_E_NONE)
         {
             orc_err("Failed to push VLAN flow. rc=%d\r\n", rc);
             return -1;
@@ -491,7 +495,7 @@ int ofdpa_add_or_update_l3_v4_interface(port_t * port, u8 hw_mac[6], int mtu, u3
     }
 
     /* Now do the termination MAC flow */
-    rc = ofdpaFlowEntryInit(OFDPA_FLOW_TABLE_ID_VLAN, &flow);
+    rc = ofdpaFlowEntryInit(OFDPA_FLOW_TABLE_ID_TERMINATION_MAC, &flow);
     if (rc != OFDPA_E_NONE)
     {
         orc_err("Failed to initialize termination MAC flow. rc=%d\r\n", rc);
@@ -506,17 +510,27 @@ int ofdpa_add_or_update_l3_v4_interface(port_t * port, u8 hw_mac[6], int mtu, u3
 
         /* Matches */
         flow.flowData.terminationMacFlowEntry.match_criteria.inPort = port->index;
-        flow.flowData.terminationMacFlowEntry.match_criteria.inPortMask = 0xffff;
+        flow.flowData.terminationMacFlowEntry.match_criteria.inPortMask = OFDPA_INPORT_EXACT_MASK;
         flow.flowData.terminationMacFlowEntry.match_criteria.etherType = 0x0800; /* we assume IPv4 */
-        memcpy(&(flow.flowData.terminationMacFlowEntry.match_criteria.destMac), &hw_mac, 6);
+        memcpy(&(flow.flowData.terminationMacFlowEntry.match_criteria.destMac), hw_mac, 6);
         memset(&(flow.flowData.terminationMacFlowEntry.match_criteria.destMacMask), 0xff, 6);
 
         /* Goto Table Instruction */
         flow.flowData.terminationMacFlowEntry.gotoTableId = OFDPA_FLOW_TABLE_ID_UNICAST_ROUTING;
 
+        orc_debug("Termination MAC flow about to be added for port %d with MAC %2x:%2x:%2x:%2x:%2x:%2x", flow.flowData.terminationMacFlowEntry.match_criteria.inPort, 
+                flow.flowData.terminationMacFlowEntry.match_criteria.destMac.addr[0], flow.flowData.terminationMacFlowEntry.match_criteria.destMac.addr[1], flow.flowData.terminationMacFlowEntry.match_criteria.destMac.addr[2],
+                flow.flowData.terminationMacFlowEntry.match_criteria.destMac.addr[3], flow.flowData.terminationMacFlowEntry.match_criteria.destMac.addr[4], flow.flowData.terminationMacFlowEntry.match_criteria.destMac.addr[5]);
+
         /* Now we're finally ready to add the flow */
         rc = ofdpaFlowAdd(&flow);
-        if (rc != OFDPA_E_NONE)
+        if (rc == OFDPA_E_EXISTS)
+        {
+            orc_warn("Termination MAC flow already exists for port %d with MAC %2x:%2x:%2x:%2x:%2x:%2x. Continuing", flow.flowData.terminationMacFlowEntry.match_criteria.inPort, 
+                    flow.flowData.terminationMacFlowEntry.match_criteria.destMac.addr[0], flow.flowData.terminationMacFlowEntry.match_criteria.destMac.addr[1], flow.flowData.terminationMacFlowEntry.match_criteria.destMac.addr[2],
+                    flow.flowData.terminationMacFlowEntry.match_criteria.destMac.addr[3], flow.flowData.terminationMacFlowEntry.match_criteria.destMac.addr[4], flow.flowData.terminationMacFlowEntry.match_criteria.destMac.addr[5]);
+        }
+        else if (rc != OFDPA_E_NONE)
         {
             orc_err("Failed to push termination MAC flow. rc=%d\r\n", rc);
             return -1;
@@ -540,7 +554,7 @@ int ofdpa_add_or_update_l3_v4_interface(port_t * port, u8 hw_mac[6], int mtu, u3
         /* Matches */
         flow.flowData.unicastRoutingFlowEntry.match_criteria.etherType = 0x0800; /* we assume IPv4 */
         flow.flowData.unicastRoutingFlowEntry.match_criteria.dstIp4 = ipv4_addr;
-        flow.flowData.unicastRoutingFlowEntry.match_criteria.dstIp4Mask = 0xffFFffFF; /* exact IPv4 match */
+        flow.flowData.unicastRoutingFlowEntry.match_criteria.dstIp4Mask = OFDPA_IPV4_ADDR_EXACT_MASK; /* exact IPv4 match */
         
         /*
          * Note we do not specify an L3 group as a write-actions. This is
@@ -555,7 +569,14 @@ int ofdpa_add_or_update_l3_v4_interface(port_t * port, u8 hw_mac[6], int mtu, u3
 
         /* Now we're finally ready to add the flow */
         rc = ofdpaFlowAdd(&flow);
-        if (rc != OFDPA_E_NONE)
+        if (rc == OFDPA_E_EXISTS)
+        {
+            orc_warn("Unicast routing flow already exists for IP %d:%d:%d:%d. Continuing", flow.flowData.unicastRoutingFlowEntry.match_criteria.dstIp4 & 0xff000000 >> 24 && 0x000000ff, 
+                    flow.flowData.unicastRoutingFlowEntry.match_criteria.dstIp4 & 0x00ff0000 >> 16 && 0x000000ff,
+                    flow.flowData.unicastRoutingFlowEntry.match_criteria.dstIp4 & 0x0000ff00 >> 8 && 0x000000ff,
+                    flow.flowData.unicastRoutingFlowEntry.match_criteria.dstIp4 & 0x000000ff >> 0 && 0x000000ff);
+        }
+        else if (rc != OFDPA_E_NONE)
         {
             orc_err("Failed to push unicast routing flow. rc=%d\r\n", rc);
             return -1;
@@ -577,18 +598,25 @@ int ofdpa_add_or_update_l3_v4_interface(port_t * port, u8 hw_mac[6], int mtu, u3
         memset(&(flow.flowData), 0, sizeof(ofdpaPolicyAclFlowEntry_t));
 
         /* Matches */
-        memcpy(&(flow.flowData.policyAclFlowEntry.match_criteria.destMac), &hw_mac, 6);
+        memcpy(&(flow.flowData.policyAclFlowEntry.match_criteria.destMac), hw_mac, 6);
         memset(&(flow.flowData.policyAclFlowEntry.match_criteria.destMacMask), 0xff, 6); /* exact MAC match -- TODO might be redundant? */
         flow.flowData.policyAclFlowEntry.match_criteria.etherType = 0x0800; /* we assume IPv4 */
         flow.flowData.policyAclFlowEntry.match_criteria.destIp4 = ipv4_addr;
-        flow.flowData.policyAclFlowEntry.match_criteria.destIp4Mask = 0xffFFffFF; /* exact IPv4 match */
+        flow.flowData.policyAclFlowEntry.match_criteria.destIp4Mask = OFDPA_IPV4_ADDR_EXACT_MASK; /* exact IPv4 match */
 
         /* Apply Actions Instruction */
         flow.flowData.policyAclFlowEntry.outputPort = OFDPA_PORT_CONTROLLER; /* punt up to ORC (will pass into RX thread) */
 
         /* Now we're finally ready to add the flow */
         rc = ofdpaFlowAdd(&flow);
-        if (rc != OFDPA_E_NONE)
+        if (rc == OFDPA_E_EXISTS)
+        {
+            orc_warn("Policy ACL flow already exists for IP %d:%d:%d:%d. Continuing", flow.flowData.policyAclFlowEntry.match_criteria.destIp4 & 0xff000000 >> 24 && 0x000000ff, 
+                    flow.flowData.policyAclFlowEntry.match_criteria.destIp4 & 0x00ff0000 >> 16 && 0x000000ff,
+                    flow.flowData.policyAclFlowEntry.match_criteria.destIp4 & 0x0000ff00 >> 8 && 0x000000ff,
+                    flow.flowData.policyAclFlowEntry.match_criteria.destIp4 & 0x000000ff >> 0 && 0x000000ff);
+        }
+        else if (rc != OFDPA_E_NONE)
         {
             orc_err("Failed to push policy ACL flow. rc=%d\r\n", rc);
             return -1;
@@ -610,7 +638,7 @@ int ofdpa_add_or_update_l3_v4_interface(port_t * port, u8 hw_mac[6], int mtu, u3
         memset(&(flow.flowData), 0, sizeof(ofdpaBridgingFlowEntry_t));
 
         /* Matches */
-        memcpy(&(flow.flowData.bridgingFlowEntry.match_criteria.destMac), &hw_mac, 6);
+        memcpy(&(flow.flowData.bridgingFlowEntry.match_criteria.destMac), hw_mac, 6);
         memset(&(flow.flowData.bridgingFlowEntry.match_criteria.destMacMask), 0xff, 6); /* exact MAC match */
         
         /* Apply Actions Instruction */
@@ -618,7 +646,13 @@ int ofdpa_add_or_update_l3_v4_interface(port_t * port, u8 hw_mac[6], int mtu, u3
 
         /* Now we're finally ready to add the flow */
         rc = ofdpaFlowAdd(&flow);
-        if (rc != OFDPA_E_NONE)
+        if (rc == OFDPA_E_EXISTS)
+        {
+            orc_warn("Bridging flow already exists for MAC %2x:%2x:%2x:%2x:%2x:%2x. Continuing",
+                    flow.flowData.bridgingFlowEntry.match_criteria.destMac.addr[0], flow.flowData.bridgingFlowEntry.match_criteria.destMac.addr[1], flow.flowData.bridgingFlowEntry.match_criteria.destMac.addr[2],
+                    flow.flowData.bridgingFlowEntry.match_criteria.destMac.addr[3], flow.flowData.bridgingFlowEntry.match_criteria.destMac.addr[4], flow.flowData.bridgingFlowEntry.match_criteria.destMac.addr[5]);
+        }
+        else if (rc != OFDPA_E_NONE)
         {
             orc_err("Failed to push bridging flow. rc=%d\r\n", rc);
             return -1;
@@ -749,7 +783,7 @@ int ofdpa_del_l3_v4_interface(port_t * port, l3_intf_id_t l3_intf_id) {
         
         /* Matches */
         flow.flowData.vlanFlowEntry.match_criteria.inPort = port->index;
-        flow.flowData.vlanFlowEntry.match_criteria.vlanId = compute_vlan_id(port->index);
+        flow.flowData.vlanFlowEntry.match_criteria.vlanId = compute_vlan_id(port->index) | 0x1000;
         flow.flowData.vlanFlowEntry.match_criteria.vlanIdMask = 0x1fff;
 
         /* Goto Table Instruction */
@@ -769,7 +803,7 @@ int ofdpa_del_l3_v4_interface(port_t * port, l3_intf_id_t l3_intf_id) {
     }
 
     /* Now do the termination MAC flow */
-    rc = ofdpaFlowEntryInit(OFDPA_FLOW_TABLE_ID_VLAN, &flow);
+    rc = ofdpaFlowEntryInit(OFDPA_FLOW_TABLE_ID_TERMINATION_MAC, &flow);
     if (rc != OFDPA_E_NONE)
     {
         orc_err("Failed to initialize termination MAC flow. rc=%d\r\n", rc);
@@ -784,9 +818,9 @@ int ofdpa_del_l3_v4_interface(port_t * port, l3_intf_id_t l3_intf_id) {
 
         /* Matches */
         flow.flowData.terminationMacFlowEntry.match_criteria.inPort = port->index;
-        flow.flowData.terminationMacFlowEntry.match_criteria.inPortMask = 0xffff;
+        flow.flowData.terminationMacFlowEntry.match_criteria.inPortMask = OFDPA_INPORT_EXACT_MASK;
         flow.flowData.terminationMacFlowEntry.match_criteria.etherType = 0x0800; /* we assume IPv4 */
-        memcpy(&(flow.flowData.terminationMacFlowEntry.match_criteria.destMac), &hw_mac, 6);
+        memcpy(&(flow.flowData.terminationMacFlowEntry.match_criteria.destMac), hw_mac, 6);
         memset(&(flow.flowData.terminationMacFlowEntry.match_criteria.destMacMask), 0xff, 6);
 
         /* Goto Table Instruction */
@@ -818,7 +852,7 @@ int ofdpa_del_l3_v4_interface(port_t * port, l3_intf_id_t l3_intf_id) {
         /* Matches */
         flow.flowData.unicastRoutingFlowEntry.match_criteria.etherType = 0x0800; /* we assume IPv4 */
         flow.flowData.unicastRoutingFlowEntry.match_criteria.dstIp4 = ipv4_addr;
-        flow.flowData.unicastRoutingFlowEntry.match_criteria.dstIp4Mask = 0xffFFffFF; /* exact IPv4 match */
+        flow.flowData.unicastRoutingFlowEntry.match_criteria.dstIp4Mask = OFDPA_IPV4_ADDR_EXACT_MASK; /* exact IPv4 match */
         
         /*
          * Note we do not specify an L3 group as a write-actions. This is
@@ -855,11 +889,11 @@ int ofdpa_del_l3_v4_interface(port_t * port, l3_intf_id_t l3_intf_id) {
         memset(&(flow.flowData), 0, sizeof(ofdpaPolicyAclFlowEntry_t));
 
         /* Matches */
-        memcpy(&(flow.flowData.policyAclFlowEntry.match_criteria.destMac), &hw_mac, 6);
+        memcpy(&(flow.flowData.policyAclFlowEntry.match_criteria.destMac), hw_mac, 6);
         memset(&(flow.flowData.policyAclFlowEntry.match_criteria.destMacMask), 0xff, 6); /* exact MAC match -- TODO might be redundant? */
         flow.flowData.policyAclFlowEntry.match_criteria.etherType = 0x0800; /* we assume IPv4 */
         flow.flowData.policyAclFlowEntry.match_criteria.destIp4 = ipv4_addr;
-        flow.flowData.policyAclFlowEntry.match_criteria.destIp4Mask = 0xffFFffFF; /* exact IPv4 match */
+        flow.flowData.policyAclFlowEntry.match_criteria.destIp4Mask = OFDPA_IPV4_ADDR_EXACT_MASK; /* exact IPv4 match */
 
         /* Apply Actions Instruction */
         flow.flowData.policyAclFlowEntry.outputPort = OFDPA_PORT_CONTROLLER; /* punt up to ORC (will pass into RX thread) */
@@ -888,7 +922,7 @@ int ofdpa_del_l3_v4_interface(port_t * port, l3_intf_id_t l3_intf_id) {
         memset(&(flow.flowData), 0, sizeof(ofdpaBridgingFlowEntry_t));
 
         /* Matches */
-        memcpy(&(flow.flowData.bridgingFlowEntry.match_criteria.destMac), &hw_mac, 6);
+        memcpy(&(flow.flowData.bridgingFlowEntry.match_criteria.destMac), hw_mac, 6);
         memset(&(flow.flowData.bridgingFlowEntry.match_criteria.destMacMask), 0xff, 6); /* exact MAC match */
         
         /* Apply Actions Instruction */
@@ -1087,8 +1121,8 @@ int ofdpa_add_l3_v4_next_hop(port_t * port, l3_intf_id_t l3_intf_id, u8 next_hop
     group_bucket.referenceGroupId = l2_group_id; /* retrieve saved ID from L2 group inserted above */
     group_bucket.bucketIndex = 0; /* the only bucket, so 0 */
     group_bucket.bucketData.l3Unicast.vlanId = vlan_id; /* set VLAN to VLAN out next hop's port */
-    memcpy(&(group_bucket.bucketData.l3Unicast.srcMac), &(iface->mac), 6); /* source is the switch port MAC */
-    memcpy(&(group_bucket.bucketData.l3Unicast.dstMac), &(next_hop->mac), 6); /* dest is the next hop MAC */
+    memcpy(&(group_bucket.bucketData.l3Unicast.srcMac), (iface->mac), 6); /* source is the switch port MAC */
+    memcpy(&(group_bucket.bucketData.l3Unicast.dstMac), (next_hop->mac), 6); /* dest is the next hop MAC */
 
     rc = ofdpaGroupBucketEntryAdd(&group_bucket);
     if (rc != OFDPA_E_NONE)
