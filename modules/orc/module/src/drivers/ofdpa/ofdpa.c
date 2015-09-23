@@ -485,7 +485,7 @@ int ofdpa_add_or_update_l3_v4_interface(port_t * port, u8 hw_mac[6], int mtu, u3
         rc = ofdpaFlowAdd(&flow);
         if (rc == OFDPA_E_EXISTS)
         {
-            orc_warn("VLAN flow already exists for port %d with VLAN %d. Continuing", flow.flowData.vlanFlowEntry.match_criteria.inPort, flow.flowData.vlanFlowEntry.newVlanId);
+            orc_warn("VLAN flow already exists for port %d with VLAN %d. Continuing\r\rn", flow.flowData.vlanFlowEntry.match_criteria.inPort, flow.flowData.vlanFlowEntry.newVlanId);
         }
         else if (rc != OFDPA_E_NONE)
         {
@@ -518,7 +518,7 @@ int ofdpa_add_or_update_l3_v4_interface(port_t * port, u8 hw_mac[6], int mtu, u3
         /* Goto Table Instruction */
         flow.flowData.terminationMacFlowEntry.gotoTableId = OFDPA_FLOW_TABLE_ID_UNICAST_ROUTING;
 
-        orc_debug("Termination MAC flow about to be added for port %d with MAC %2x:%2x:%2x:%2x:%2x:%2x", flow.flowData.terminationMacFlowEntry.match_criteria.inPort, 
+        orc_debug("Termination MAC flow about to be added for port %d with MAC %2x:%2x:%2x:%2x:%2x:%2x\r\n", flow.flowData.terminationMacFlowEntry.match_criteria.inPort, 
                 flow.flowData.terminationMacFlowEntry.match_criteria.destMac.addr[0], flow.flowData.terminationMacFlowEntry.match_criteria.destMac.addr[1], flow.flowData.terminationMacFlowEntry.match_criteria.destMac.addr[2],
                 flow.flowData.terminationMacFlowEntry.match_criteria.destMac.addr[3], flow.flowData.terminationMacFlowEntry.match_criteria.destMac.addr[4], flow.flowData.terminationMacFlowEntry.match_criteria.destMac.addr[5]);
 
@@ -526,7 +526,7 @@ int ofdpa_add_or_update_l3_v4_interface(port_t * port, u8 hw_mac[6], int mtu, u3
         rc = ofdpaFlowAdd(&flow);
         if (rc == OFDPA_E_EXISTS)
         {
-            orc_warn("Termination MAC flow already exists for port %d with MAC %2x:%2x:%2x:%2x:%2x:%2x. Continuing", flow.flowData.terminationMacFlowEntry.match_criteria.inPort, 
+            orc_warn("Termination MAC flow already exists for port %d with MAC %2x:%2x:%2x:%2x:%2x:%2x. Continuing\r\n", flow.flowData.terminationMacFlowEntry.match_criteria.inPort, 
                     flow.flowData.terminationMacFlowEntry.match_criteria.destMac.addr[0], flow.flowData.terminationMacFlowEntry.match_criteria.destMac.addr[1], flow.flowData.terminationMacFlowEntry.match_criteria.destMac.addr[2],
                     flow.flowData.terminationMacFlowEntry.match_criteria.destMac.addr[3], flow.flowData.terminationMacFlowEntry.match_criteria.destMac.addr[4], flow.flowData.terminationMacFlowEntry.match_criteria.destMac.addr[5]);
         }
@@ -567,14 +567,20 @@ int ofdpa_add_or_update_l3_v4_interface(port_t * port, u8 hw_mac[6], int mtu, u3
         /* Goto Table Instruction */
         flow.flowData.unicastRoutingFlowEntry.gotoTableId = OFDPA_FLOW_TABLE_ID_ACL_POLICY;
 
+        orc_debug("Attempting to push unicast routing flow for IP, %d, %d.%d.%d.%d\r\n", flow.flowData.unicastRoutingFlowEntry.match_criteria.dstIp4,
+                (flow.flowData.unicastRoutingFlowEntry.match_criteria.dstIp4 >> 24) & 0xff, 
+                (flow.flowData.unicastRoutingFlowEntry.match_criteria.dstIp4 >> 16) & 0xff,
+                (flow.flowData.unicastRoutingFlowEntry.match_criteria.dstIp4 >> 8) & 0xff,
+                (flow.flowData.unicastRoutingFlowEntry.match_criteria.dstIp4 >> 0) & 0xff);
+
         /* Now we're finally ready to add the flow */
         rc = ofdpaFlowAdd(&flow);
         if (rc == OFDPA_E_EXISTS)
         {
-            orc_warn("Unicast routing flow already exists for IP %d:%d:%d:%d. Continuing", flow.flowData.unicastRoutingFlowEntry.match_criteria.dstIp4 & 0xff000000 >> 24 && 0x000000ff, 
-                    flow.flowData.unicastRoutingFlowEntry.match_criteria.dstIp4 & 0x00ff0000 >> 16 && 0x000000ff,
-                    flow.flowData.unicastRoutingFlowEntry.match_criteria.dstIp4 & 0x0000ff00 >> 8 && 0x000000ff,
-                    flow.flowData.unicastRoutingFlowEntry.match_criteria.dstIp4 & 0x000000ff >> 0 && 0x000000ff);
+            orc_warn("Unicast routing flow already exists for IP %d.%d.%d.%d. Continuing\r\n", flow.flowData.unicastRoutingFlowEntry.match_criteria.dstIp4 & 0xff000000 >> 24 && 0x000000ff, 
+                    flow.flowData.unicastRoutingFlowEntry.match_criteria.dstIp4 >> 16 & 0x000000ff,
+                    flow.flowData.unicastRoutingFlowEntry.match_criteria.dstIp4 >> 8 & 0x000000ff,
+                    flow.flowData.unicastRoutingFlowEntry.match_criteria.dstIp4 >> 0 & 0x000000ff);
         }
         else if (rc != OFDPA_E_NONE)
         {
@@ -611,10 +617,10 @@ int ofdpa_add_or_update_l3_v4_interface(port_t * port, u8 hw_mac[6], int mtu, u3
         rc = ofdpaFlowAdd(&flow);
         if (rc == OFDPA_E_EXISTS)
         {
-            orc_warn("Policy ACL flow already exists for IP %d:%d:%d:%d. Continuing", flow.flowData.policyAclFlowEntry.match_criteria.destIp4 & 0xff000000 >> 24 && 0x000000ff, 
-                    flow.flowData.policyAclFlowEntry.match_criteria.destIp4 & 0x00ff0000 >> 16 && 0x000000ff,
-                    flow.flowData.policyAclFlowEntry.match_criteria.destIp4 & 0x0000ff00 >> 8 && 0x000000ff,
-                    flow.flowData.policyAclFlowEntry.match_criteria.destIp4 & 0x000000ff >> 0 && 0x000000ff);
+            orc_warn("Policy ACL flow already exists for IP %d.%d.%d.%d. Continuing\r\n", flow.flowData.policyAclFlowEntry.match_criteria.destIp4 & 0xff000000 >> 24 && 0x000000ff, 
+                    flow.flowData.policyAclFlowEntry.match_criteria.destIp4 & 0x00ff0000 >> 16 & 0x000000ff,
+                    flow.flowData.policyAclFlowEntry.match_criteria.destIp4 & 0x0000ff00 >> 8 & 0x000000ff,
+                    flow.flowData.policyAclFlowEntry.match_criteria.destIp4 & 0x000000ff >> 0 & 0x000000ff);
         }
         else if (rc != OFDPA_E_NONE)
         {
@@ -648,7 +654,7 @@ int ofdpa_add_or_update_l3_v4_interface(port_t * port, u8 hw_mac[6], int mtu, u3
         rc = ofdpaFlowAdd(&flow);
         if (rc == OFDPA_E_EXISTS)
         {
-            orc_warn("Bridging flow already exists for MAC %2x:%2x:%2x:%2x:%2x:%2x. Continuing",
+            orc_warn("Bridging flow already exists for MAC %2x:%2x:%2x:%2x:%2x:%2x. Continuing\r\n",
                     flow.flowData.bridgingFlowEntry.match_criteria.destMac.addr[0], flow.flowData.bridgingFlowEntry.match_criteria.destMac.addr[1], flow.flowData.bridgingFlowEntry.match_criteria.destMac.addr[2],
                     flow.flowData.bridgingFlowEntry.match_criteria.destMac.addr[3], flow.flowData.bridgingFlowEntry.match_criteria.destMac.addr[4], flow.flowData.bridgingFlowEntry.match_criteria.destMac.addr[5]);
         }
