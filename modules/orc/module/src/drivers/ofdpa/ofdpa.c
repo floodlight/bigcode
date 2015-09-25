@@ -113,6 +113,11 @@ ofdpa_interface_t * ofdpa_interfaces[MAX_INTERFACES];
  */
 #define MAX_NEXT_HOPS 128
 ofdpa_next_hop_t * ofdpa_next_hops[MAX_NEXT_HOPS];
+ofdpa_next_hop_t default_next_hop;
+port_t default_next_hop_port;
+ofdpa_port_t default_next_hop_ofdpa_port;
+uint32_t default_next_hop_group_id;
+uint32_t default_interface_group_id;
 
 /*
  * These are our ports. Global for
@@ -178,6 +183,9 @@ l3_intf_id_t generate_l3_intf_id(void);
 l3_next_hop_id_t generate_l3_next_hop_id(void);
 uint16_t compute_vlan_id(uint32_t);
 int ofdpa_add_or_update_l3_v4_interface(port_t *, u8 *, int, u32, l3_intf_id_t *, bool);
+int add_default_next_hop(void);
+int clear_ofdpa_tables(void);
+int clear_ofdpa_flow_table(OFDPA_FLOW_TABLE_ID_t);
 
 /***************
  * ofdpa_init_driver: start up ofdpa
@@ -203,10 +211,10 @@ int ofdpa_init_driver(orc_options_t *options, int argc, char * argv[])
         orc_fatal("semaphore init for next_hop_id_lock failed: %d\r\n", c);
         return -1;
     }
-
+    
     ofdpaDebugLevels_t level = OFDPA_DEBUG_VERY_VERBOSE;
     OFDPA_CONTROL_t ctrl = OFDPA_ENABLE;
-    orc_warn("Setting OF-DPA debug level to %d", level);
+    orc_warn("Setting OF-DPA debug level to %d\r\n", level);
     ofdpaDebugLvl(level);
     ofdpaDebugComponentSet(OFDPA_COMPONENT_API, ctrl);
     ofdpaDebugComponentSet(OFDPA_COMPONENT_MAPPING, ctrl);
@@ -216,7 +224,7 @@ int ofdpa_init_driver(orc_options_t *options, int argc, char * argv[])
     ofdpaDebugComponentSet(OFDPA_COMPONENT_G8131, ctrl);
     ofdpaDebugComponentSet(OFDPA_COMPONENT_MPLS_TP, ctrl);
     ofdpaDebugComponentSet(OFDPA_COMPONENT_Y1731, ctrl);
-
+    
     /*
      * First initialize
      */
@@ -227,7 +235,7 @@ int ofdpa_init_driver(orc_options_t *options, int argc, char * argv[])
         orc_fatal("ofdpa initialization returned error %d\r\n", rc);
         return -1;
     }
-
+    
     /*
      * Then, bind packet socket for receiving packets.
      * Only one PID can bind to this, so we'll do it in
@@ -248,7 +256,173 @@ int ofdpa_init_driver(orc_options_t *options, int argc, char * argv[])
         orc_fatal("ofdpa event socket bind returned error %d\r\n", rc);
         return -1;
     }
+    
+    orc_warn("Clearing all flow and group tables\r\n");
+    if (!clear_ofdpa_tables())
+    {
+        return -1;
+    }
+    
+    return add_default_next_hop();
+}
 
+int add_default_next_hop()
+{
+    /* Fill in our next hop */
+    u8 default_mac[6] = { 0xaa, 0xbb, 0xcc, 0xdd, 0xee, 0x00 };
+    default_next_hop_port.index = 1; /* Assume port #1 */
+    default_next_hop.id = generate_l3_next_hop_id(); /* ID is guaranteed to be unique */
+    memcpy(&(default_next_hop.mac), &default_mac, OFDPA_MAC_ADDR_LEN);
+    default_next_hop.port = (ofdpa_port_t *) &default_next_hop_ofdpa_port;
+    
+    /*
+     * Add to our internal list of next hops.
+     */
+    add_next_hop(&default_next_hop);
+    
+    /*
+     * Insert L3 Unicast group entry AND L2 Interface group entry
+     * on port of the next hop.
+     */
+    ofdpaGroupEntry_t group;
+    ofdpaGroupBucketEntry_t group_bucket;
+    uint32_t group_id; /* used for both */
+    uint32_t l2_group_id; /* save L2 Interface here to reference in L3 group */
+    uint32_t port_id; /* only for L2 Interface */
+    uint32_t vlan_id; /* ditto */
+    uint32_t group_type;
+    
+    /*
+     * First do the L2 Interface group, since we need to reference it
+     * in the L3 Unicast group as a bucket.
+     */
+    port_id = default_next_hop_port.index;
+    vlan_id = default_next_hop_port.index; /* Use VLAN 1, which will be unused elsewhere */
+    group_type = (uint32_t) OFDPA_GROUP_ENTRY_TYPE_L2_INTERFACE;
+    
+    OFDPA_ERROR_t rc = ofdpaGroupTypeSet(&group_id, group_type); /* encodes type in ID */
+    if (rc != OFDPA_E_NONE)
+    {
+        orc_err("Failed to set L2 interface group type. rc=%d\r\n", rc);
+        return -1;
+    }
+    
+    rc = ofdpaGroupVlanSet(&group_id, vlan_id); /* encodes VLAN in ID */
+    if (rc != OFDPA_E_NONE)
+    {
+        orc_err("Failed to set L2 interface group VLAN. rc=%d\r\n", rc);
+        return -1;
+    }
+    
+    rc = ofdpaGroupPortIdSet(&group_id, port_id); /* encodes port in ID */
+    if (rc != OFDPA_E_NONE)
+    {
+        orc_err("Failed to set L2 interface group port. rc=%d\r\n", rc);
+        return -1;
+    }
+    
+    rc = ofdpaGroupEntryInit(group_type, &group);
+    if (rc != OFDPA_E_NONE)
+    {
+        orc_err("Failed to initialize L2 interface group. rc=%d\r\n", rc);
+        return -1;
+    }
+    
+    group.groupId = group_id; /* this is the only thing to set */
+    l2_group_id = group_id; /* save for reference by L3 group below */
+    default_interface_group_id = group_id;
+    rc = ofdpaGroupAdd(&group);
+    if (rc != OFDPA_E_NONE)
+    {
+        orc_err("Failed to push L2 interface group. rc=%d\r\n", rc);
+        return -1;
+    }
+    orc_warn("L2 interface group %d added\r\n", group_id);
+    
+    /* Add the bucket */
+    memset(&group_bucket, 0, sizeof(ofdpaGroupBucketEntry_t));
+    rc = ofdpaGroupBucketEntryInit(group_type, &group_bucket);
+    if (rc != OFDPA_E_NONE)
+    {
+        orc_err("Failed to initialize L2 interface bucket. rc=%d\r\n", rc);
+        return -1;
+    }
+    
+    group_bucket.groupId = group_id;
+    group_bucket.bucketIndex = 0; /* the only bucket, so 0 */
+    group_bucket.bucketData.l2Interface.outputPort = port_id; /* union, just like the flows; only need output port here */
+    
+    rc = ofdpaGroupBucketEntryAdd(&group_bucket);
+    if (rc != OFDPA_E_NONE)
+    {
+        orc_err("Failed to add L2 interface bucket. rc=%d\r\n", rc);
+        return -1;
+    }
+    orc_warn("L2 interface group %d bucket added out port %d\r\n", group_id, port_id);
+    
+    /*
+     * Now, we can do the L3 Unicast group.
+     */
+    memset(&group, 0, sizeof(ofdpaGroupEntry_t));
+    group_id = 0;
+    group_type = (uint32_t) OFDPA_GROUP_ENTRY_TYPE_L3_UNICAST;
+    
+    rc = ofdpaGroupTypeSet(&group_id, group_type); /* encodes type in ID */
+    if (rc != OFDPA_E_NONE)
+    {
+        orc_err("Failed to set L3 unicast group type. rc=%d\r\n", rc);
+        return -1;
+    }
+    
+    rc = ofdpaGroupIndexSet(&group_id, default_next_hop.id); /* encodes index (next hop ID) in ID */
+    if (rc != OFDPA_E_NONE)
+    {
+        orc_err("Failed to set L3 unicast group index/ID. rc=%d\r\n", rc);
+        return -1;
+    }
+    
+    rc = ofdpaGroupEntryInit(group_type, &group);
+    if (rc != OFDPA_E_NONE)
+    {
+        orc_err("Failed to initialize L3 unicast group. rc=%d\r\n", rc);
+        return -1;
+    }
+    
+    /* Now we're finally ready to add the group */
+    group.groupId = group_id; /* this is the only thing to set */
+    default_next_hop_group_id = group_id;
+    rc = ofdpaGroupAdd(&group);
+    if (rc != OFDPA_E_NONE)
+    {
+        orc_err("Failed to push L3 unicast group. rc=%d\r\n", rc);
+        return -1;
+    }
+    orc_warn("L3 unicast group entry %d added.\r\n", group_id);
+    
+    /* Add the bucket */
+    memset(&group_bucket, 0, sizeof(ofdpaGroupBucketEntry_t));
+    rc = ofdpaGroupBucketEntryInit(group_type, &group_bucket);
+    if (rc != OFDPA_E_NONE)
+    {
+        orc_err("Failed to initialize L3 unicast bucket. rc=%d\r\n", rc);
+        return -1;
+    }
+    
+    group_bucket.groupId = group_id;
+    group_bucket.referenceGroupId = l2_group_id; /* retrieve saved ID from L2 group inserted above */
+    group_bucket.bucketIndex = 0; /* the only bucket, so 0 */
+    group_bucket.bucketData.l3Unicast.vlanId = vlan_id; /* set VLAN to VLAN out next hop's port */
+    memcpy(&(group_bucket.bucketData.l3Unicast.srcMac), &default_mac, OFDPA_MAC_ADDR_LEN);
+    memcpy(&(group_bucket.bucketData.l3Unicast.dstMac), &default_mac, OFDPA_MAC_ADDR_LEN);
+    
+    rc = ofdpaGroupBucketEntryAdd(&group_bucket);
+    if (rc != OFDPA_E_NONE)
+    {
+        orc_err("Failed to add L3 unicast bucket. rc=%d\r\n", rc);
+        return -1;
+    }
+    orc_warn("L3 unicast group %d bucket added out port %d, VLAN %d\r\n", group_id, port_id, vlan_id);
+    
     return 0;
 }
 
@@ -262,19 +436,19 @@ int ofdpa_discover_ports(port_t * ports[], int * num)
 {
     int i, ofdpaPorts;
     ofdpa_port_t * ofport;
-
+    
     ofdpaPorts = get_num_ofdpa_ports();
     orc_warn("OF-DPA has %d ports\r\n", ofdpaPorts);
-
+    
     /*
      * In case we call this more than once,
      * make sure we aren't RXing now.
      */
     sem_wait(&rx_lock);
-
+    
     /* Clear all driver-local ports */
     free_ports();
-
+    
     /* Now reallocate */
     for (i = 0; i < ofdpaPorts; i++)
     {
@@ -289,15 +463,15 @@ int ofdpa_discover_ports(port_t * ports[], int * num)
         ports[i] = (port_t *) ofport; /* init to the array passed in */
         ofdpa_ports[i] = ofport; /* keep a driver-local copy for RX thread */
         orc_debug("Created port %d for port %s\r\n",
-                        ofport->port.index, ofport->port.name);
+                  ofport->port.index, ofport->port.name);
     }
     *num = ofdpaPorts;
-
+    
     /*
      * Don't forget to release the lock.
      */
     sem_post(&rx_lock);
-
+    
     return 0;
 }
 
@@ -308,7 +482,7 @@ int ofdpa_discover_ports(port_t * ports[], int * num)
 int ofdpa_tx_pkt(port_t *port, u8 *pkt, unsigned int len)
 {
     struct ofdpa_port * ofdpa = (struct ofdpa_port *) port;
-
+    
     /* Wrap data and size in an ofdpa_buffdesc */
     ofdpa_buffdesc buf;
     buf.size = len;
@@ -346,16 +520,16 @@ int ofdpa_start_rx(port_t * ports[], int num_ports)
      * packet-in message.
      */
     sem_wait(&rx_lock);
-
+    
     orc_warn("Setting RX on %d ports\r\n", num_ports);
-
+    
     int i;
     for (i = 0; i < num_ports; i++)
     {
         orc_trace("Starting RX on port %d\r\n", ports[i]->index);
         ((ofdpa_port_t *) ports[i])->rx = 1; /* set flag to RX packets on this port */
     }
-
+    
     if (rx_thread == 0)
     {
         int rc = pthread_create(&rx_thread, NULL /* default attributes */, port_rx_monitor, NULL /* no args to function ptr <-- */);
@@ -367,7 +541,7 @@ int ofdpa_start_rx(port_t * ports[], int num_ports)
         orc_warn("Started RX thread\r\n");
     }
     sem_post(&rx_lock);
-
+    
     return 0;
 }
 
@@ -403,19 +577,19 @@ int ofdpa_stop_rx()
         orc_err("ofdpa did not return a valid file descriptor when attempting to close the event socket: %d\r\n", fd);
         return -1;
     }
-
+    
     /*
-     * Kill thread 
+     * Kill thread
      */
     pthread_cancel(rx_thread);
-
+    
     /*
      * Now free all the memory we ate
      */
     free_ports();
     free_interfaces();
     free_next_hops();
-
+    
     /*
      * And don't forget to destroy our locks/semaphores
      */
@@ -446,7 +620,7 @@ int ofdpa_add_l3_v4_interface(port_t * port, u8 hw_mac[6], int mtu, u32 ipv4_add
 int ofdpa_add_or_update_l3_v4_interface(port_t * port, u8 hw_mac[6], int mtu, u32 ipv4_addr, l3_intf_id_t * l3_intf_id, bool is_update) {
     OFDPA_ERROR_t rc;
     ofdpaFlowEntry_t flow;
-
+    
     rc = ofdpaFlowEntryInit(OFDPA_FLOW_TABLE_ID_VLAN, &flow);
     if (rc != OFDPA_E_NONE)
     {
@@ -454,12 +628,12 @@ int ofdpa_add_or_update_l3_v4_interface(port_t * port, u8 hw_mac[6], int mtu, u3
         return -1;
     } else
     {
-        /* 
+        /*
          * Clear the entire structure to avoid having to set
          * "default" values that we do not care about.
          */
         memset(&(flow.flowData), 0, sizeof(ofdpaVlanFlowEntry_t));
-
+        
         /*
          * flow instance of ofdpaFlowEntry_t
          * flowData union of flow types
@@ -471,7 +645,7 @@ int ofdpa_add_or_update_l3_v4_interface(port_t * port, u8 hw_mac[6], int mtu, u3
         flow.flowData.vlanFlowEntry.match_criteria.inPort = port->index;
         flow.flowData.vlanFlowEntry.match_criteria.vlanId = compute_vlan_id(port->index) | 0x1000;
         flow.flowData.vlanFlowEntry.match_criteria.vlanIdMask = 0x1fff;
-
+        
         /* Goto Table Instruction */
         flow.flowData.vlanFlowEntry.gotoTableId = OFDPA_FLOW_TABLE_ID_TERMINATION_MAC;
         
@@ -480,7 +654,7 @@ int ofdpa_add_or_update_l3_v4_interface(port_t * port, u8 hw_mac[6], int mtu, u3
         flow.flowData.vlanFlowEntry.newVlanId = compute_vlan_id(port->index);
         
         orc_debug("Pushing VLAN flow for port %d with VLAN %d\r\n", flow.flowData.vlanFlowEntry.match_criteria.inPort, flow.flowData.vlanFlowEntry.newVlanId);
-
+        
         /* Now we're finally ready to add the flow */
         rc = ofdpaFlowAdd(&flow);
         if (rc == OFDPA_E_EXISTS)
@@ -493,7 +667,7 @@ int ofdpa_add_or_update_l3_v4_interface(port_t * port, u8 hw_mac[6], int mtu, u3
             return -1;
         }
     }
-
+    
     /* Now do the termination MAC flow */
     rc = ofdpaFlowEntryInit(OFDPA_FLOW_TABLE_ID_TERMINATION_MAC, &flow);
     if (rc != OFDPA_E_NONE)
@@ -502,33 +676,33 @@ int ofdpa_add_or_update_l3_v4_interface(port_t * port, u8 hw_mac[6], int mtu, u3
         return -1;
     } else
     {
-        /* 
+        /*
          * Clear the entire structure to avoid having to set
          * "default" values that we do not care about.
          */
         memset(&(flow.flowData), 0, sizeof(ofdpaTerminationMacFlowEntry_t));
-
+        
         /* Matches */
         flow.flowData.terminationMacFlowEntry.match_criteria.inPort = port->index;
         flow.flowData.terminationMacFlowEntry.match_criteria.inPortMask = OFDPA_INPORT_EXACT_MASK;
         flow.flowData.terminationMacFlowEntry.match_criteria.etherType = 0x0800; /* we assume IPv4 */
-        memcpy(&(flow.flowData.terminationMacFlowEntry.match_criteria.destMac), hw_mac, 6);
-        memset(&(flow.flowData.terminationMacFlowEntry.match_criteria.destMacMask), 0xff, 6);
-
+        memcpy(&(flow.flowData.terminationMacFlowEntry.match_criteria.destMac), hw_mac, OFDPA_MAC_ADDR_LEN);
+        memset(&(flow.flowData.terminationMacFlowEntry.match_criteria.destMacMask), 0xff, OFDPA_MAC_ADDR_LEN);
+        
         /* Goto Table Instruction */
         flow.flowData.terminationMacFlowEntry.gotoTableId = OFDPA_FLOW_TABLE_ID_UNICAST_ROUTING;
-
-        orc_debug("Termination MAC flow about to be added for port %d with MAC %2x:%2x:%2x:%2x:%2x:%2x\r\n", flow.flowData.terminationMacFlowEntry.match_criteria.inPort, 
-                flow.flowData.terminationMacFlowEntry.match_criteria.destMac.addr[0], flow.flowData.terminationMacFlowEntry.match_criteria.destMac.addr[1], flow.flowData.terminationMacFlowEntry.match_criteria.destMac.addr[2],
-                flow.flowData.terminationMacFlowEntry.match_criteria.destMac.addr[3], flow.flowData.terminationMacFlowEntry.match_criteria.destMac.addr[4], flow.flowData.terminationMacFlowEntry.match_criteria.destMac.addr[5]);
-
+        
+        orc_debug("Termination MAC flow about to be added for port %d with MAC %2x:%2x:%2x:%2x:%2x:%2x\r\n", flow.flowData.terminationMacFlowEntry.match_criteria.inPort,
+                  flow.flowData.terminationMacFlowEntry.match_criteria.destMac.addr[0], flow.flowData.terminationMacFlowEntry.match_criteria.destMac.addr[1], flow.flowData.terminationMacFlowEntry.match_criteria.destMac.addr[2],
+                  flow.flowData.terminationMacFlowEntry.match_criteria.destMac.addr[3], flow.flowData.terminationMacFlowEntry.match_criteria.destMac.addr[4], flow.flowData.terminationMacFlowEntry.match_criteria.destMac.addr[5]);
+        
         /* Now we're finally ready to add the flow */
         rc = ofdpaFlowAdd(&flow);
         if (rc == OFDPA_E_EXISTS)
         {
-            orc_warn("Termination MAC flow already exists for port %d with MAC %2x:%2x:%2x:%2x:%2x:%2x. Continuing\r\n", flow.flowData.terminationMacFlowEntry.match_criteria.inPort, 
-                    flow.flowData.terminationMacFlowEntry.match_criteria.destMac.addr[0], flow.flowData.terminationMacFlowEntry.match_criteria.destMac.addr[1], flow.flowData.terminationMacFlowEntry.match_criteria.destMac.addr[2],
-                    flow.flowData.terminationMacFlowEntry.match_criteria.destMac.addr[3], flow.flowData.terminationMacFlowEntry.match_criteria.destMac.addr[4], flow.flowData.terminationMacFlowEntry.match_criteria.destMac.addr[5]);
+            orc_warn("Termination MAC flow already exists for port %d with MAC %2x:%2x:%2x:%2x:%2x:%2x. Continuing\r\n", flow.flowData.terminationMacFlowEntry.match_criteria.inPort,
+                     flow.flowData.terminationMacFlowEntry.match_criteria.destMac.addr[0], flow.flowData.terminationMacFlowEntry.match_criteria.destMac.addr[1], flow.flowData.terminationMacFlowEntry.match_criteria.destMac.addr[2],
+                     flow.flowData.terminationMacFlowEntry.match_criteria.destMac.addr[3], flow.flowData.terminationMacFlowEntry.match_criteria.destMac.addr[4], flow.flowData.terminationMacFlowEntry.match_criteria.destMac.addr[5]);
         }
         else if (rc != OFDPA_E_NONE)
         {
@@ -545,42 +719,39 @@ int ofdpa_add_or_update_l3_v4_interface(port_t * port, u8 hw_mac[6], int mtu, u3
         return -1;
     } else
     {
-        /* 
+        /*
          * Clear the entire structure to avoid having to set
          * "default" values that we do not care about.
          */
         memset(&(flow.flowData), 0, sizeof(ofdpaUnicastRoutingFlowEntry_t));
-
+        
         /* Matches */
         flow.flowData.unicastRoutingFlowEntry.match_criteria.etherType = 0x0800; /* we assume IPv4 */
         flow.flowData.unicastRoutingFlowEntry.match_criteria.dstIp4 = ipv4_addr;
         flow.flowData.unicastRoutingFlowEntry.match_criteria.dstIp4Mask = OFDPA_IPV4_ADDR_EXACT_MASK; /* exact IPv4 match */
         
         /*
-         * Note we do not specify an L3 group as a write-actions. This is
-         * because we're matching on the router's IP. In the next table
-         * (policy ACL), we'll perform the match again and punt it up to
-         * the CONTROLLER. For some reason we can't send to controller
-         * here unless the TTL expires... Why? (We can in bridging.)
+         * We will specify the default group; required
          */
-
+        flow.flowData.unicastRoutingFlowEntry.groupID = default_next_hop_group_id;
+        
         /* Goto Table Instruction */
         flow.flowData.unicastRoutingFlowEntry.gotoTableId = OFDPA_FLOW_TABLE_ID_ACL_POLICY;
-
+        
         orc_debug("Attempting to push unicast routing flow for IP, %d, %d.%d.%d.%d\r\n", flow.flowData.unicastRoutingFlowEntry.match_criteria.dstIp4,
-                (flow.flowData.unicastRoutingFlowEntry.match_criteria.dstIp4 >> 24) & 0xff, 
-                (flow.flowData.unicastRoutingFlowEntry.match_criteria.dstIp4 >> 16) & 0xff,
-                (flow.flowData.unicastRoutingFlowEntry.match_criteria.dstIp4 >> 8) & 0xff,
-                (flow.flowData.unicastRoutingFlowEntry.match_criteria.dstIp4 >> 0) & 0xff);
-
+                  (flow.flowData.unicastRoutingFlowEntry.match_criteria.dstIp4 >> 24) & 0xff,
+                  (flow.flowData.unicastRoutingFlowEntry.match_criteria.dstIp4 >> 16) & 0xff,
+                  (flow.flowData.unicastRoutingFlowEntry.match_criteria.dstIp4 >> 8) & 0xff,
+                  (flow.flowData.unicastRoutingFlowEntry.match_criteria.dstIp4 >> 0) & 0xff);
+        
         /* Now we're finally ready to add the flow */
         rc = ofdpaFlowAdd(&flow);
         if (rc == OFDPA_E_EXISTS)
         {
-            orc_warn("Unicast routing flow already exists for IP %d.%d.%d.%d. Continuing\r\n", flow.flowData.unicastRoutingFlowEntry.match_criteria.dstIp4 & 0xff000000 >> 24 && 0x000000ff, 
-                    flow.flowData.unicastRoutingFlowEntry.match_criteria.dstIp4 >> 16 & 0x000000ff,
-                    flow.flowData.unicastRoutingFlowEntry.match_criteria.dstIp4 >> 8 & 0x000000ff,
-                    flow.flowData.unicastRoutingFlowEntry.match_criteria.dstIp4 >> 0 & 0x000000ff);
+            orc_warn("Unicast routing flow already exists for IP %d.%d.%d.%d. Continuing\r\n", flow.flowData.unicastRoutingFlowEntry.match_criteria.dstIp4 & 0xff000000 >> 24 && 0x000000ff,
+                     flow.flowData.unicastRoutingFlowEntry.match_criteria.dstIp4 >> 16 & 0x000000ff,
+                     flow.flowData.unicastRoutingFlowEntry.match_criteria.dstIp4 >> 8 & 0x000000ff,
+                     flow.flowData.unicastRoutingFlowEntry.match_criteria.dstIp4 >> 0 & 0x000000ff);
         }
         else if (rc != OFDPA_E_NONE)
         {
@@ -597,30 +768,42 @@ int ofdpa_add_or_update_l3_v4_interface(port_t * port, u8 hw_mac[6], int mtu, u3
         return -1;
     } else
     {
-        /* 
+        /*
          * Clear the entire structure to avoid having to set
          * "default" values that we do not care about.
          */
         memset(&(flow.flowData), 0, sizeof(ofdpaPolicyAclFlowEntry_t));
-
+        
         /* Matches */
-        memcpy(&(flow.flowData.policyAclFlowEntry.match_criteria.destMac), hw_mac, 6);
-        memset(&(flow.flowData.policyAclFlowEntry.match_criteria.destMacMask), 0xff, 6); /* exact MAC match -- TODO might be redundant? */
+        flow.flowData.policyAclFlowEntry.match_criteria.inPort = OFDPA_PORT_TYPE_PHYSICAL; /* Must explicitly specify ANY physical port + type_mask */
+        flow.flowData.policyAclFlowEntry.match_criteria.inPortMask = OFDPA_INPORT_TYPE_MASK;
+        memcpy(&(flow.flowData.policyAclFlowEntry.match_criteria.destMac), hw_mac, OFDPA_MAC_ADDR_LEN);
+        memset(&(flow.flowData.policyAclFlowEntry.match_criteria.destMacMask), 0xff, OFDPA_MAC_ADDR_LEN); /* exact MAC match -- TODO might be redundant? */
         flow.flowData.policyAclFlowEntry.match_criteria.etherType = 0x0800; /* we assume IPv4 */
+        flow.flowData.policyAclFlowEntry.match_criteria.etherTypeMask = OFDPA_ETHERTYPE_EXACT_MASK;
         flow.flowData.policyAclFlowEntry.match_criteria.destIp4 = ipv4_addr;
         flow.flowData.policyAclFlowEntry.match_criteria.destIp4Mask = OFDPA_IPV4_ADDR_EXACT_MASK; /* exact IPv4 match */
-
+        
         /* Apply Actions Instruction */
+        
+        /*
+         * OF-DPA IMPLEMENTATION NOTE:
+         * Including this output (apply action) will cause the
+         * goto-group (write action) set in the unicast routing
+         * flow to be ignored. This is not correct according to
+         * the OpenFlow spec, but it allows us to send to the CPU
+         * w/o also sending to a next hop group.
+         */
         flow.flowData.policyAclFlowEntry.outputPort = OFDPA_PORT_CONTROLLER; /* punt up to ORC (will pass into RX thread) */
-
+        
         /* Now we're finally ready to add the flow */
         rc = ofdpaFlowAdd(&flow);
         if (rc == OFDPA_E_EXISTS)
         {
-            orc_warn("Policy ACL flow already exists for IP %d.%d.%d.%d. Continuing\r\n", flow.flowData.policyAclFlowEntry.match_criteria.destIp4 & 0xff000000 >> 24 && 0x000000ff, 
-                    flow.flowData.policyAclFlowEntry.match_criteria.destIp4 & 0x00ff0000 >> 16 & 0x000000ff,
-                    flow.flowData.policyAclFlowEntry.match_criteria.destIp4 & 0x0000ff00 >> 8 & 0x000000ff,
-                    flow.flowData.policyAclFlowEntry.match_criteria.destIp4 & 0x000000ff >> 0 & 0x000000ff);
+            orc_warn("Policy ACL flow already exists for IP %d.%d.%d.%d. Continuing\r\n", flow.flowData.policyAclFlowEntry.match_criteria.destIp4 & 0xff000000 >> 24 && 0x000000ff,
+                     flow.flowData.policyAclFlowEntry.match_criteria.destIp4 & 0x00ff0000 >> 16 & 0x000000ff,
+                     flow.flowData.policyAclFlowEntry.match_criteria.destIp4 & 0x0000ff00 >> 8 & 0x000000ff,
+                     flow.flowData.policyAclFlowEntry.match_criteria.destIp4 & 0x000000ff >> 0 & 0x000000ff);
         }
         else if (rc != OFDPA_E_NONE)
         {
@@ -628,7 +811,7 @@ int ofdpa_add_or_update_l3_v4_interface(port_t * port, u8 hw_mac[6], int mtu, u3
             return -1;
         }
     }
-
+    
     /* Now do the bridging flow -- for non-IP packet delivery to ORC's RX func */
     rc = ofdpaFlowEntryInit(OFDPA_FLOW_TABLE_ID_BRIDGING, &flow);
     if (rc != OFDPA_E_NONE)
@@ -637,26 +820,31 @@ int ofdpa_add_or_update_l3_v4_interface(port_t * port, u8 hw_mac[6], int mtu, u3
         return -1;
     } else
     {
-        /* 
+        /*
          * Clear the entire structure to avoid having to set
          * "default" values that we do not care about.
          */
         memset(&(flow.flowData), 0, sizeof(ofdpaBridgingFlowEntry_t));
-
+        
         /* Matches */
-        memcpy(&(flow.flowData.bridgingFlowEntry.match_criteria.destMac), hw_mac, 6);
-        memset(&(flow.flowData.bridgingFlowEntry.match_criteria.destMacMask), 0xff, 6); /* exact MAC match */
+        memcpy(&(flow.flowData.bridgingFlowEntry.match_criteria.destMac), hw_mac, OFDPA_MAC_ADDR_LEN);
+        memset(&(flow.flowData.bridgingFlowEntry.match_criteria.destMacMask), 0xff, OFDPA_MAC_ADDR_LEN); /* exact MAC match */
+        flow.flowData.bridgingFlowEntry.match_criteria.vlanId = compute_vlan_id(port->index); /* must match on VLAN w/o 'present' bit set */
+        flow.flowData.bridgingFlowEntry.match_criteria.vlanIdMask = 0x0fff;
+        
+        /* Must also supply L2 interface group, even though we won't use it. */
+        flow.flowData.bridgingFlowEntry.groupID = default_interface_group_id;
         
         /* Apply Actions Instruction */
         flow.flowData.bridgingFlowEntry.outputPort = OFDPA_PORT_CONTROLLER; /* punt non-IP packets up to ORC's RX func */
-
+        
         /* Now we're finally ready to add the flow */
         rc = ofdpaFlowAdd(&flow);
         if (rc == OFDPA_E_EXISTS)
         {
             orc_warn("Bridging flow already exists for MAC %2x:%2x:%2x:%2x:%2x:%2x. Continuing\r\n",
-                    flow.flowData.bridgingFlowEntry.match_criteria.destMac.addr[0], flow.flowData.bridgingFlowEntry.match_criteria.destMac.addr[1], flow.flowData.bridgingFlowEntry.match_criteria.destMac.addr[2],
-                    flow.flowData.bridgingFlowEntry.match_criteria.destMac.addr[3], flow.flowData.bridgingFlowEntry.match_criteria.destMac.addr[4], flow.flowData.bridgingFlowEntry.match_criteria.destMac.addr[5]);
+                     flow.flowData.bridgingFlowEntry.match_criteria.destMac.addr[0], flow.flowData.bridgingFlowEntry.match_criteria.destMac.addr[1], flow.flowData.bridgingFlowEntry.match_criteria.destMac.addr[2],
+                     flow.flowData.bridgingFlowEntry.match_criteria.destMac.addr[3], flow.flowData.bridgingFlowEntry.match_criteria.destMac.addr[4], flow.flowData.bridgingFlowEntry.match_criteria.destMac.addr[5]);
         }
         else if (rc != OFDPA_E_NONE)
         {
@@ -664,7 +852,7 @@ int ofdpa_add_or_update_l3_v4_interface(port_t * port, u8 hw_mac[6], int mtu, u3
             return -1;
         }
     }
-
+    
     /*
      * If we get here, then all flows should be inserted w/o error
      */
@@ -688,12 +876,12 @@ int ofdpa_add_or_update_l3_v4_interface(port_t * port, u8 hw_mac[6], int mtu, u3
             return -1;
         }
     }
-
-   /*
-    * init/update interface structure (iface will not be NULL here)
-    */
+    
+    /*
+     * init/update interface structure (iface will not be NULL here)
+     */
     iface->port = (ofdpa_port_t *) port; /* pointer already */
-    memcpy(&(iface->mac), &hw_mac, 6);
+    memcpy(&(iface->mac), &hw_mac, OFDPA_MAC_ADDR_LEN);
     iface->ipv4 = ipv4_addr;
     if (!is_update)
     {
@@ -702,7 +890,7 @@ int ofdpa_add_or_update_l3_v4_interface(port_t * port, u8 hw_mac[6], int mtu, u3
         iface->next_hop = NULL;
         add_interface(iface); /* insert into the list */
     }
-
+    
     return 0;
 }
 
@@ -718,13 +906,13 @@ int ofdpa_update_l3_v4_interface(port_t * port, u8 hw_mac[6], int mtu, u32 ipv4_
      * the impacted flows, but we'll do a complete delete
      * and re-add for simplicity for now.
      */
-
+    
     if (ofdpa_del_l3_v4_interface(port, l3_intf_id) < 0)
     {
         orc_err("Error removing interface %d on port %d\r\n", l3_intf_id, port->index);
         return -1;
     }
-
+    
     if (get_interface(l3_intf_id) == NULL)
     {
         orc_err("Could not lookup L3 interface ID %d. Not updating.\r\n", l3_intf_id);
@@ -742,7 +930,7 @@ int ofdpa_update_l3_v4_interface(port_t * port, u8 hw_mac[6], int mtu, u32 ipv4_
 int ofdpa_del_l3_v4_interface(port_t * port, l3_intf_id_t l3_intf_id) {
     OFDPA_ERROR_t rc;
     ofdpaFlowEntry_t flow;
-
+    
     /*
      * Lookup L3 interface to find the IP, MAC, etc.
      */
@@ -757,16 +945,16 @@ int ofdpa_del_l3_v4_interface(port_t * port, l3_intf_id_t l3_intf_id) {
         orc_err("Port provided inconsistent with port in L3 interface. Not deleting L3 iface %d\r\n", l3_intf_id);
         return -1;
     }
-
+    
     /*
      * We found our interface, so get the info
      * we need.
      */
     u8 hw_mac[6];
     u32 ipv4_addr;
-    memcpy(&hw_mac, &(iface->mac), 6);
+    memcpy(&hw_mac, &(iface->mac), OFDPA_MAC_ADDR_LEN);
     ipv4_addr = iface->ipv4;
-        
+    
     rc = ofdpaFlowEntryInit(OFDPA_FLOW_TABLE_ID_VLAN, &flow);
     if (rc != OFDPA_E_NONE)
     {
@@ -774,12 +962,12 @@ int ofdpa_del_l3_v4_interface(port_t * port, l3_intf_id_t l3_intf_id) {
         return -1;
     } else
     {
-        /* 
+        /*
          * Clear the entire structure to avoid having to set
          * "default" values that we do not care about.
          */
         memset(&(flow.flowData), 0, sizeof(ofdpaVlanFlowEntry_t));
-
+        
         /*
          * flow instance of ofdpaFlowEntry_t
          * flowData union of flow types
@@ -791,14 +979,14 @@ int ofdpa_del_l3_v4_interface(port_t * port, l3_intf_id_t l3_intf_id) {
         flow.flowData.vlanFlowEntry.match_criteria.inPort = port->index;
         flow.flowData.vlanFlowEntry.match_criteria.vlanId = compute_vlan_id(port->index) | 0x1000;
         flow.flowData.vlanFlowEntry.match_criteria.vlanIdMask = 0x1fff;
-
+        
         /* Goto Table Instruction */
         flow.flowData.vlanFlowEntry.gotoTableId = OFDPA_FLOW_TABLE_ID_TERMINATION_MAC;
         
         /* Apply Actions Instruction */
         flow.flowData.vlanFlowEntry.setVlanIdAction = ACTION;
         flow.flowData.vlanFlowEntry.newVlanId = compute_vlan_id(port->index);
-
+        
         /* Now we're finally ready to add the flow */
         rc = ofdpaFlowDelete(&flow);
         if (rc != OFDPA_E_NONE)
@@ -807,7 +995,7 @@ int ofdpa_del_l3_v4_interface(port_t * port, l3_intf_id_t l3_intf_id) {
             return -1;
         }
     }
-
+    
     /* Now do the termination MAC flow */
     rc = ofdpaFlowEntryInit(OFDPA_FLOW_TABLE_ID_TERMINATION_MAC, &flow);
     if (rc != OFDPA_E_NONE)
@@ -816,22 +1004,22 @@ int ofdpa_del_l3_v4_interface(port_t * port, l3_intf_id_t l3_intf_id) {
         return -1;
     } else
     {
-        /* 
+        /*
          * Clear the entire structure to avoid having to set
          * "default" values that we do not care about.
          */
         memset(&(flow.flowData), 0, sizeof(ofdpaTerminationMacFlowEntry_t));
-
+        
         /* Matches */
         flow.flowData.terminationMacFlowEntry.match_criteria.inPort = port->index;
         flow.flowData.terminationMacFlowEntry.match_criteria.inPortMask = OFDPA_INPORT_EXACT_MASK;
         flow.flowData.terminationMacFlowEntry.match_criteria.etherType = 0x0800; /* we assume IPv4 */
-        memcpy(&(flow.flowData.terminationMacFlowEntry.match_criteria.destMac), hw_mac, 6);
-        memset(&(flow.flowData.terminationMacFlowEntry.match_criteria.destMacMask), 0xff, 6);
-
+        memcpy(&(flow.flowData.terminationMacFlowEntry.match_criteria.destMac), hw_mac, OFDPA_MAC_ADDR_LEN);
+        memset(&(flow.flowData.terminationMacFlowEntry.match_criteria.destMacMask), 0xff, OFDPA_MAC_ADDR_LEN);
+        
         /* Goto Table Instruction */
         flow.flowData.terminationMacFlowEntry.gotoTableId = OFDPA_FLOW_TABLE_ID_UNICAST_ROUTING;
-
+        
         /* Now we're finally ready to add the flow */
         rc = ofdpaFlowDelete(&flow);
         if (rc != OFDPA_E_NONE)
@@ -849,28 +1037,23 @@ int ofdpa_del_l3_v4_interface(port_t * port, l3_intf_id_t l3_intf_id) {
         return -1;
     } else
     {
-        /* 
+        /*
          * Clear the entire structure to avoid having to set
          * "default" values that we do not care about.
          */
         memset(&(flow.flowData), 0, sizeof(ofdpaUnicastRoutingFlowEntry_t));
-
+        
         /* Matches */
         flow.flowData.unicastRoutingFlowEntry.match_criteria.etherType = 0x0800; /* we assume IPv4 */
         flow.flowData.unicastRoutingFlowEntry.match_criteria.dstIp4 = ipv4_addr;
         flow.flowData.unicastRoutingFlowEntry.match_criteria.dstIp4Mask = OFDPA_IPV4_ADDR_EXACT_MASK; /* exact IPv4 match */
         
-        /*
-         * Note we do not specify an L3 group as a write-actions. This is
-         * because we're matching on the router's IP. In the next table
-         * (policy ACL), we'll perform the match again and punt it up to
-         * the CONTROLLER. For some reason we can't send to controller
-         * here unless the TTL expires... Why? (We can in bridging.)
-         */
-
+        /* Default/bogus next hop */
+        flow.flowData.unicastRoutingFlowEntry.groupID = default_next_hop_group_id;
+        
         /* Goto Table Instruction */
         flow.flowData.unicastRoutingFlowEntry.gotoTableId = OFDPA_FLOW_TABLE_ID_ACL_POLICY;
-
+        
         /* Now we're finally ready to add the flow */
         rc = ofdpaFlowDelete(&flow);
         if (rc != OFDPA_E_NONE)
@@ -888,22 +1071,22 @@ int ofdpa_del_l3_v4_interface(port_t * port, l3_intf_id_t l3_intf_id) {
         return -1;
     } else
     {
-        /* 
+        /*
          * Clear the entire structure to avoid having to set
          * "default" values that we do not care about.
          */
         memset(&(flow.flowData), 0, sizeof(ofdpaPolicyAclFlowEntry_t));
-
+        
         /* Matches */
-        memcpy(&(flow.flowData.policyAclFlowEntry.match_criteria.destMac), hw_mac, 6);
-        memset(&(flow.flowData.policyAclFlowEntry.match_criteria.destMacMask), 0xff, 6); /* exact MAC match -- TODO might be redundant? */
+        memcpy(&(flow.flowData.policyAclFlowEntry.match_criteria.destMac), hw_mac, OFDPA_MAC_ADDR_LEN);
+        memset(&(flow.flowData.policyAclFlowEntry.match_criteria.destMacMask), 0xff, OFDPA_MAC_ADDR_LEN); /* exact MAC match -- TODO might be redundant? */
         flow.flowData.policyAclFlowEntry.match_criteria.etherType = 0x0800; /* we assume IPv4 */
         flow.flowData.policyAclFlowEntry.match_criteria.destIp4 = ipv4_addr;
         flow.flowData.policyAclFlowEntry.match_criteria.destIp4Mask = OFDPA_IPV4_ADDR_EXACT_MASK; /* exact IPv4 match */
-
+        
         /* Apply Actions Instruction */
         flow.flowData.policyAclFlowEntry.outputPort = OFDPA_PORT_CONTROLLER; /* punt up to ORC (will pass into RX thread) */
-
+        
         /* Now we're finally ready to add the flow */
         rc = ofdpaFlowDelete(&flow);
         if (rc != OFDPA_E_NONE)
@@ -912,7 +1095,7 @@ int ofdpa_del_l3_v4_interface(port_t * port, l3_intf_id_t l3_intf_id) {
             return -1;
         }
     }
-
+    
     /* Now do the bridging flow -- for non-IP packet delivery to ORC's RX func */
     rc = ofdpaFlowEntryInit(OFDPA_FLOW_TABLE_ID_BRIDGING, &flow);
     if (rc != OFDPA_E_NONE)
@@ -921,19 +1104,19 @@ int ofdpa_del_l3_v4_interface(port_t * port, l3_intf_id_t l3_intf_id) {
         return -1;
     } else
     {
-        /* 
+        /*
          * Clear the entire structure to avoid having to set
          * "default" values that we do not care about.
          */
         memset(&(flow.flowData), 0, sizeof(ofdpaBridgingFlowEntry_t));
-
+        
         /* Matches */
-        memcpy(&(flow.flowData.bridgingFlowEntry.match_criteria.destMac), hw_mac, 6);
-        memset(&(flow.flowData.bridgingFlowEntry.match_criteria.destMacMask), 0xff, 6); /* exact MAC match */
+        memcpy(&(flow.flowData.bridgingFlowEntry.match_criteria.destMac), hw_mac, OFDPA_MAC_ADDR_LEN);
+        memset(&(flow.flowData.bridgingFlowEntry.match_criteria.destMacMask), 0xff, OFDPA_MAC_ADDR_LEN); /* exact MAC match */
         
         /* Apply Actions Instruction */
         flow.flowData.bridgingFlowEntry.outputPort = OFDPA_PORT_CONTROLLER; /* punt non-IP packets up to ORC's RX func */
-
+        
         /* Now we're finally ready to add the flow */
         rc = ofdpaFlowDelete(&flow);
         if (rc != OFDPA_E_NONE)
@@ -942,12 +1125,12 @@ int ofdpa_del_l3_v4_interface(port_t * port, l3_intf_id_t l3_intf_id) {
             return -1;
         }
     }
-
+    
     /*
      * If we get here, then all flows should be deleted w/o error
      */
     del_interface(l3_intf_id);
-
+    
     return 0;
 }
 
@@ -969,14 +1152,14 @@ int ofdpa_add_l3_v4_next_hop(port_t * port, l3_intf_id_t l3_intf_id, u8 next_hop
         orc_err("Tried adding a next hop to an interface that already has a next hop. Not adding next hop. Remove the existing next hop %d first.\r\n", iface->next_hop->id);
         return -1;
     }
-
+    
     ofdpa_next_hop_t * next_hop = (ofdpa_next_hop_t *) malloc(sizeof(ofdpa_next_hop_t));
     if (next_hop == NULL)
     {
         orc_fatal("ofdpa_next_hop_t malloc failed\r\n");
         return -1;
     }
-
+    
     /* Fill in our next hop */
     *l3_next_hop_id = generate_l3_next_hop_id(); /* ID is guaranteed to be unique */
     next_hop->id = *l3_next_hop_id;
@@ -992,11 +1175,11 @@ int ofdpa_add_l3_v4_next_hop(port_t * port, l3_intf_id_t l3_intf_id, u8 next_hop
      * argument to this function.
      */
     next_hop->port = (ofdpa_port_t *) port;
-    memcpy(&(next_hop->mac), next_hop_hw_mac, 6); /* Last but not least, the MAC itself */
+    memcpy(&(next_hop->mac), next_hop_hw_mac, OFDPA_MAC_ADDR_LEN); /* Last but not least, the MAC itself */
     
     /* Add to our internal list of next hops */
     add_next_hop(next_hop);
-
+    
     /*
      * Insert L3 Unicast group entry AND L2 Interface group entry
      * on port of the next hop.
@@ -1008,8 +1191,8 @@ int ofdpa_add_l3_v4_next_hop(port_t * port, l3_intf_id_t l3_intf_id, u8 next_hop
     uint32_t port_id; /* only for L2 Interface */
     uint32_t vlan_id; /* ditto */
     uint32_t group_type;
-
-    /* 
+    
+    /*
      * First do the L2 Interface group, since we need to reference it
      * in the L3 Unicast group as a bucket.
      */
@@ -1023,30 +1206,30 @@ int ofdpa_add_l3_v4_next_hop(port_t * port, l3_intf_id_t l3_intf_id, u8 next_hop
         orc_err("Failed to set L2 interface group type. rc=%d\r\n", rc);
         return -1;
     }
-
+    
     rc = ofdpaGroupVlanSet(&group_id, vlan_id); /* encodes VLAN in ID */
     if (rc != OFDPA_E_NONE)
     {
         orc_err("Failed to set L2 interface group VLAN. rc=%d\r\n", rc);
         return -1;
     }
-
+    
     rc = ofdpaGroupPortIdSet(&group_id, port_id); /* encodes port in ID */
     if (rc != OFDPA_E_NONE)
     {
         orc_err("Failed to set L2 interface group port. rc=%d\r\n", rc);
         return -1;
     }
-
+    
     rc = ofdpaGroupEntryInit(group_type, &group);
     if (rc != OFDPA_E_NONE)
     {
         orc_err("Failed to initialize L2 interface group. rc=%d\r\n", rc);
         return -1;
     }
-
+    
     group.groupId = group_id; /* this is the only thing to set */
-    l2_group_id = group_id; /* save for reference by L3 group below */    
+    l2_group_id = group_id; /* save for reference by L3 group below */
     rc = ofdpaGroupAdd(&group);
     if (rc != OFDPA_E_NONE)
     {
@@ -1054,7 +1237,7 @@ int ofdpa_add_l3_v4_next_hop(port_t * port, l3_intf_id_t l3_intf_id, u8 next_hop
         return -1;
     }
     orc_warn("L2 interface group %d added\r\n", group_id);
-
+    
     /* Add the bucket */
     memset(&group_bucket, 0, sizeof(ofdpaGroupBucketEntry_t));
     rc = ofdpaGroupBucketEntryInit(group_type, &group_bucket);
@@ -1067,7 +1250,7 @@ int ofdpa_add_l3_v4_next_hop(port_t * port, l3_intf_id_t l3_intf_id, u8 next_hop
     group_bucket.groupId = group_id;
     group_bucket.bucketIndex = 0; /* the only bucket, so 0 */
     group_bucket.bucketData.l2Interface.outputPort = port_id; /* union, just like the flows; only need output port here */
-
+    
     rc = ofdpaGroupBucketEntryAdd(&group_bucket);
     if (rc != OFDPA_E_NONE)
     {
@@ -1075,7 +1258,7 @@ int ofdpa_add_l3_v4_next_hop(port_t * port, l3_intf_id_t l3_intf_id, u8 next_hop
         return -1;
     }
     orc_warn("L2 interface group %d bucket added out port %d\r\n", group_id, port_id);
-
+    
     /*
      * Now, we can do the L3 Unicast group.
      */
@@ -1089,21 +1272,21 @@ int ofdpa_add_l3_v4_next_hop(port_t * port, l3_intf_id_t l3_intf_id, u8 next_hop
         orc_err("Failed to set L3 unicast group type. rc=%d\r\n", rc);
         return -1;
     }
-
+    
     rc = ofdpaGroupIndexSet(&group_id, next_hop->id); /* encodes index (next hop ID) in ID */
     if (rc != OFDPA_E_NONE)
     {
         orc_err("Failed to set L3 unicast group index/ID. rc=%d\r\n", rc);
         return -1;
     }
-
+    
     rc = ofdpaGroupEntryInit(group_type, &group);
     if (rc != OFDPA_E_NONE)
     {
         orc_err("Failed to initialize L3 unicast group. rc=%d\r\n", rc);
         return -1;
     }
-
+    
     /* Now we're finally ready to add the group */
     group.groupId = group_id; /* this is the only thing to set */
     rc = ofdpaGroupAdd(&group);
@@ -1113,7 +1296,7 @@ int ofdpa_add_l3_v4_next_hop(port_t * port, l3_intf_id_t l3_intf_id, u8 next_hop
         return -1;
     }
     orc_warn("L3 unicast group entry %d added.\r\n", group_id);
-
+    
     /* Add the bucket */
     memset(&group_bucket, 0, sizeof(ofdpaGroupBucketEntry_t));
     rc = ofdpaGroupBucketEntryInit(group_type, &group_bucket);
@@ -1127,9 +1310,9 @@ int ofdpa_add_l3_v4_next_hop(port_t * port, l3_intf_id_t l3_intf_id, u8 next_hop
     group_bucket.referenceGroupId = l2_group_id; /* retrieve saved ID from L2 group inserted above */
     group_bucket.bucketIndex = 0; /* the only bucket, so 0 */
     group_bucket.bucketData.l3Unicast.vlanId = vlan_id; /* set VLAN to VLAN out next hop's port */
-    memcpy(&(group_bucket.bucketData.l3Unicast.srcMac), (iface->mac), 6); /* source is the switch port MAC */
-    memcpy(&(group_bucket.bucketData.l3Unicast.dstMac), (next_hop->mac), 6); /* dest is the next hop MAC */
-
+    memcpy(&(group_bucket.bucketData.l3Unicast.srcMac), (iface->mac), OFDPA_MAC_ADDR_LEN); /* source is the switch port MAC */
+    memcpy(&(group_bucket.bucketData.l3Unicast.dstMac), (next_hop->mac), OFDPA_MAC_ADDR_LEN); /* dest is the next hop MAC */
+    
     rc = ofdpaGroupBucketEntryAdd(&group_bucket);
     if (rc != OFDPA_E_NONE)
     {
@@ -1137,7 +1320,7 @@ int ofdpa_add_l3_v4_next_hop(port_t * port, l3_intf_id_t l3_intf_id, u8 next_hop
         return -1;
     }
     orc_warn("L3 unicast group %d bucket added out port %d, VLAN %d\r\n", group_id, port_id, vlan_id);
-
+    
     return 0;
 }
 
@@ -1156,15 +1339,15 @@ int ofdpa_del_l3_v4_next_hop(l3_next_hop_id_t l3_next_hop_id) {
         orc_err("Could not lookup next hop %d for removal.\r\n", l3_next_hop_id);
         return -1;
     }
-
+    
     port_t * port = &(next_hop->port->port);
     
     uint32_t group_id;
     uint32_t port_id; /* only for L2 Interface */
     uint32_t vlan_id; /* ditto */
     uint32_t group_type;
-
-    /* 
+    
+    /*
      * First do the L2 Interface group
      */
     port_id = port->index;
@@ -1177,21 +1360,21 @@ int ofdpa_del_l3_v4_next_hop(l3_next_hop_id_t l3_next_hop_id) {
         orc_err("Failed to set L2 interface group type. rc=%d\r\n", rc);
         return -1;
     }
-
+    
     rc = ofdpaGroupVlanSet(&group_id, vlan_id); /* encodes VLAN in ID */
     if (rc != OFDPA_E_NONE)
     {
         orc_err("Failed to set L2 interface group VLAN. rc=%d\r\n", rc);
         return -1;
     }
-
+    
     rc = ofdpaGroupPortIdSet(&group_id, port_id); /* encodes port in ID */
     if (rc != OFDPA_E_NONE)
     {
         orc_err("Failed to set L2 interface group port. rc=%d\r\n", rc);
         return -1;
     }
-
+    
     rc = ofdpaGroupBucketsDeleteAll(group_id);
     if (rc != OFDPA_E_NONE)
     {
@@ -1199,7 +1382,7 @@ int ofdpa_del_l3_v4_next_hop(l3_next_hop_id_t l3_next_hop_id) {
         return -1;
     }
     orc_warn("L2 interface group %d bucket delete from port %d\r\n", group_id, port_id);
-
+    
     rc = ofdpaGroupDelete(group_id);
     if (rc != OFDPA_E_NONE)
     {
@@ -1207,7 +1390,7 @@ int ofdpa_del_l3_v4_next_hop(l3_next_hop_id_t l3_next_hop_id) {
         return -1;
     }
     orc_warn("L2 interface group %d deleted\r\n", group_id);
-
+    
     /*
      * Now, we can do the L3 Unicast group.
      */
@@ -1220,14 +1403,14 @@ int ofdpa_del_l3_v4_next_hop(l3_next_hop_id_t l3_next_hop_id) {
         orc_err("Failed to set L3 unicast group type. rc=%d\r\n", rc);
         return -1;
     }
-
+    
     rc = ofdpaGroupIndexSet(&group_id, next_hop->id); /* encodes index (next hop ID) in ID */
     if (rc != OFDPA_E_NONE)
     {
         orc_err("Failed to set L3 unicast group index/ID. rc=%d\r\n", rc);
         return -1;
     }
-
+    
     rc = ofdpaGroupBucketsDeleteAll(group_id);
     if (rc != OFDPA_E_NONE)
     {
@@ -1235,7 +1418,7 @@ int ofdpa_del_l3_v4_next_hop(l3_next_hop_id_t l3_next_hop_id) {
         return -1;
     }
     orc_warn("L3 unicast group %d bucket deleted from port %d, VLAN %d\r\n", group_id, port_id, vlan_id);
-
+    
     rc = ofdpaGroupDelete(group_id);
     if (rc != OFDPA_E_NONE)
     {
@@ -1243,14 +1426,14 @@ int ofdpa_del_l3_v4_next_hop(l3_next_hop_id_t l3_next_hop_id) {
         return -1;
     }
     orc_warn("L3 unicast group entry %d deleted.\r\n", group_id);
-
-    /* 
+    
+    /*
      * Remove from our internal list of next hops.
-     * This will remove the next hop from all 
+     * This will remove the next hop from all
      * interfaces too.
      */
     del_next_hop(l3_next_hop_id);
-
+    
     return 0;
 }
 
@@ -1271,7 +1454,7 @@ int ofdpa_add_l3_v4_route(u32 ip_dst, u32 netmask, l3_next_hop_id_t l3_next_hop_
         orc_err("Could not find next hop %d. Not adding route.\r\n", l3_next_hop_id);
         return -1;
     }
-
+    
     ofdpaFlowEntry_t flow;
     OFDPA_ERROR_t rc = ofdpaFlowEntryInit(OFDPA_FLOW_TABLE_ID_UNICAST_ROUTING, &flow);
     if (rc != OFDPA_E_NONE)
@@ -1280,12 +1463,12 @@ int ofdpa_add_l3_v4_route(u32 ip_dst, u32 netmask, l3_next_hop_id_t l3_next_hop_
         return -1;
     } else
     {
-        /* 
+        /*
          * Clear the entire structure to avoid having to set
          * "default" values that we do not care about.
          */
         memset(&(flow.flowData), 0, sizeof(ofdpaUnicastRoutingFlowEntry_t));
-
+        
         /* Matches */
         flow.flowData.unicastRoutingFlowEntry.match_criteria.etherType = 0x0800; /* we assume IPv4 */
         flow.flowData.unicastRoutingFlowEntry.match_criteria.dstIp4 = ip_dst;
@@ -1298,31 +1481,31 @@ int ofdpa_add_l3_v4_route(u32 ip_dst, u32 netmask, l3_next_hop_id_t l3_next_hop_
          */
         uint32_t group_id;
         uint32_t group_type = (uint32_t) OFDPA_GROUP_ENTRY_TYPE_L3_UNICAST;
-    
+        
         rc = ofdpaGroupTypeSet(&group_id, group_type); /* encodes type in ID */
         if (rc != OFDPA_E_NONE)
         {
             orc_err("Failed to set L3 unicast group type for masked-match route. rc=%d\r\n", rc);
             return -1;
         }
-
+        
         rc = ofdpaGroupIndexSet(&group_id, next_hop->id); /* encodes index (next hop ID) in ID */
         if (rc != OFDPA_E_NONE)
         {
             orc_err("Failed to set L3 unicast group index/ID for masked-match route. rc=%d\r\n", rc);
             return -1;
         }
-
+        
         /* Write Actions Instruction: Group ID should now be correctly set */
         flow.flowData.unicastRoutingFlowEntry.groupID = group_id;
-
-        /* 
-         * Goto Table Instruction: Still need to send here or will drop. 
+        
+        /*
+         * Goto Table Instruction: Still need to send here or will drop.
          * Policy ACL will then do the saved write-actions and send to the
          * L3 unicast group.
          */
         flow.flowData.unicastRoutingFlowEntry.gotoTableId = OFDPA_FLOW_TABLE_ID_ACL_POLICY;
-
+        
         /* Now we're finally ready to add the flow */
         rc = ofdpaFlowAdd(&flow);
         if (rc != OFDPA_E_NONE)
@@ -1345,7 +1528,7 @@ int ofdpa_del_l3_v4_route(u32 ip_dst, u32 netmask, l3_next_hop_id_t l3_next_hop_
         orc_err("Could not find next hop %d. Not deleting route.\r\n", l3_next_hop_id);
         return -1;
     }
-
+    
     ofdpaFlowEntry_t flow;
     OFDPA_ERROR_t rc = ofdpaFlowEntryInit(OFDPA_FLOW_TABLE_ID_UNICAST_ROUTING, &flow);
     if (rc != OFDPA_E_NONE)
@@ -1354,12 +1537,12 @@ int ofdpa_del_l3_v4_route(u32 ip_dst, u32 netmask, l3_next_hop_id_t l3_next_hop_
         return -1;
     } else
     {
-        /* 
+        /*
          * Clear the entire structure to avoid having to set
          * "default" values that we do not care about.
          */
         memset(&(flow.flowData), 0, sizeof(ofdpaUnicastRoutingFlowEntry_t));
-
+        
         /* Matches */
         flow.flowData.unicastRoutingFlowEntry.match_criteria.etherType = 0x0800; /* we assume IPv4 */
         flow.flowData.unicastRoutingFlowEntry.match_criteria.dstIp4 = ip_dst;
@@ -1372,31 +1555,31 @@ int ofdpa_del_l3_v4_route(u32 ip_dst, u32 netmask, l3_next_hop_id_t l3_next_hop_
          */
         uint32_t group_id;
         uint32_t group_type = (uint32_t) OFDPA_GROUP_ENTRY_TYPE_L3_UNICAST;
-    
+        
         rc = ofdpaGroupTypeSet(&group_id, group_type); /* encodes type in ID */
         if (rc != OFDPA_E_NONE)
         {
             orc_err("Failed to set L3 unicast group type for masked-match route. rc=%d\r\n", rc);
             return -1;
         }
-
+        
         rc = ofdpaGroupIndexSet(&group_id, next_hop->id); /* encodes index (next hop ID) in ID */
         if (rc != OFDPA_E_NONE)
         {
             orc_err("Failed to set L3 unicast group index/ID for masked-match route. rc=%d\r\n", rc);
             return -1;
         }
-
+        
         /* Write Actions Instruction: Group ID should now be correctly set */
         flow.flowData.unicastRoutingFlowEntry.groupID = group_id;
-
-        /* 
-         * Goto Table Instruction: Still need to send here or will drop. 
+        
+        /*
+         * Goto Table Instruction: Still need to send here or will drop.
          * Policy ACL will then do the saved write-actions and send to the
          * L3 unicast group.
          */
         flow.flowData.unicastRoutingFlowEntry.gotoTableId = OFDPA_FLOW_TABLE_ID_ACL_POLICY;
-
+        
         /* Now we're finally ready to delete the flow */
         rc = ofdpaFlowDelete(&flow);
         if (rc != OFDPA_E_NONE)
@@ -1452,7 +1635,7 @@ int get_num_ofdpa_ports() {
      */
     uint32_t currPort = 0;
     uint32_t nextPort = 0;
-
+    
     int ports = 0;
     OFDPA_ERROR_t rc;
     
@@ -1475,7 +1658,7 @@ int get_num_ofdpa_ports() {
         }
     }
     while (rc == OFDPA_E_NONE);
-
+    
     orc_debug("Got %d ports returned from ofdpa\r\n", ports);
     return ports;
 }
@@ -1492,7 +1675,7 @@ void * port_rx_monitor(void * args) {
     }
     while(1) {
         ofdpaPktReceive(NULL /* no timeout -- block */, pkt);
-
+        
         /* We have a packet if we get here */
         sem_wait(&rx_lock);
         int i;
@@ -1506,11 +1689,11 @@ void * port_rx_monitor(void * args) {
             if (ofdpa_ports[i] != NULL &&
                 ofdpa_ports[i]->port.index == pkt->inPortNum &&
                 ofdpa_ports[i]->rx > 0
-               )
+                )
             {
                 int rc = write(ofdpa_ports[i]->port.fd, pkt->pktData.pstart, pkt->pktData.size);
                 orc_debug("Writing packet out port %d\r\n", ofdpa_ports[i]->port.index);
-
+                
                 if (rc < 0)
                 {
                     orc_err("Write to FD failed during packet RX\r\n");
@@ -1527,7 +1710,7 @@ void * port_rx_monitor(void * args) {
                 orc_trace("Not sending packet out for port %d. RX flag set to %d\r\n", ofdpa_ports[i]->port.index, ofdpa_ports[i]->rx);
             }
         }
-
+        
         sem_post(&rx_lock);
     }
     /* Don't forget to free the packet we malloced -- we can do this after write() */
@@ -1721,12 +1904,12 @@ uint16_t compute_vlan_id(uint32_t port) {
 l3_intf_id_t generate_l3_intf_id() {
     static l3_intf_id_t l3_intf_id; /* initially 0 */
     l3_intf_id_t tmp;
-
+    
     sem_wait(&l3_intf_id_lock);
     l3_intf_id = l3_intf_id + 1;
     tmp = l3_intf_id; /* store to thread/process local copy so that we can unlock and know what we're returning */
     sem_post(&l3_intf_id_lock);
-
+    
     orc_trace("Generated unique l3_intf_id_t of %d\r\n", tmp);
     return tmp;
 }
@@ -1737,12 +1920,168 @@ l3_intf_id_t generate_l3_intf_id() {
 l3_next_hop_id_t generate_l3_next_hop_id() {
     static l3_next_hop_id_t next_hop_id; /* initially 0 */
     l3_next_hop_id_t tmp;
-
+    
     sem_wait(&next_hop_id_lock);
     next_hop_id = next_hop_id + 1;
     tmp = next_hop_id; /* store to thread/process local copy so that we can unlock and know what we're returning */
     sem_post(&next_hop_id_lock);
-
+    
     orc_trace("Generated unique l3_next_hop_id_t of %d\r\n", tmp);
     return tmp;
+}
+
+/******
+ * Clear a specific flow table
+ * @return +1 for success; -1 for error
+ */
+int clear_ofdpa_flow_table(OFDPA_FLOW_TABLE_ID_t table_id)
+{
+    OFDPA_ERROR_t rc;
+    ofdpaFlowEntry_t currentFlow;
+    ofdpaFlowEntry_t nextFlow;
+    memset(&nextFlow, 0, sizeof(ofdpaFlowEntry_t));
+    memset(&currentFlow, 0, sizeof(ofdpaFlowEntry_t));
+    
+    currentFlow.tableId = table_id;
+    
+    while (1)
+    {
+        rc = ofdpaFlowNextGet(&currentFlow, &nextFlow);
+        if (rc != OFDPA_E_NONE)
+        {
+            orc_warn("Reached end of flow table. No more flows to delete in table %d.\r\n", table_id);
+            break;
+        }
+        
+        memcpy(&currentFlow, &nextFlow, sizeof(ofdpaFlowEntry_t));
+        
+        rc = ofdpaFlowDelete(&currentFlow);
+        if (rc != OFDPA_E_NONE)
+        {
+            orc_debug("Failed to delete flow from table %d. rc=%d\r\n", table_id, rc);
+            return -1;
+        }
+        else {
+            orc_warn("Deleted flow from table %d\r\n", table_id);
+        }
+    }
+    
+    return 1; /* positive 1 is success */
+}
+
+/******
+ * Delete all flows and groups
+ */
+int clear_ofdpa_tables() {
+    OFDPA_ERROR_t rc;
+    uint32_t group_id = 0;
+    
+    if (!clear_ofdpa_flow_table(OFDPA_FLOW_TABLE_ID_INGRESS_PORT)
+        || !clear_ofdpa_flow_table(OFDPA_FLOW_TABLE_ID_PORT_DSCP_TRUST)
+        || !clear_ofdpa_flow_table(OFDPA_FLOW_TABLE_ID_PORT_PCP_TRUST)
+        || !clear_ofdpa_flow_table(OFDPA_FLOW_TABLE_ID_TUNNEL_DSCP_TRUST)
+        || !clear_ofdpa_flow_table(OFDPA_FLOW_TABLE_ID_TUNNEL_PCP_TRUST)
+        || !clear_ofdpa_flow_table(OFDPA_FLOW_TABLE_ID_VLAN)
+        || !clear_ofdpa_flow_table(OFDPA_FLOW_TABLE_ID_VLAN_1)
+        || !clear_ofdpa_flow_table(OFDPA_FLOW_TABLE_ID_MAINTENANCE_POINT)
+        || !clear_ofdpa_flow_table(OFDPA_FLOW_TABLE_ID_MPLS_L2_PORT)
+        || !clear_ofdpa_flow_table(OFDPA_FLOW_TABLE_ID_MPLS_DSCP_TRUST)
+        || !clear_ofdpa_flow_table(OFDPA_FLOW_TABLE_ID_MPLS_PCP_TRUST)
+        || !clear_ofdpa_flow_table(OFDPA_FLOW_TABLE_ID_TERMINATION_MAC)
+        || !clear_ofdpa_flow_table(OFDPA_FLOW_TABLE_ID_MPLS_0)
+        || !clear_ofdpa_flow_table(OFDPA_FLOW_TABLE_ID_MPLS_1)
+        || !clear_ofdpa_flow_table(OFDPA_FLOW_TABLE_ID_MPLS_2)
+        || !clear_ofdpa_flow_table(OFDPA_FLOW_TABLE_ID_MPLS_MAINTENANCE_POINT)
+        || !clear_ofdpa_flow_table(OFDPA_FLOW_TABLE_ID_BFD)
+        || !clear_ofdpa_flow_table(OFDPA_FLOW_TABLE_ID_UNICAST_ROUTING)
+        || !clear_ofdpa_flow_table(OFDPA_FLOW_TABLE_ID_MULTICAST_ROUTING)
+        || !clear_ofdpa_flow_table(OFDPA_FLOW_TABLE_ID_BRIDGING)
+        || !clear_ofdpa_flow_table(OFDPA_FLOW_TABLE_ID_ACL_POLICY)
+        || !clear_ofdpa_flow_table(OFDPA_FLOW_TABLE_ID_EGRESS_VLAN)
+        || !clear_ofdpa_flow_table(OFDPA_FLOW_TABLE_ID_EGRESS_VLAN_1)
+        || !clear_ofdpa_flow_table(OFDPA_FLOW_TABLE_ID_EGRESS_MAINTENANCE_POINT)
+        || !clear_ofdpa_flow_table(OFDPA_FLOW_TABLE_ID_L2_INTF_DSCP_REMARK)
+        || !clear_ofdpa_flow_table(OFDPA_FLOW_TABLE_ID_MPLS_QOS)
+        || !clear_ofdpa_flow_table(OFDPA_FLOW_TABLE_ID_MPLS_VPN_LBL_EXP_REMARK)
+        || !clear_ofdpa_flow_table(OFDPA_FLOW_TABLE_ID_MPLS_VPN_LBL_8021P_PRI_REMARK)
+        || !clear_ofdpa_flow_table(OFDPA_FLOW_TABLE_ID_MPLS_TUNNEL_LBL_EXP_REMARK)
+        || !clear_ofdpa_flow_table(OFDPA_FLOW_TABLE_ID_MPLS_TUNNEL_LBL_8021P_PRI_REMARK))
+    {
+        return -1;
+    }
+    
+    /* 
+     * Remove all L3 groups first, since they depend on L2 groups,
+     * and we cannot leave behind a reference to a group that no
+     * longer exists.
+     */
+    while (1)
+    {
+        ofdpaGroupEntry_t group;
+        rc = ofdpaGroupTypeNextGet(group_id, OFDPA_GROUP_ENTRY_TYPE_L3_UNICAST, &group);
+        if (rc != OFDPA_E_NONE)
+        {
+            orc_warn("Reached end of L3 unicast group table. No more groups to delete after %d.\r\n", group_id);
+            break;
+        }
+        
+        group_id = group.groupId;
+        
+        rc = ofdpaGroupBucketsDeleteAll(group_id);
+        if (rc != OFDPA_E_NONE)
+        {
+            orc_debug("Failed to delete L3 unicast group %d buckets. rc=%d\r\n", group_id, rc);
+            return -1;
+        }
+        else {
+            orc_warn("Deleted buckets for L3 unicast group %d\r\n", group_id);
+        }
+        
+        rc = ofdpaGroupDelete(group_id);
+        if (rc != OFDPA_E_NONE)
+        {
+            orc_err("Failed to delete L3 unicast group %d. rc=%d\r\n", group_id, rc);
+            return -1;
+        }
+        else
+        {
+            orc_warn("Deleted L3 unicast group %d\r\n", group_id);
+        }
+    }
+    
+    group_id = 0; /* Reset ID for next AVL tree traversal */
+    while (1)
+    {
+        ofdpaGroupEntry_t group;
+        rc = ofdpaGroupTypeNextGet(group_id, OFDPA_GROUP_ENTRY_TYPE_L2_INTERFACE, &group);
+        if (rc != OFDPA_E_NONE)
+        {
+            orc_warn("Reached end of L2 interface group table. No more groups to delete after %d.\r\n", group_id);
+            break;
+        }
+        
+        group_id = group.groupId;
+        
+        rc = ofdpaGroupBucketsDeleteAll(group_id);
+        if (rc != OFDPA_E_NONE)
+        {
+            orc_debug("Failed to delete L2 interface group %d buckets. rc=%d\r\n", group_id, rc);
+            return -1;
+        }
+        else {
+            orc_warn("Deleted buckets for L2 interface group %d\r\n", group_id);
+        }
+        
+        rc = ofdpaGroupDelete(group_id);
+        if (rc != OFDPA_E_NONE)
+        {
+            orc_err("Failed to delete L2 interface group %d. rc=%d\r\n", group_id, rc);
+            return -1;
+        }
+        else
+        {
+            orc_warn("Deleted L2 interface group %d\r\n", group_id);
+        }
+    }
+    return 1;
 }
