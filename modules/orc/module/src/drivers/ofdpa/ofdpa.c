@@ -1176,11 +1176,11 @@ int ofdpa_add_l3_v4_next_hop(port_t * port, l3_intf_id_t l3_intf_id, u8 next_hop
         return -1;
     }
     else if (next_hop_hw_mac[0] == 0x00 &&
-        next_hop_hw_mac[1] == 0x00 &&
-        next_hop_hw_mac[2] == 0x00 &&
-        next_hop_hw_mac[3] == 0x00 &&
-        next_hop_hw_mac[4] == 0x00 &&
-        next_hop_hw_mac[5] == 0x00)
+             next_hop_hw_mac[1] == 0x00 &&
+             next_hop_hw_mac[2] == 0x00 &&
+             next_hop_hw_mac[3] == 0x00 &&
+             next_hop_hw_mac[4] == 0x00 &&
+             next_hop_hw_mac[5] == 0x00)
     {
         orc_err("Received invalid zero MAC %s as next hop. Expected unicast\r\n", mac);
         return -1;
@@ -1500,13 +1500,20 @@ int ofdpa_del_l3_v4_next_hop(l3_next_hop_id_t l3_next_hop_id) {
  */
 int ofdpa_add_l3_v4_route(u32 ip_dst, u32 netmask, l3_next_hop_id_t l3_next_hop_id) {
     ofdpa_next_hop_t * next_hop = get_next_hop(l3_next_hop_id);
-    if (next_hop == NULL)
+    
+    if (next_hop == NULL && l3_next_hop_id == NEXT_HOP_KERNEL)
+    {
+        orc_warn("Adding route with next hop %d to kernel.\r\n", l3_next_hop_id);
+    }
+    else if (next_hop == NULL)
     {
         orc_err("Could not find next hop %d. Not adding route.\r\n", l3_next_hop_id);
         return -1;
     }
-    
-    orc_warn("Found next hop %d. Proceeding to add route\r\n", next_hop->id);
+    else
+    {
+        orc_warn("Found next hop %d. Proceeding to add route\r\n", next_hop->id);
+    }
     
     ofdpaFlowEntry_t flow;
     OFDPA_ERROR_t rc = ofdpaFlowEntryInit(OFDPA_FLOW_TABLE_ID_UNICAST_ROUTING, &flow);
@@ -1533,24 +1540,32 @@ int ofdpa_add_l3_v4_route(u32 ip_dst, u32 netmask, l3_next_hop_id_t l3_next_hop_
          * The L3 group ID is defined by merely the group type + next hop ID.
          */
         uint32_t group_id;
-        uint32_t group_type = (uint32_t) OFDPA_GROUP_ENTRY_TYPE_L3_UNICAST;
-        
-        rc = ofdpaGroupTypeSet(&group_id, group_type); /* encodes type in ID */
-        if (rc != OFDPA_E_NONE)
+        if (next_hop != NULL)
         {
-            orc_err("Failed to set L3 unicast group type for masked-match route. rc=%d\r\n", rc);
-            return -1;
+            uint32_t group_type = (uint32_t) OFDPA_GROUP_ENTRY_TYPE_L3_UNICAST;
+            
+            rc = ofdpaGroupTypeSet(&group_id, group_type); /* encodes type in ID */
+            if (rc != OFDPA_E_NONE)
+            {
+                orc_err("Failed to set L3 unicast group type for masked-match route. rc=%d\r\n", rc);
+                return -1;
+            }
+            
+            rc = ofdpaGroupIndexSet(&group_id, next_hop->id); /* encodes index (next hop ID) in ID */
+            if (rc != OFDPA_E_NONE)
+            {
+                orc_err("Failed to set L3 unicast group index/ID for masked-match route. rc=%d\r\n", rc);
+                return -1;
+            }
+            
+            /* Write Actions Instruction: Group ID should now be correctly set */
+            flow.flowData.unicastRoutingFlowEntry.groupID = group_id;
         }
-        
-        rc = ofdpaGroupIndexSet(&group_id, next_hop->id); /* encodes index (next hop ID) in ID */
-        if (rc != OFDPA_E_NONE)
+        else
         {
-            orc_err("Failed to set L3 unicast group index/ID for masked-match route. rc=%d\r\n", rc);
-            return -1;
+            orc_debug("Using default next hop L3 unicast group for kernel-bound route\r\n");
+            flow.flowData.unicastRoutingFlowEntry.groupID = default_next_hop_group_id;
         }
-        
-        /* Write Actions Instruction: Group ID should now be correctly set */
-        flow.flowData.unicastRoutingFlowEntry.groupID = group_id;
         
         /*
          * Goto Table Instruction: Still need to send here or will drop.
@@ -1570,7 +1585,52 @@ int ofdpa_add_l3_v4_route(u32 ip_dst, u32 netmask, l3_next_hop_id_t l3_next_hop_
             orc_err("Failed to push unicast routing flow for masked-match route. rc=%d\r\n", rc);
             return -1;
         }
+        orc_warn("Added unicast routing flow for masked-match route\r\n");
     }
+    
+    if (next_hop == NULL)
+    {
+        /* Do policy ACL if we need to reroute to kernel (from bogus group) */
+        rc = ofdpaFlowEntryInit(OFDPA_FLOW_TABLE_ID_ACL_POLICY, &flow);
+        if (rc != OFDPA_E_NONE)
+        {
+            orc_err("Failed to initialize policy ACL flow. rc=%d\r\n", rc);
+            return -1;
+        } else
+        {
+            /*
+             * Clear the entire structure to avoid having to set
+             * "default" values that we do not care about.
+             */
+            memset(&(flow.flowData), 0, sizeof(ofdpaPolicyAclFlowEntry_t));
+            
+            /* Matches -- no MAC address; IPv4 w/mask */
+            flow.flowData.policyAclFlowEntry.match_criteria.inPort = OFDPA_PORT_TYPE_PHYSICAL; /* Must explicitly specify ANY physical port + type_mask */
+            flow.flowData.policyAclFlowEntry.match_criteria.inPortMask = OFDPA_INPORT_TYPE_MASK;
+            flow.flowData.policyAclFlowEntry.match_criteria.etherType = 0x0800; /* we assume IPv4 */
+            flow.flowData.policyAclFlowEntry.match_criteria.etherTypeMask = OFDPA_ETHERTYPE_EXACT_MASK;
+            flow.flowData.policyAclFlowEntry.match_criteria.destIp4 = ip_dst;
+            flow.flowData.policyAclFlowEntry.match_criteria.destIp4Mask = netmask;
+            
+            /* Apply Actions Instruction */
+            flow.flowData.policyAclFlowEntry.outputPort = OFDPA_PORT_CONTROLLER; /* punt up to ORC (will pass into RX thread) */
+            
+            /* Now we're finally ready to add the flow */
+            rc = ofdpaFlowAdd(&flow);
+            if (rc == OFDPA_E_EXISTS)
+            {
+                orc_warn("Policy ACL flow for masked-match, kernel-bound route already exists\r\n");
+            }
+            else if (rc != OFDPA_E_NONE)
+            {
+                orc_err("Failed to add policy ACL flow for masked-match, kernel-bound route. rc=%d\r\n", rc);
+                return -1;
+            }
+            orc_warn("Added policy ACL flow for masked-match, kernel-bound route\r\n");
+        }
+
+    }
+    
     return 0;
 }
 
@@ -1820,7 +1880,7 @@ ofdpa_interface_t * get_interface(l3_intf_id_t id) {
             return ofdpa_interfaces[i];
         }
     }
-    orc_err("Could not find interface %d to retrieve\r\n", id);
+    orc_warn("Could not find interface %d to retrieve\r\n", id);
     return NULL;
 }
 
@@ -1839,7 +1899,7 @@ void del_interface(l3_intf_id_t id) {
             return;
         }
     }
-    orc_err("Could not find interface %d to remove\r\n", id);
+    orc_warn("Could not find interface %d to remove\r\n", id);
     return;
 }
 
@@ -1906,7 +1966,7 @@ ofdpa_next_hop_t * get_next_hop(l3_next_hop_id_t id) {
             return ofdpa_next_hops[i];
         }
     }
-    orc_err("Could not find next hop %d to retrieve\r\n", id);
+    orc_warn("Could not find next hop %d to retrieve\r\n", id);
     return NULL;
 }
 
@@ -1927,7 +1987,7 @@ void del_next_hop(l3_next_hop_id_t id) {
             return;
         }
     }
-    orc_err("Could not find next hop %d to remove\r\n", id);
+    orc_warn("Could not find next hop %d to remove\r\n", id);
     return;
 }
 
@@ -2067,7 +2127,7 @@ int clear_ofdpa_tables() {
         return -1;
     }
     
-    /* 
+    /*
      * Remove all L3 groups first, since they depend on L2 groups,
      * and we cannot leave behind a reference to a group that no
      * longer exists.
