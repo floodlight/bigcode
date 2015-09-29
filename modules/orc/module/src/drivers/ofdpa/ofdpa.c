@@ -2287,7 +2287,7 @@ int clear_ofdpa_tables() {
         rc = ofdpaGroupTypeNextGet(group_id, OFDPA_GROUP_ENTRY_TYPE_L3_UNICAST, &group);
         if (rc != OFDPA_E_NONE)
         {
-            orc_warn("Reached end of L3 unicast group table. No more groups to delete after %d.\r\n", group_id);
+            orc_warn("Reached end of L3 unicast group table. No more groups to delete after %#010x.\r\n", group_id);
             break;
         }
         
@@ -2296,22 +2296,22 @@ int clear_ofdpa_tables() {
         rc = ofdpaGroupBucketsDeleteAll(group_id);
         if (rc != OFDPA_E_NONE)
         {
-            orc_debug("Failed to delete L3 unicast group %d buckets. rc=%d\r\n", group_id, rc);
+            orc_debug("Failed to delete L3 unicast group %#010x buckets. rc=%d\r\n", group_id, rc);
             return -1;
         }
         else {
-            orc_warn("Deleted buckets for L3 unicast group %d\r\n", group_id);
+            orc_warn("Deleted buckets for L3 unicast group %#010x\r\n", group_id);
         }
         
         rc = ofdpaGroupDelete(group_id);
         if (rc != OFDPA_E_NONE)
         {
-            orc_err("Failed to delete L3 unicast group %d. rc=%d\r\n", group_id, rc);
+            orc_err("Failed to delete L3 unicast group %#010x. rc=%d\r\n", group_id, rc);
             return -1;
         }
         else
         {
-            orc_warn("Deleted L3 unicast group %d\r\n", group_id);
+            orc_warn("Deleted L3 unicast group %#010x\r\n", group_id);
         }
     }
     
@@ -2322,7 +2322,7 @@ int clear_ofdpa_tables() {
         rc = ofdpaGroupTypeNextGet(group_id, OFDPA_GROUP_ENTRY_TYPE_L2_INTERFACE, &group);
         if (rc != OFDPA_E_NONE)
         {
-            orc_warn("Reached end of L2 interface group table. No more groups to delete after %d.\r\n", group_id);
+            orc_warn("Reached end of L2 interface group table. No more groups to delete after %#010x.\r\n", group_id);
             break;
         }
         
@@ -2331,22 +2331,22 @@ int clear_ofdpa_tables() {
         rc = ofdpaGroupBucketsDeleteAll(group_id);
         if (rc != OFDPA_E_NONE)
         {
-            orc_debug("Failed to delete L2 interface group %d buckets. rc=%d\r\n", group_id, rc);
+            orc_debug("Failed to delete L2 interface group %#010x buckets. rc=%d\r\n", group_id, rc);
             return -1;
         }
         else {
-            orc_warn("Deleted buckets for L2 interface group %d\r\n", group_id);
+            orc_warn("Deleted buckets for L2 interface group %#010x\r\n", group_id);
         }
         
         rc = ofdpaGroupDelete(group_id);
         if (rc != OFDPA_E_NONE)
         {
-            orc_err("Failed to delete L2 interface group %d. rc=%d\r\n", group_id, rc);
+            orc_err("Failed to delete L2 interface group %#010x. rc=%d\r\n", group_id, rc);
             return -1;
         }
         else
         {
-            orc_warn("Deleted L2 interface group %d\r\n", group_id);
+            orc_warn("Deleted L2 interface group %#010x\r\n", group_id);
         }
     }
     return 1;
