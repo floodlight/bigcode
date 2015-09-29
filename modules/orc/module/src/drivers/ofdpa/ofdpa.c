@@ -1425,11 +1425,21 @@ int ofdpa_add_l3_v4_next_hop(port_t * port, l3_intf_id_t l3_intf_id, u8 next_hop
  */
 int ofdpa_del_l3_v4_next_hop(l3_next_hop_id_t l3_next_hop_id) {
     ofdpa_next_hop_t * next_hop = get_next_hop(l3_next_hop_id);
-    if (next_hop == NULL)
+    if (next_hop == NULL && l3_next_hop_id == NEXT_HOP_KERNEL)
     {
-        orc_err("Could not lookup next hop %d for removal.\r\n", l3_next_hop_id);
+        orc_warn("Ignoring deletion of next hop %d to kernel.\r\n", l3_next_hop_id);
+        return 0;
+    }
+    else if (next_hop == NULL)
+    {
+        orc_err("Could not find next hop %d. Not deleting next hop.\r\n", l3_next_hop_id);
         return -1;
     }
+    else
+    {
+        orc_warn("Found next hop %d. Proceeding to delete it\r\n", next_hop->id);
+    }
+
     
     port_t * port = &(next_hop->port->port);
     
@@ -1851,7 +1861,7 @@ int ofdpa_del_l3_v4_route(u32 ip_dst, u32 netmask, l3_next_hop_id_t l3_next_hop_
  * ofdpa_log_debug_info
  */
 void ofdpa_log_debug_info() {
-    orc_warn("Setting debug level\r\n");
+    orc_warn("Setting debug level\r\n"); //TODO
     ofdpaDebugLvl(3);
     return;
 }
