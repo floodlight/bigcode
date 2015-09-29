@@ -988,10 +988,18 @@ int ofdpa_del_l3_v4_interface(port_t * port, l3_intf_id_t l3_intf_id) {
         
         /* Now we're finally ready to add the flow */
         rc = ofdpaFlowDelete(&flow);
-        if (rc != OFDPA_E_NONE)
+        if (rc == OFDPA_E_NOT_FOUND || rc == OFDPA_E_EMPTY)
+        {
+            orc_warn("VLAN flow not found\r\n");
+        }
+        else if (rc != OFDPA_E_NONE)
         {
             orc_err("Failed to delete VLAN flow. rc=%d\r\n", rc);
             return -1;
+        }
+        else
+        {
+            orc_warn("VLAN flow deleted\r\n");
         }
     }
     
@@ -1021,10 +1029,18 @@ int ofdpa_del_l3_v4_interface(port_t * port, l3_intf_id_t l3_intf_id) {
         
         /* Now we're finally ready to add the flow */
         rc = ofdpaFlowDelete(&flow);
-        if (rc != OFDPA_E_NONE)
+        if (rc == OFDPA_E_NOT_FOUND || rc == OFDPA_E_EMPTY)
+        {
+            orc_warn("Termination MAC flow not found\r\n");
+        }
+        else if (rc != OFDPA_E_NONE)
         {
             orc_err("Failed to delete termination MAC flow. rc=%d\r\n", rc);
             return -1;
+        }
+        else
+        {
+            orc_warn("Termination MAC flow deleted\r\n");
         }
     }
     
@@ -1055,10 +1071,18 @@ int ofdpa_del_l3_v4_interface(port_t * port, l3_intf_id_t l3_intf_id) {
         
         /* Now we're finally ready to add the flow */
         rc = ofdpaFlowDelete(&flow);
-        if (rc != OFDPA_E_NONE)
+        if (rc == OFDPA_E_NOT_FOUND || rc == OFDPA_E_EMPTY)
+        {
+            orc_warn("Unicast routing flow not found\r\n");
+        }
+        else if (rc != OFDPA_E_NONE)
         {
             orc_err("Failed to delete unicast routing flow. rc=%d\r\n", rc);
             return -1;
+        }
+        else
+        {
+            orc_warn("Unicast routing flow deleted\r\n");
         }
     }
     
@@ -1091,10 +1115,18 @@ int ofdpa_del_l3_v4_interface(port_t * port, l3_intf_id_t l3_intf_id) {
         
         /* Now we're finally ready to add the flow */
         rc = ofdpaFlowDelete(&flow);
-        if (rc != OFDPA_E_NONE)
+        if (rc == OFDPA_E_NOT_FOUND || rc == OFDPA_E_EMPTY)
+        {
+            orc_warn("Policy ACL flow not found\r\n");
+        }
+        else if (rc != OFDPA_E_NONE)
         {
             orc_err("Failed to delete policy ACL flow. rc=%d\r\n", rc);
             return -1;
+        }
+        else
+        {
+            orc_warn("Policy ACL flow deleted\r\n");
         }
     }
     
@@ -1126,10 +1158,18 @@ int ofdpa_del_l3_v4_interface(port_t * port, l3_intf_id_t l3_intf_id) {
         
         /* Now we're finally ready to add the flow */
         rc = ofdpaFlowDelete(&flow);
-        if (rc != OFDPA_E_NONE)
+        if (rc == OFDPA_E_NOT_FOUND || rc == OFDPA_E_EMPTY)
+        {
+            orc_warn("Bridging flow not found\r\n");
+        }
+        else if (rc != OFDPA_E_NONE)
         {
             orc_err("Failed to delete bridging flow. rc=%d\r\n", rc);
             return -1;
+        }
+        else
+        {
+            orc_warn("Bridging flow deleted\r\n");
         }
     }
     
@@ -1420,20 +1460,34 @@ int ofdpa_del_l3_v4_next_hop(l3_next_hop_id_t l3_next_hop_id) {
     }
     
     rc = ofdpaGroupBucketsDeleteAll(group_id);
-    if (rc != OFDPA_E_NONE)
+    if (rc == OFDPA_E_NOT_FOUND || rc == OFDPA_E_EMPTY)
     {
-        orc_err("Failed to delete L3 unicast bucket. rc=%d\r\n", rc);
+        orc_warn("L3 unicast group %#010x not found\r\n", group_id);
+    }
+    else if (rc != OFDPA_E_NONE)
+    {
+        orc_err("Failed to delete L3 unicast group %#010x buckets. rc=%d\r\n", group_id, rc);
         return -1;
     }
-    orc_warn("L3 unicast group %d bucket deleted from port %d, VLAN %d\r\n", group_id, port_id, vlan_id);
+    else
+    {
+        orc_warn("L3 unicast group %#010x bucket deleted from port %d, VLAN %d\r\n", group_id, port_id, vlan_id);
+    }
     
     rc = ofdpaGroupDelete(group_id);
-    if (rc != OFDPA_E_NONE)
+    if (rc == OFDPA_E_NOT_FOUND || rc == OFDPA_E_EMPTY)
     {
-        orc_err("Failed to delete L3 unicast group. rc=%d\r\n", rc);
+        orc_warn("L3 unicast group %#010x not found\r\n", group_id);
+    }
+    else if (rc != OFDPA_E_NONE)
+    {
+        orc_err("Failed to delete L3 unicast group %#010x. rc=%d\r\n", group_id, rc);
         return -1;
     }
-    orc_warn("L3 unicast group entry %d deleted.\r\n", group_id);
+    else
+    {
+        orc_warn("L3 unicast group entry %#010x deleted.\r\n", group_id);
+    }
     
     /*
      * Now, we can do the L2 Interface group.
@@ -1463,20 +1517,34 @@ int ofdpa_del_l3_v4_next_hop(l3_next_hop_id_t l3_next_hop_id) {
     }
     
     rc = ofdpaGroupBucketsDeleteAll(group_id);
-    if (rc != OFDPA_E_NONE)
+    if (rc == OFDPA_E_NOT_FOUND || rc == OFDPA_E_EMPTY)
     {
-        orc_err("Failed to delete L2 interface group buckets. rc=%d\r\n", rc);
+        orc_warn("L2 interface group %#010x buckets not found\r\n", group_id);
+    }
+    else if (rc != OFDPA_E_NONE)
+    {
+        orc_err("Failed to delete L2 interface group %#010x buckets. rc=%d\r\n", group_id, rc);
         return -1;
     }
-    orc_warn("L2 interface group %d bucket delete from port %d\r\n", group_id, port_id);
+    else
+    {
+        orc_warn("L2 interface group %#010x buckets deleted from port %d\r\n", group_id, port_id);
+    }
     
     rc = ofdpaGroupDelete(group_id);
-    if (rc != OFDPA_E_NONE)
+    if (rc == OFDPA_E_NOT_FOUND || rc == OFDPA_E_EMPTY)
     {
-        orc_err("Failed to delete L2 interface group. rc=%d\r\n", rc);
+        orc_warn("L2 interface group %#010x not found\r\n", group_id);
+    }
+    else if (rc != OFDPA_E_NONE)
+    {
+        orc_err("Failed to delete L2 interface group %#010x. rc=%d\r\n", group_id, rc);
         return -1;
     }
-    orc_warn("L2 interface group %d deleted\r\n", group_id);
+    else
+    {
+        orc_warn("L2 interface group %#010x deleted\r\n", group_id);
+    }
     
     /*
      * Remove from our internal list of next hops.
@@ -1585,7 +1653,10 @@ int ofdpa_add_l3_v4_route(u32 ip_dst, u32 netmask, l3_next_hop_id_t l3_next_hop_
             orc_err("Failed to push unicast routing flow for masked-match route. rc=%d\r\n", rc);
             return -1;
         }
-        orc_warn("Added unicast routing flow for masked-match route\r\n");
+        else
+        {
+            orc_warn("Added unicast routing flow for masked-match route\r\n");
+        }
     }
     
     if (next_hop == NULL)
@@ -1626,7 +1697,9 @@ int ofdpa_add_l3_v4_route(u32 ip_dst, u32 netmask, l3_next_hop_id_t l3_next_hop_
                 orc_err("Failed to add policy ACL flow for masked-match, kernel-bound route. rc=%d\r\n", rc);
                 return -1;
             }
-            orc_warn("Added policy ACL flow for masked-match, kernel-bound route\r\n");
+            {
+                orc_warn("Added policy ACL flow for masked-match, kernel-bound route\r\n");
+            }
         }
 
     }
@@ -1640,10 +1713,18 @@ int ofdpa_add_l3_v4_route(u32 ip_dst, u32 netmask, l3_next_hop_id_t l3_next_hop_
  */
 int ofdpa_del_l3_v4_route(u32 ip_dst, u32 netmask, l3_next_hop_id_t l3_next_hop_id) {
     ofdpa_next_hop_t * next_hop = get_next_hop(l3_next_hop_id);
-    if (next_hop == NULL)
+    if (next_hop == NULL && l3_next_hop_id == NEXT_HOP_KERNEL)
+    {
+        orc_warn("Deleting route with next hop %d to kernel.\r\n", l3_next_hop_id);
+    }
+    else if (next_hop == NULL)
     {
         orc_err("Could not find next hop %d. Not deleting route.\r\n", l3_next_hop_id);
         return -1;
+    }
+    else
+    {
+        orc_warn("Found next hop %d. Proceeding to delete route\r\n", next_hop->id);
     }
     
     ofdpaFlowEntry_t flow;
@@ -1665,31 +1746,34 @@ int ofdpa_del_l3_v4_route(u32 ip_dst, u32 netmask, l3_next_hop_id_t l3_next_hop_
         flow.flowData.unicastRoutingFlowEntry.match_criteria.dstIp4 = ip_dst;
         flow.flowData.unicastRoutingFlowEntry.match_criteria.dstIp4Mask = netmask; /* exact IPv4 match */
         
-        /*
-         * Compute the correct L3 unicast group ID and use in write-actions.
-         *
-         * The L3 group ID is defined by merely the group type + next hop ID.
-         */
         uint32_t group_id;
-        uint32_t group_type = (uint32_t) OFDPA_GROUP_ENTRY_TYPE_L3_UNICAST;
-        
-        rc = ofdpaGroupTypeSet(&group_id, group_type); /* encodes type in ID */
-        if (rc != OFDPA_E_NONE)
+        if (next_hop != NULL)
         {
-            orc_err("Failed to set L3 unicast group type for masked-match route. rc=%d\r\n", rc);
-            return -1;
+            uint32_t group_type = (uint32_t) OFDPA_GROUP_ENTRY_TYPE_L3_UNICAST;
+            
+            rc = ofdpaGroupTypeSet(&group_id, group_type); /* encodes type in ID */
+            if (rc != OFDPA_E_NONE)
+            {
+                orc_err("Failed to set L3 unicast group type for masked-match route. rc=%d\r\n", rc);
+                return -1;
+            }
+            
+            rc = ofdpaGroupIndexSet(&group_id, next_hop->id); /* encodes index (next hop ID) in ID */
+            if (rc != OFDPA_E_NONE)
+            {
+                orc_err("Failed to set L3 unicast group index/ID for masked-match route. rc=%d\r\n", rc);
+                return -1;
+            }
+            
+            /* Write Actions Instruction: Group ID should now be correctly set */
+            flow.flowData.unicastRoutingFlowEntry.groupID = group_id;
         }
-        
-        rc = ofdpaGroupIndexSet(&group_id, next_hop->id); /* encodes index (next hop ID) in ID */
-        if (rc != OFDPA_E_NONE)
+        else
         {
-            orc_err("Failed to set L3 unicast group index/ID for masked-match route. rc=%d\r\n", rc);
-            return -1;
+            orc_debug("Using default next hop L3 unicast group for kernel-bound route\r\n");
+            flow.flowData.unicastRoutingFlowEntry.groupID = default_next_hop_group_id;
         }
-        
-        /* Write Actions Instruction: Group ID should now be correctly set */
-        flow.flowData.unicastRoutingFlowEntry.groupID = group_id;
-        
+
         /*
          * Goto Table Instruction: Still need to send here or will drop.
          * Policy ACL will then do the saved write-actions and send to the
@@ -1699,12 +1783,67 @@ int ofdpa_del_l3_v4_route(u32 ip_dst, u32 netmask, l3_next_hop_id_t l3_next_hop_
         
         /* Now we're finally ready to delete the flow */
         rc = ofdpaFlowDelete(&flow);
-        if (rc != OFDPA_E_NONE)
+        if (rc == OFDPA_E_NOT_FOUND || rc == OFDPA_E_EMPTY)
         {
-            orc_err("Failed to delete unicast routing flow for masked-match route. rc=%d\r\n", rc);
+            orc_warn("Unicast routing flow for masked-match, kernel-bound route not found\r\n");
+        }
+        else if (rc != OFDPA_E_NONE)
+        {
+            orc_err("Failed to delete unicast routing flow for masked-match, kernel-bound route. rc=%d\r\n", rc);
             return -1;
         }
+        else
+        {
+            orc_warn("Unicast routing flow for masked-match, kernel-bound route deleted\r\n");
+        }
     }
+    
+    if (next_hop == NULL)
+    {
+        /* Do policy ACL if we need to reroute to kernel (from bogus group) */
+        rc = ofdpaFlowEntryInit(OFDPA_FLOW_TABLE_ID_ACL_POLICY, &flow);
+        if (rc != OFDPA_E_NONE)
+        {
+            orc_err("Failed to initialize policy ACL flow. rc=%d\r\n", rc);
+            return -1;
+        } else
+        {
+            /*
+             * Clear the entire structure to avoid having to set
+             * "default" values that we do not care about.
+             */
+            memset(&(flow.flowData), 0, sizeof(ofdpaPolicyAclFlowEntry_t));
+            
+            /* Matches -- no MAC address; IPv4 w/mask */
+            flow.flowData.policyAclFlowEntry.match_criteria.inPort = OFDPA_PORT_TYPE_PHYSICAL; /* Must explicitly specify ANY physical port + type_mask */
+            flow.flowData.policyAclFlowEntry.match_criteria.inPortMask = OFDPA_INPORT_TYPE_MASK;
+            flow.flowData.policyAclFlowEntry.match_criteria.etherType = 0x0800; /* we assume IPv4 */
+            flow.flowData.policyAclFlowEntry.match_criteria.etherTypeMask = OFDPA_ETHERTYPE_EXACT_MASK;
+            flow.flowData.policyAclFlowEntry.match_criteria.destIp4 = ip_dst;
+            flow.flowData.policyAclFlowEntry.match_criteria.destIp4Mask = netmask;
+            
+            /* Apply Actions Instruction */
+            flow.flowData.policyAclFlowEntry.outputPort = OFDPA_PORT_CONTROLLER; /* punt up to ORC (will pass into RX thread) */
+            
+            /* Now we're finally ready to delete the flow */
+            rc = ofdpaFlowDelete(&flow);
+            if (rc == OFDPA_E_NOT_FOUND || rc == OFDPA_E_EMPTY)
+            {
+                orc_warn("Policy ACL flow for masked-match, kernel-bound route not found\r\n");
+            }
+            else if (rc != OFDPA_E_NONE)
+            {
+                orc_err("Failed to delete policy ACL flow for masked-match, kernel-bound route. rc=%d\r\n", rc);
+                return -1;
+            }
+            else
+            {
+                orc_warn("Deleted policy ACL flow for masked-match, kernel-bound route\r\n");
+            }
+        }
+        
+    }
+    
     return 0;
 }
 
