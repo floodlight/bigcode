@@ -118,6 +118,7 @@ port_t default_next_hop_port;
 ofdpa_port_t default_next_hop_ofdpa_port;
 uint32_t default_next_hop_group_id;
 uint32_t default_interface_group_id;
+uint32_t default_flood_group_id;
 
 /*
  * These are our ports. Global for
@@ -296,7 +297,8 @@ int add_default_next_hop()
     
     /*
      * First do the L2 Interface group, since we need to reference it
-     * in the L3 Unicast group as a bucket.
+     * in the L3 Unicast group as a bucket. We also need it to reference
+     * in L2 Flood.
      */
     port_id = default_next_hop_port.index;
     vlan_id = default_next_hop_port.index; /* Use VLAN 1, which will be unused elsewhere */
@@ -361,6 +363,70 @@ int add_default_next_hop()
         return -1;
     }
     orc_warn("L2 interface group %d bucket added out port %d\r\n", group_id, port_id);
+    
+    /*
+     * Next do the L2 Flood group.
+     * This is used for DLF flows in bridging.
+     */
+    group_type = (uint32_t) OFDPA_GROUP_ENTRY_TYPE_L2_FLOOD;
+    
+    rc = ofdpaGroupTypeSet(&group_id, group_type); /* encodes type in ID */
+    if (rc != OFDPA_E_NONE)
+    {
+        orc_err("Failed to set L2 flood group type. rc=%d\r\n", rc);
+        return -1;
+    }
+    
+    rc = ofdpaGroupVlanSet(&group_id, vlan_id); /* encodes VLAN in ID */
+    if (rc != OFDPA_E_NONE)
+    {
+        orc_err("Failed to set L2 flood group VLAN. rc=%d\r\n", rc);
+        return -1;
+    }
+    
+    rc = ofdpaGroupIndexSet(&group_id, 0);
+    if (rc != OFDPA_E_NONE)
+    {
+        orc_err("Failed to set L2 flood group index. rc=%d\r\n", rc);
+        return -1;
+    }
+    
+    rc = ofdpaGroupEntryInit(group_type, &group);
+    if (rc != OFDPA_E_NONE)
+    {
+        orc_err("Failed to initialize L2 flood group. rc=%d\r\n", rc);
+        return -1;
+    }
+    
+    group.groupId = group_id; /* this is the only thing to set */
+    default_flood_group_id = group_id;
+    rc = ofdpaGroupAdd(&group);
+    if (rc != OFDPA_E_NONE)
+    {
+        orc_err("Failed to push L2 flood group. rc=%d\r\n", rc);
+        return -1;
+    }
+    orc_warn("L2 flood group %d added\r\n", group_id);
+    
+    /* Add the bucket */
+    memset(&group_bucket, 0, sizeof(ofdpaGroupBucketEntry_t));
+    rc = ofdpaGroupBucketEntryInit(group_type, &group_bucket);
+    if (rc != OFDPA_E_NONE)
+    {
+        orc_err("Failed to initialize L2 flood bucket. rc=%d\r\n", rc);
+        return -1;
+    }
+    
+    group_bucket.groupId = group_id;
+    group_bucket.bucketIndex = 0; /* the only bucket, so 0 */
+    group_bucket.bucketData.l2Flood.outputPort = port_id; /* union, just like the flows; only need output port here */
+    
+    rc = ofdpaGroupBucketEntryAdd(&group_bucket);
+    if (rc != OFDPA_E_NONE)
+    {
+        orc_err("Failed to add L2 interface bucket. rc=%d\r\n", rc);
+        return -1;
+    }
     
     /*
      * Now, we can do the L3 Unicast group.
@@ -911,6 +977,48 @@ int ofdpa_add_or_update_l3_v4_interface(port_t * port, u8 hw_mac[6], int mtu, u3
         }
     }
     
+    rc = ofdpaFlowEntryInit(OFDPA_FLOW_TABLE_ID_BRIDGING, &flow);
+    if (rc != OFDPA_E_NONE)
+    {
+        orc_err("Failed to initialize DLF bridging flow. rc=%d\r\n", rc);
+        return -1;
+    } else
+    {
+        /*
+         * Clear the entire structure to avoid having to set
+         * "default" values that we do not care about.
+         */
+        memset(&(flow.flowData), 0, sizeof(ofdpaBridgingFlowEntry_t));
+        
+        /* Matches -- only VLAN is exact; fully-masked MAC */
+        memset(&(flow.flowData.bridgingFlowEntry.match_criteria.destMac), 0xff, OFDPA_MAC_ADDR_LEN);
+        memset(&(flow.flowData.bridgingFlowEntry.match_criteria.destMacMask), 0x00, OFDPA_MAC_ADDR_LEN);
+        flow.flowData.bridgingFlowEntry.match_criteria.vlanId = compute_vlan_id(port->index); /* must match on VLAN w/o 'present' bit set */
+        flow.flowData.bridgingFlowEntry.match_criteria.vlanIdMask = 0x0fff;
+        
+        /* Must also supply L2 interface group, even though we won't use it. */
+        flow.flowData.bridgingFlowEntry.groupID = default_flood_group_id;
+        
+        /* Apply Actions Instruction */
+        flow.flowData.bridgingFlowEntry.outputPort = OFDPA_PORT_CONTROLLER; /* punt non-IP packets up to ORC's RX func */
+        
+        /* Now we're finally ready to add the flow */
+        rc = ofdpaFlowAdd(&flow);
+        if (rc == OFDPA_E_EXISTS)
+        {
+            orc_warn("DLF bridging flow already exists for MAC %s, VLAN %d. Continuing\r\n", mac, flow.flowData.bridgingFlowEntry.match_criteria.vlanId);
+        }
+        else if (rc != OFDPA_E_NONE)
+        {
+            orc_err("Failed to push DLF bridging flow for MAC %s, VLAN %d. rc=%d\r\n", mac, flow.flowData.bridgingFlowEntry.match_criteria.vlanId, rc);
+            return -1;
+        }
+        else
+        {
+            orc_warn("Pushed DLF bridging flow for for MAC %s, VLAN %d\r\n", mac, flow.flowData.bridgingFlowEntry.match_criteria.vlanId);
+        }
+    }
+    
     /*
      * If we get here, then all flows should be inserted w/o error
      */
@@ -1280,6 +1388,48 @@ int ofdpa_del_l3_v4_interface(port_t * port, l3_intf_id_t l3_intf_id) {
         else
         {
             orc_warn("Bridging flow deleted\r\n");
+        }
+    }
+    
+    rc = ofdpaFlowEntryInit(OFDPA_FLOW_TABLE_ID_BRIDGING, &flow);
+    if (rc != OFDPA_E_NONE)
+    {
+        orc_err("Failed to initialize DLF bridging flow. rc=%d\r\n", rc);
+        return -1;
+    } else
+    {
+        /*
+         * Clear the entire structure to avoid having to set
+         * "default" values that we do not care about.
+         */
+        memset(&(flow.flowData), 0, sizeof(ofdpaBridgingFlowEntry_t));
+        
+        /* Matches -- only VLAN is exact; fully-masked MAC */
+        memset(&(flow.flowData.bridgingFlowEntry.match_criteria.destMac), 0xff, OFDPA_MAC_ADDR_LEN);
+        memset(&(flow.flowData.bridgingFlowEntry.match_criteria.destMacMask), 0x00, OFDPA_MAC_ADDR_LEN);
+        flow.flowData.bridgingFlowEntry.match_criteria.vlanId = compute_vlan_id(port->index); /* must match on VLAN w/o 'present' bit set */
+        flow.flowData.bridgingFlowEntry.match_criteria.vlanIdMask = 0x0fff;
+        
+        /* Must also supply L2 interface group, even though we won't use it. */
+        flow.flowData.bridgingFlowEntry.groupID = default_flood_group_id;
+        
+        /* Apply Actions Instruction */
+        flow.flowData.bridgingFlowEntry.outputPort = OFDPA_PORT_CONTROLLER; /* punt non-IP packets up to ORC's RX func */
+        
+        /* Now we're finally ready to delete the flow */
+        rc = ofdpaFlowDelete(&flow);
+        if (rc == OFDPA_E_NOT_FOUND || rc == OFDPA_E_EMPTY)
+        {
+            orc_warn("DLF bridging flow not found\r\n");
+        }
+        else if (rc != OFDPA_E_NONE)
+        {
+            orc_err("Failed to delete DLF bridging flow. rc=%d\r\n", rc);
+            return -1;
+        }
+        else
+        {
+            orc_warn("DLF bridging flow deleted\r\n");
         }
     }
     
@@ -2425,7 +2575,49 @@ int clear_ofdpa_tables() {
         }
     }
     
+    /*
+     * Also do the L2 Flood group(s) before L2 Interface.
+     */
     group_id = 0; /* Reset ID for next AVL tree traversal */
+    while (1)
+    {
+        ofdpaGroupEntry_t group;
+        rc = ofdpaGroupTypeNextGet(group_id, OFDPA_GROUP_ENTRY_TYPE_L2_FLOOD, &group);
+        if (rc != OFDPA_E_NONE)
+        {
+            orc_warn("Reached end of L2 flood group table. No more groups to delete after %#010x.\r\n", group_id);
+            break;
+        }
+        
+        group_id = group.groupId;
+        
+        rc = ofdpaGroupBucketsDeleteAll(group_id);
+        if (rc != OFDPA_E_NONE)
+        {
+            orc_debug("Failed to delete L2 flood group %#010x buckets. rc=%d\r\n", group_id, rc);
+            return -1;
+        }
+        else {
+            orc_warn("Deleted buckets for L2 flood group %#010x\r\n", group_id);
+        }
+        
+        rc = ofdpaGroupDelete(group_id);
+        if (rc != OFDPA_E_NONE)
+        {
+            orc_err("Failed to delete L2 flood group %#010x. rc=%d\r\n", group_id, rc);
+            return -1;
+        }
+        else
+        {
+            orc_warn("Deleted L2 flood group %#010x\r\n", group_id);
+        }
+    }
+    
+    /*
+     * All groups that depend on L2 Interface are removed.
+     * Now we can remove L2 Interface groups w/o error.
+     */
+    group_id = 0;
     while (1)
     {
         ofdpaGroupEntry_t group;
