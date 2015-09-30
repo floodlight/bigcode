@@ -52,6 +52,21 @@
 #define CLIENT_NAME "orc client"
 
 /*
+ * VLAN-related info for packet RX
+ */
+#define ETH_HEADER_VLAN_TAG_BYTES 4
+#define ETH_HEADER_BEFORE_VLAN_TAG_BYTES 8
+#define JUMBO_FRAME_BYTES 9300
+
+/*
+ * Wait/block on packet RX
+ */
+typedef struct timeval timeval_t;
+timeval_t rx_wait_time = {
+    .tv_sec = 3
+};
+
+/*
  * Default values for fields we might not
  * care about in a VLAN flow.
  */
@@ -529,7 +544,7 @@ int ofdpa_start_rx(port_t * ports[], int num_ports)
     int i;
     for (i = 0; i < num_ports; i++)
     {
-        orc_trace("Starting RX on port %d\r\n", ports[i]->index);
+        orc_warn("Starting RX on port %d\r\n", ports[i]->index);
         ((ofdpa_port_t *) ports[i])->rx = 1; /* set flag to RX packets on this port */
     }
     
@@ -1522,7 +1537,7 @@ int ofdpa_add_l3_v4_next_hop(port_t * port, l3_intf_id_t l3_intf_id, u8 next_hop
     
     group_bucket.groupId = group_id;
     group_bucket.bucketIndex = 0; /* the only bucket, so 0 */
-    group_bucket.popVlanTag = 1; /* yes, remove the VLAN tag */
+    group_bucket.bucketData.l2Interface.popVlanTag = 1; /* yes, remove the VLAN tag */
     group_bucket.bucketData.l2Interface.outputPort = port_id; /* union, just like the flows; only need output port here */
     
     rc = ofdpaGroupBucketEntryAdd(&group_bucket);
@@ -2128,12 +2143,22 @@ int get_num_ofdpa_ports() {
  */
 void * port_rx_monitor(void * args) {
     ofdpaPacket_t * pkt = malloc(sizeof(ofdpaPacket_t));
-    if (pkt == NULL)
+    char * buf = (char *) malloc(JUMBO_FRAME_BYTES);
+    
+    if (pkt == NULL || buf == NULL)
     {
         orc_fatal("Malloc failed during packet RX\r\n");
     }
     while(1) {
-        ofdpaPktReceive(NULL /* no timeout -- block */, pkt);
+        memset(buf, 0, JUMBO_FRAME_BYTES); //TODO this probably isn't necessary; just changing the size to zero should do it
+        pkt->pktData.pstart = buf;
+        pkt->pktData.size = 0;
+        
+        OFDPA_ERROR_t rc = ofdpaPktReceive(NULL /* no timeout -- block */, pkt);
+        if (rc != OFDPA_E_NONE) {
+            orc_err("Waiting on packet RX returned error rc=%d\r\n", rc);
+            break;
+        }
         
         /* We have a packet if we get here */
         sem_wait(&rx_lock);
@@ -2150,7 +2175,14 @@ void * port_rx_monitor(void * args) {
                 ofdpa_ports[i]->rx > 0
                 )
             {
-                int rc = write(ofdpa_ports[i]->port.fd, pkt->pktData.pstart, pkt->pktData.size);
+                /*
+                 * Remove the VLAN tag from the packet prior to giving to kernel
+                 */
+                memmove(pkt->pktData.pstart + ETH_HEADER_VLAN_TAG_BYTES, pkt->pktData.pstart, ETH_HEADER_BEFORE_VLAN_TAG_BYTES);
+                pkt->pktData.size = pkt->pktData.size - ETH_HEADER_VLAN_TAG_BYTES; /* minus VLAN tag */
+                pkt->pktData.size = pkt->pktData.size - sizeof(uint32_t); /* minus removed CRC */
+                
+                int rc = write(ofdpa_ports[i]->port.fd, pkt->pktData.pstart + ETH_HEADER_VLAN_TAG_BYTES, pkt->pktData.size);
                 orc_debug("Writing packet out port %d\r\n", ofdpa_ports[i]->port.index);
                 
                 if (rc < 0)
@@ -2162,11 +2194,11 @@ void * port_rx_monitor(void * args) {
             } else if (ofdpa_ports[i] == NULL)
             {
                 /* We've reached the last port */
-                orc_trace("Reached last port in rx monitor thread. Index into port list is %d\r\n", i);
+                orc_debug("Reached last port in rx monitor thread. Index into port list is %d\r\n", i);
                 break;
             } /* else keep looping and searching */
             else {
-                orc_trace("Not sending packet out for port %d. RX flag set to %d\r\n", ofdpa_ports[i]->port.index, ofdpa_ports[i]->rx);
+                orc_debug("Not sending packet up to kernel from port %d / index %d. RX flag set to %d.\r\n", pkt->inPortNum, ofdpa_ports[i]->port.index, ofdpa_ports[i]->rx);
             }
         }
         
@@ -2174,6 +2206,8 @@ void * port_rx_monitor(void * args) {
     }
     /* Don't forget to free the packet we malloced -- we can do this after write() */
     free(pkt);
+    free(buf);
+    return NULL;
 }
 
 /******
