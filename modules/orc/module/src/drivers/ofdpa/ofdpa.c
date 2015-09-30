@@ -1364,7 +1364,7 @@ int ofdpa_del_l3_v4_interface(port_t * port, l3_intf_id_t l3_intf_id) {
         flow.flowData.policyAclFlowEntry.outputPort = OFDPA_PORT_CONTROLLER; /* punt ARP packets up to ORC's RX func */
         
         /* Now we're finally ready to add the flow */
-        rc = ofdpaFlowAdd(&flow);
+        rc = ofdpaFlowDelete(&flow);
         if (rc == OFDPA_E_NOT_FOUND || rc == OFDPA_E_EMPTY)
         {
             orc_warn("ARP policy flow not found. Continuing\r\n");
@@ -2183,7 +2183,7 @@ void * port_rx_monitor(void * args) {
                 pkt->pktData.size = pkt->pktData.size - sizeof(uint32_t); /* minus removed CRC */
                 
                 int rc = write(ofdpa_ports[i]->port.fd, pkt->pktData.pstart + ETH_HEADER_VLAN_TAG_BYTES, pkt->pktData.size);
-                orc_debug("Writing packet out port %d\r\n", ofdpa_ports[i]->port.index);
+                orc_debug("Writing packet to kernel from port %d\r\n", ofdpa_ports[i]->port.index);
                 
                 if (rc < 0)
                 {
