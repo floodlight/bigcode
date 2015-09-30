@@ -668,6 +668,54 @@ int ofdpa_add_or_update_l3_v4_interface(port_t * port, u8 hw_mac[6], int mtu, u3
             orc_err("Failed to push VLAN flow. rc=%d\r\n", rc);
             return -1;
         }
+        else
+        {
+            orc_warn("Pushed VLAN flow for port %d with VLAN %d\r\n", flow.flowData.vlanFlowEntry.match_criteria.inPort, flow.flowData.vlanFlowEntry.newVlanId);
+        }
+    }
+    
+    rc = ofdpaFlowEntryInit(OFDPA_FLOW_TABLE_ID_VLAN, &flow);
+    if (rc != OFDPA_E_NONE)
+    {
+        orc_err("Failed to initialize untagged VLAN flow. rc=%d\r\n", rc);
+        return -1;
+    } else
+    {
+        /*
+         * Clear the entire structure to avoid having to set
+         * "default" values that we do not care about.
+         */
+        memset(&(flow.flowData), 0, sizeof(ofdpaVlanFlowEntry_t));
+        
+        /* Matches -- pick up any untagged packets to assign tag */
+        flow.flowData.vlanFlowEntry.match_criteria.inPort = port->index;
+        flow.flowData.vlanFlowEntry.match_criteria.vlanId = 0x0000;
+        flow.flowData.vlanFlowEntry.match_criteria.vlanIdMask = 0x0fff;
+        
+        /* Goto Table Instruction */
+        flow.flowData.vlanFlowEntry.gotoTableId = OFDPA_FLOW_TABLE_ID_TERMINATION_MAC;
+        
+        /* Apply Actions Instruction */
+        flow.flowData.vlanFlowEntry.setVlanIdAction = ACTION;
+        flow.flowData.vlanFlowEntry.newVlanId = compute_vlan_id(port->index);
+        
+        orc_debug("Pushing untagged VLAN flow for port %d with VLAN %d\r\n", flow.flowData.vlanFlowEntry.match_criteria.inPort, flow.flowData.vlanFlowEntry.newVlanId);
+        
+        /* Now we're finally ready to add the flow */
+        rc = ofdpaFlowAdd(&flow);
+        if (rc == OFDPA_E_EXISTS)
+        {
+            orc_warn("Untagged VLAN flow already exists for port %d with VLAN %d. Continuing\r\rn", flow.flowData.vlanFlowEntry.match_criteria.inPort, flow.flowData.vlanFlowEntry.newVlanId);
+        }
+        else if (rc != OFDPA_E_NONE)
+        {
+            orc_err("Failed to push untagged VLAN flow. rc=%d\r\n", rc);
+            return -1;
+        }
+        else
+        {
+            orc_warn("Pushed untagged VLAN flow for port %d with VLAN %d\r\n", flow.flowData.vlanFlowEntry.match_criteria.inPort, flow.flowData.vlanFlowEntry.newVlanId);
+        }
     }
     
     /* Now do the termination MAC flow */
@@ -710,9 +758,14 @@ int ofdpa_add_or_update_l3_v4_interface(port_t * port, u8 hw_mac[6], int mtu, u3
             orc_err("Failed to push termination MAC flow. rc=%d\r\n", rc);
             return -1;
         }
+        else
+        {
+            orc_warn("Pushed Termination MAC flow for port %d with MAC %s\r\n", flow.flowData.terminationMacFlowEntry.match_criteria.inPort, mac);
+        }
     }
     
     /* Now do the unicast routing flow */
+    char str_ip[16];
     rc = ofdpaFlowEntryInit(OFDPA_FLOW_TABLE_ID_UNICAST_ROUTING, &flow);
     if (rc != OFDPA_E_NONE)
     {
@@ -739,26 +792,25 @@ int ofdpa_add_or_update_l3_v4_interface(port_t * port, u8 hw_mac[6], int mtu, u3
         /* Goto Table Instruction */
         flow.flowData.unicastRoutingFlowEntry.gotoTableId = OFDPA_FLOW_TABLE_ID_ACL_POLICY;
         
-        orc_debug("Attempting to push unicast routing flow for IP, %d, %d.%d.%d.%d\r\n", flow.flowData.unicastRoutingFlowEntry.match_criteria.dstIp4,
-                  (flow.flowData.unicastRoutingFlowEntry.match_criteria.dstIp4 >> 24) & 0xff,
-                  (flow.flowData.unicastRoutingFlowEntry.match_criteria.dstIp4 >> 16) & 0xff,
-                  (flow.flowData.unicastRoutingFlowEntry.match_criteria.dstIp4 >> 8) & 0xff,
-                  (flow.flowData.unicastRoutingFlowEntry.match_criteria.dstIp4 >> 0) & 0xff);
+        ipv4_to_str(str_ip, flow.flowData.unicastRoutingFlowEntry.match_criteria.dstIp4);
+        orc_debug("Attempting to push exact unicast routing flow for IP %s\r\n", str_ip);
         
         /* Now we're finally ready to add the flow */
         rc = ofdpaFlowAdd(&flow);
         if (rc == OFDPA_E_EXISTS)
         {
-            orc_warn("Unicast routing flow already exists for IP %d.%d.%d.%d. Continuing\r\n", flow.flowData.unicastRoutingFlowEntry.match_criteria.dstIp4 & 0xff000000 >> 24 && 0x000000ff,
-                     flow.flowData.unicastRoutingFlowEntry.match_criteria.dstIp4 >> 16 & 0x000000ff,
-                     flow.flowData.unicastRoutingFlowEntry.match_criteria.dstIp4 >> 8 & 0x000000ff,
-                     flow.flowData.unicastRoutingFlowEntry.match_criteria.dstIp4 >> 0 & 0x000000ff);
+            orc_warn("Exact unicast routing flow already exists for IP %s. Continuing\r\n", str_ip);
         }
         else if (rc != OFDPA_E_NONE)
         {
-            orc_err("Failed to push unicast routing flow. rc=%d\r\n", rc);
+            orc_err("Failed to push exact unicast routing flow for IP %s. rc=%d\r\n", str_ip, rc);
             return -1;
         }
+        else
+        {
+            orc_warn("Pushed exact unicast routing flow for IP %s\r\n", str_ip);
+        }
+        
     }
     
     /* Now do the policy ACL flow */
@@ -797,19 +849,22 @@ int ofdpa_add_or_update_l3_v4_interface(port_t * port, u8 hw_mac[6], int mtu, u3
          */
         flow.flowData.policyAclFlowEntry.outputPort = OFDPA_PORT_CONTROLLER; /* punt up to ORC (will pass into RX thread) */
         
+        ipv4_to_str(str_ip, flow.flowData.policyAclFlowEntry.match_criteria.destIp4);
+        
         /* Now we're finally ready to add the flow */
         rc = ofdpaFlowAdd(&flow);
         if (rc == OFDPA_E_EXISTS)
         {
-            orc_warn("Policy ACL flow already exists for IP %d.%d.%d.%d. Continuing\r\n", flow.flowData.policyAclFlowEntry.match_criteria.destIp4 & 0xff000000 >> 24 && 0x000000ff,
-                     flow.flowData.policyAclFlowEntry.match_criteria.destIp4 & 0x00ff0000 >> 16 & 0x000000ff,
-                     flow.flowData.policyAclFlowEntry.match_criteria.destIp4 & 0x0000ff00 >> 8 & 0x000000ff,
-                     flow.flowData.policyAclFlowEntry.match_criteria.destIp4 & 0x000000ff >> 0 & 0x000000ff);
+            orc_warn("Policy ACL flow already exists for MAC %s, IP %s. Continuing\r\n", mac, str_ip);
         }
         else if (rc != OFDPA_E_NONE)
         {
-            orc_err("Failed to push policy ACL flow. rc=%d\r\n", rc);
+            orc_err("Failed to push policy ACL flow for MAC %s, IP %s. rc=%d\r\n", mac, str_ip, rc);
             return -1;
+        }
+        else
+        {
+            orc_warn("Pushed policy ACL flow for for MAC %s, IP %s\r\n", mac, str_ip);
         }
     }
     
@@ -843,12 +898,16 @@ int ofdpa_add_or_update_l3_v4_interface(port_t * port, u8 hw_mac[6], int mtu, u3
         rc = ofdpaFlowAdd(&flow);
         if (rc == OFDPA_E_EXISTS)
         {
-            orc_warn("Bridging flow already exists for MAC %s. Continuing\r\n", mac);
+            orc_warn("Bridging flow already exists for MAC %s, VLAN %d. Continuing\r\n", mac, flow.flowData.bridgingFlowEntry.match_criteria.vlanId);
         }
         else if (rc != OFDPA_E_NONE)
         {
-            orc_err("Failed to push bridging flow. rc=%d\r\n", rc);
+            orc_err("Failed to push bridging flow for MAC %s, VLAN %d. rc=%d\r\n", mac, flow.flowData.bridgingFlowEntry.match_criteria.vlanId, rc);
             return -1;
+        }
+        else
+        {
+            orc_warn("Pushed bridging flow for for MAC %s, VLAN %d\r\n", mac, flow.flowData.bridgingFlowEntry.match_criteria.vlanId);
         }
     }
     
@@ -952,12 +1011,13 @@ int ofdpa_del_l3_v4_interface(port_t * port, l3_intf_id_t l3_intf_id) {
     u8 hw_mac[6];
     u32 ipv4_addr;
     memcpy(&hw_mac, &(iface->mac), OFDPA_MAC_ADDR_LEN);
+    uint32_t vlan_id = compute_vlan_id(port->index);
     ipv4_addr = iface->ipv4;
     
     rc = ofdpaFlowEntryInit(OFDPA_FLOW_TABLE_ID_VLAN, &flow);
     if (rc != OFDPA_E_NONE)
     {
-        orc_err("Failed to initialize VLAN flow. rc=%d\r\n", rc);
+        orc_err("Failed to initialize untagged VLAN %d flow. rc=%d\r\n", vlan_id, rc);
         return -1;
     } else
     {
@@ -976,8 +1036,8 @@ int ofdpa_del_l3_v4_interface(port_t * port, l3_intf_id_t l3_intf_id) {
         
         /* Matches */
         flow.flowData.vlanFlowEntry.match_criteria.inPort = port->index;
-        flow.flowData.vlanFlowEntry.match_criteria.vlanId = compute_vlan_id(port->index) | 0x1000;
-        flow.flowData.vlanFlowEntry.match_criteria.vlanIdMask = 0x1fff;
+        flow.flowData.vlanFlowEntry.match_criteria.vlanId = 0x0000;
+        flow.flowData.vlanFlowEntry.match_criteria.vlanIdMask = 0x0fff;
         
         /* Goto Table Instruction */
         flow.flowData.vlanFlowEntry.gotoTableId = OFDPA_FLOW_TABLE_ID_TERMINATION_MAC;
@@ -990,16 +1050,66 @@ int ofdpa_del_l3_v4_interface(port_t * port, l3_intf_id_t l3_intf_id) {
         rc = ofdpaFlowDelete(&flow);
         if (rc == OFDPA_E_NOT_FOUND || rc == OFDPA_E_EMPTY)
         {
-            orc_warn("VLAN flow not found\r\n");
+            orc_warn("Untagged VLAN %d on port %d flow not found\r\n", vlan_id, flow.flowData.vlanFlowEntry.match_criteria.inPort);
         }
         else if (rc != OFDPA_E_NONE)
         {
-            orc_err("Failed to delete VLAN flow. rc=%d\r\n", rc);
+            orc_err("Failed to delete untagged VLAN %d flow on port %d. rc=%d\r\n", vlan_id, flow.flowData.vlanFlowEntry.match_criteria.inPort, rc);
             return -1;
         }
         else
         {
-            orc_warn("VLAN flow deleted\r\n");
+            orc_warn("Untagged VLAN %d flow on port %d deleted\r\n", vlan_id, flow.flowData.vlanFlowEntry.match_criteria.inPort);
+        }
+    }
+    
+    rc = ofdpaFlowEntryInit(OFDPA_FLOW_TABLE_ID_VLAN, &flow);
+    if (rc != OFDPA_E_NONE)
+    {
+        orc_err("Failed to initialize VLAN %d flow. rc=%d\r\n", vlan_id, rc);
+        return -1;
+    } else
+    {
+        /*
+         * Clear the entire structure to avoid having to set
+         * "default" values that we do not care about.
+         */
+        memset(&(flow.flowData), 0, sizeof(ofdpaVlanFlowEntry_t));
+        
+        
+        /*
+         * flow instance of ofdpaFlowEntry_t
+         * flowData union of flow types
+         * vlanFlowEntry instance of ofDpaVlanFlowEntry_t
+         * match_criteria instance of ofdpaVlanFlowMatch_t
+         */
+        
+        /* Matches */
+        flow.flowData.vlanFlowEntry.match_criteria.inPort = port->index;
+        flow.flowData.vlanFlowEntry.match_criteria.vlanId = vlan_id | 0x1000;
+        flow.flowData.vlanFlowEntry.match_criteria.vlanIdMask = 0x1fff;
+        
+        /* Goto Table Instruction */
+        flow.flowData.vlanFlowEntry.gotoTableId = OFDPA_FLOW_TABLE_ID_TERMINATION_MAC;
+        
+        /* Apply Actions Instruction */
+        flow.flowData.vlanFlowEntry.setVlanIdAction = ACTION;
+        flow.flowData.vlanFlowEntry.newVlanId = vlan_id;
+        
+        /* Now we're finally ready to add the flow */
+        rc = ofdpaFlowDelete(&flow);
+        if (rc == OFDPA_E_NOT_FOUND || rc == OFDPA_E_EMPTY)
+        {
+            orc_warn("VLAN %d flow on port %d not found\r\n", vlan_id, flow.flowData.vlanFlowEntry.match_criteria.inPort);
+        }
+        else if (rc != OFDPA_E_NONE)
+        {
+            orc_err("Failed to delete VLAN %d flow on port %d. rc=%d\r\n", vlan_id, flow.flowData.vlanFlowEntry.match_criteria.inPort, rc);
+            return -1;
+        }
+        else
+        {
+            orc_warn("VLAN %d flow on port %d deleted\r\n", vlan_id, flow.flowData.vlanFlowEntry.match_criteria.inPort);
         }
     }
     
@@ -2370,8 +2480,8 @@ void mac_to_str(char * str, u8 * hw_mac) {
  */
 void ipv4_to_str(char * str, uint32_t ipv4) {
     sprintf(str, "%d.%d.%d.%d",
-            ipv4 & 0xff000000 >> 24 & 0xff,
-            ipv4 & 0x00ff0000 >> 16 & 0xff,
-            ipv4 & 0x0000ff00 >> 8 & 0xff,
-            ipv4 & 0x000000ff >> 0 & 0xff);
+            ipv4 >> 24 & 0xff,
+            ipv4 >> 16 & 0xff,
+            ipv4 >> 8 & 0xff,
+            ipv4 >> 0 & 0xff);
 }
