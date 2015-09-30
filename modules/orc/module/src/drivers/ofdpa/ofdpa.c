@@ -297,8 +297,7 @@ int add_default_next_hop()
     
     /*
      * First do the L2 Interface group, since we need to reference it
-     * in the L3 Unicast group as a bucket. We also need it to reference
-     * in L2 Flood.
+     * in the L3 Unicast group as a bucket.
      */
     port_id = default_next_hop_port.index;
     vlan_id = default_next_hop_port.index; /* Use VLAN 1, which will be unused elsewhere */
@@ -363,70 +362,6 @@ int add_default_next_hop()
         return -1;
     }
     orc_warn("L2 interface group %d bucket added out port %d\r\n", group_id, port_id);
-    
-    /*
-     * Next do the L2 Flood group.
-     * This is used for DLF flows in bridging.
-     */
-    group_type = (uint32_t) OFDPA_GROUP_ENTRY_TYPE_L2_FLOOD;
-    
-    rc = ofdpaGroupTypeSet(&group_id, group_type); /* encodes type in ID */
-    if (rc != OFDPA_E_NONE)
-    {
-        orc_err("Failed to set L2 flood group type. rc=%d\r\n", rc);
-        return -1;
-    }
-    
-    rc = ofdpaGroupVlanSet(&group_id, vlan_id); /* encodes VLAN in ID */
-    if (rc != OFDPA_E_NONE)
-    {
-        orc_err("Failed to set L2 flood group VLAN. rc=%d\r\n", rc);
-        return -1;
-    }
-    
-    rc = ofdpaGroupIndexSet(&group_id, 0);
-    if (rc != OFDPA_E_NONE)
-    {
-        orc_err("Failed to set L2 flood group index. rc=%d\r\n", rc);
-        return -1;
-    }
-    
-    rc = ofdpaGroupEntryInit(group_type, &group);
-    if (rc != OFDPA_E_NONE)
-    {
-        orc_err("Failed to initialize L2 flood group. rc=%d\r\n", rc);
-        return -1;
-    }
-    
-    group.groupId = group_id; /* this is the only thing to set */
-    default_flood_group_id = group_id;
-    rc = ofdpaGroupAdd(&group);
-    if (rc != OFDPA_E_NONE)
-    {
-        orc_err("Failed to push L2 flood group. rc=%d\r\n", rc);
-        return -1;
-    }
-    orc_warn("L2 flood group %d added\r\n", group_id);
-    
-    /* Add the bucket */
-    memset(&group_bucket, 0, sizeof(ofdpaGroupBucketEntry_t));
-    rc = ofdpaGroupBucketEntryInit(group_type, &group_bucket);
-    if (rc != OFDPA_E_NONE)
-    {
-        orc_err("Failed to initialize L2 flood bucket. rc=%d\r\n", rc);
-        return -1;
-    }
-    
-    group_bucket.groupId = group_id;
-    group_bucket.bucketIndex = 0; /* the only bucket, so 0 */
-    group_bucket.bucketData.l2Flood.outputPort = port_id; /* union, just like the flows; only need output port here */
-    
-    rc = ofdpaGroupBucketEntryAdd(&group_bucket);
-    if (rc != OFDPA_E_NONE)
-    {
-        orc_err("Failed to add L2 interface bucket. rc=%d\r\n", rc);
-        return -1;
-    }
     
     /*
      * Now, we can do the L3 Unicast group.
@@ -977,10 +912,13 @@ int ofdpa_add_or_update_l3_v4_interface(port_t * port, u8 hw_mac[6], int mtu, u3
         }
     }
     
-    rc = ofdpaFlowEntryInit(OFDPA_FLOW_TABLE_ID_BRIDGING, &flow);
+    /*
+     * Handle any ARP packets that we might need to answer in the kernel
+     */
+    rc = ofdpaFlowEntryInit(OFDPA_FLOW_TABLE_ID_ACL_POLICY, &flow);
     if (rc != OFDPA_E_NONE)
     {
-        orc_err("Failed to initialize DLF bridging flow. rc=%d\r\n", rc);
+        orc_err("Failed to initialize ARP policy ACL flow. rc=%d\r\n", rc);
         return -1;
     } else
     {
@@ -988,34 +926,31 @@ int ofdpa_add_or_update_l3_v4_interface(port_t * port, u8 hw_mac[6], int mtu, u3
          * Clear the entire structure to avoid having to set
          * "default" values that we do not care about.
          */
-        memset(&(flow.flowData), 0, sizeof(ofdpaBridgingFlowEntry_t));
+        memset(&(flow.flowData), 0, sizeof(ofdpaPolicyAclFlowEntry_t));
         
-        /* Matches -- only VLAN is exact; fully-masked MAC */
-        memset(&(flow.flowData.bridgingFlowEntry.match_criteria.destMac), 0xff, OFDPA_MAC_ADDR_LEN);
-        memset(&(flow.flowData.bridgingFlowEntry.match_criteria.destMacMask), 0x00, OFDPA_MAC_ADDR_LEN);
-        flow.flowData.bridgingFlowEntry.match_criteria.vlanId = compute_vlan_id(port->index); /* must match on VLAN w/o 'present' bit set */
-        flow.flowData.bridgingFlowEntry.match_criteria.vlanIdMask = 0x0fff;
-        
-        /* Must also supply L2 interface group, even though we won't use it. */
-        flow.flowData.bridgingFlowEntry.groupID = default_flood_group_id;
+        /* Matches -- all ARP packets */
+        flow.flowData.policyAclFlowEntry.match_criteria.inPort = OFDPA_PORT_TYPE_PHYSICAL; /* Must explicitly specify ANY physical port + type_mask */
+        flow.flowData.policyAclFlowEntry.match_criteria.inPortMask = OFDPA_INPORT_TYPE_MASK;
+        flow.flowData.policyAclFlowEntry.match_criteria.etherType = 0x0806;
+        flow.flowData.policyAclFlowEntry.match_criteria.etherTypeMask = OFDPA_ETHERTYPE_EXACT_MASK;
         
         /* Apply Actions Instruction */
-        flow.flowData.bridgingFlowEntry.outputPort = OFDPA_PORT_CONTROLLER; /* punt non-IP packets up to ORC's RX func */
+        flow.flowData.policyAclFlowEntry.outputPort = OFDPA_PORT_CONTROLLER; /* punt ARP packets up to ORC's RX func */
         
         /* Now we're finally ready to add the flow */
         rc = ofdpaFlowAdd(&flow);
         if (rc == OFDPA_E_EXISTS)
         {
-            orc_warn("DLF bridging flow already exists for MAC %s, VLAN %d. Continuing\r\n", mac, flow.flowData.bridgingFlowEntry.match_criteria.vlanId);
+            orc_warn("ARP policy flow already exists. Continuing\r\n");
         }
         else if (rc != OFDPA_E_NONE)
         {
-            orc_err("Failed to push DLF bridging flow for MAC %s, VLAN %d. rc=%d\r\n", mac, flow.flowData.bridgingFlowEntry.match_criteria.vlanId, rc);
+            orc_err("Failed to push ARP policy ACL flow. rc=%d\r\n", rc);
             return -1;
         }
         else
         {
-            orc_warn("Pushed DLF bridging flow for for MAC %s, VLAN %d\r\n", mac, flow.flowData.bridgingFlowEntry.match_criteria.vlanId);
+            orc_warn("Pushed ARP policy ACL flow\r\n");
         }
     }
     
@@ -1391,10 +1326,10 @@ int ofdpa_del_l3_v4_interface(port_t * port, l3_intf_id_t l3_intf_id) {
         }
     }
     
-    rc = ofdpaFlowEntryInit(OFDPA_FLOW_TABLE_ID_BRIDGING, &flow);
+    rc = ofdpaFlowEntryInit(OFDPA_FLOW_TABLE_ID_ACL_POLICY, &flow);
     if (rc != OFDPA_E_NONE)
     {
-        orc_err("Failed to initialize DLF bridging flow. rc=%d\r\n", rc);
+        orc_err("Failed to initialize ARP policy ACL flow. rc=%d\r\n", rc);
         return -1;
     } else
     {
@@ -1402,34 +1337,31 @@ int ofdpa_del_l3_v4_interface(port_t * port, l3_intf_id_t l3_intf_id) {
          * Clear the entire structure to avoid having to set
          * "default" values that we do not care about.
          */
-        memset(&(flow.flowData), 0, sizeof(ofdpaBridgingFlowEntry_t));
+        memset(&(flow.flowData), 0, sizeof(ofdpaPolicyAclFlowEntry_t));
         
-        /* Matches -- only VLAN is exact; fully-masked MAC */
-        memset(&(flow.flowData.bridgingFlowEntry.match_criteria.destMac), 0xff, OFDPA_MAC_ADDR_LEN);
-        memset(&(flow.flowData.bridgingFlowEntry.match_criteria.destMacMask), 0x00, OFDPA_MAC_ADDR_LEN);
-        flow.flowData.bridgingFlowEntry.match_criteria.vlanId = compute_vlan_id(port->index); /* must match on VLAN w/o 'present' bit set */
-        flow.flowData.bridgingFlowEntry.match_criteria.vlanIdMask = 0x0fff;
-        
-        /* Must also supply L2 interface group, even though we won't use it. */
-        flow.flowData.bridgingFlowEntry.groupID = default_flood_group_id;
+        /* Matches -- all ARP packets */
+        flow.flowData.policyAclFlowEntry.match_criteria.inPort = OFDPA_PORT_TYPE_PHYSICAL; /* Must explicitly specify ANY physical port + type_mask */
+        flow.flowData.policyAclFlowEntry.match_criteria.inPortMask = OFDPA_INPORT_TYPE_MASK;
+        flow.flowData.policyAclFlowEntry.match_criteria.etherType = 0x0806;
+        flow.flowData.policyAclFlowEntry.match_criteria.etherTypeMask = OFDPA_ETHERTYPE_EXACT_MASK;
         
         /* Apply Actions Instruction */
-        flow.flowData.bridgingFlowEntry.outputPort = OFDPA_PORT_CONTROLLER; /* punt non-IP packets up to ORC's RX func */
+        flow.flowData.policyAclFlowEntry.outputPort = OFDPA_PORT_CONTROLLER; /* punt ARP packets up to ORC's RX func */
         
-        /* Now we're finally ready to delete the flow */
-        rc = ofdpaFlowDelete(&flow);
+        /* Now we're finally ready to add the flow */
+        rc = ofdpaFlowAdd(&flow);
         if (rc == OFDPA_E_NOT_FOUND || rc == OFDPA_E_EMPTY)
         {
-            orc_warn("DLF bridging flow not found\r\n");
+            orc_warn("ARP policy flow not found. Continuing\r\n");
         }
         else if (rc != OFDPA_E_NONE)
         {
-            orc_err("Failed to delete DLF bridging flow. rc=%d\r\n", rc);
+            orc_err("Failed to delete ARP policy ACL flow. rc=%d\r\n", rc);
             return -1;
         }
         else
         {
-            orc_warn("DLF bridging flow deleted\r\n");
+            orc_warn("Deleted ARP policy ACL flow\r\n");
         }
     }
     
@@ -1590,6 +1522,7 @@ int ofdpa_add_l3_v4_next_hop(port_t * port, l3_intf_id_t l3_intf_id, u8 next_hop
     
     group_bucket.groupId = group_id;
     group_bucket.bucketIndex = 0; /* the only bucket, so 0 */
+    group_bucket.popVlanTag = 1; /* yes, remove the VLAN tag */
     group_bucket.bucketData.l2Interface.outputPort = port_id; /* union, just like the flows; only need output port here */
     
     rc = ofdpaGroupBucketEntryAdd(&group_bucket);
