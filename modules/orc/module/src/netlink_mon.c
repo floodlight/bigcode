@@ -602,8 +602,8 @@ static int parse_v4_neighbor(
                 orc_warn("Skipping unhandled ipv4 neighbor attr: %d\n", attr->rta_type);
         };
     }
-
-    return found_l3_addr;
+    /** we found a complete/valid entry iff it has a mac and an IP **/
+    return (found_l3_addr && neigh->mac_valid);
 }
 
 
