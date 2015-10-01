@@ -1647,7 +1647,7 @@ int ofdpa_del_l3_v4_next_hop(l3_next_hop_id_t l3_next_hop_id) {
     {
         orc_warn("Found next hop %d. Proceeding to delete it\r\n", next_hop->id);
     }
-
+    
     
     port_t * port = &(next_hop->port->port);
     
@@ -1919,7 +1919,92 @@ int ofdpa_add_l3_v4_route(u32 ip_dst, u32 netmask, l3_next_hop_id_t l3_next_hop_
                 orc_warn("Added policy ACL flow for masked-match, kernel-bound route\r\n");
             }
         }
-
+    }
+    else
+    {
+        /* DELETE existing kernel-bound flow for this same exact IP (remove old next hop) */
+        rc = ofdpaFlowEntryInit(OFDPA_FLOW_TABLE_ID_ACL_POLICY, &flow);
+        if (rc != OFDPA_E_NONE)
+        {
+            orc_err("Failed to initialize policy ACL flow. rc=%d\r\n", rc);
+            return -1;
+        } else
+        {
+            /*
+             * Clear the entire structure to avoid having to set
+             * "default" values that we do not care about.
+             */
+            memset(&(flow.flowData), 0, sizeof(ofdpaPolicyAclFlowEntry_t));
+            
+            /* Matches -- no MAC address; IPv4 w/mask */
+            flow.flowData.policyAclFlowEntry.match_criteria.inPort = OFDPA_PORT_TYPE_PHYSICAL; /* Must explicitly specify ANY physical port + type_mask */
+            flow.flowData.policyAclFlowEntry.match_criteria.inPortMask = OFDPA_INPORT_TYPE_MASK;
+            flow.flowData.policyAclFlowEntry.match_criteria.etherType = 0x0800; /* we assume IPv4 */
+            flow.flowData.policyAclFlowEntry.match_criteria.etherTypeMask = OFDPA_ETHERTYPE_EXACT_MASK;
+            flow.flowData.policyAclFlowEntry.match_criteria.destIp4 = ip_dst;
+            flow.flowData.policyAclFlowEntry.match_criteria.destIp4Mask = netmask;
+            
+            /* Apply Actions Instruction */
+            flow.flowData.policyAclFlowEntry.outputPort = OFDPA_PORT_CONTROLLER; /* punt up to ORC (will pass into RX thread) */
+            
+            /* Now we're finally ready to delete the flow */
+            rc = ofdpaFlowDelete(&flow);
+            if (rc == OFDPA_E_NOT_FOUND || rc == OFDPA_E_EMPTY)
+            {
+                orc_warn("Policy ACL flow for masked-match, kernel-bound route not found\r\n");
+            }
+            else if (rc != OFDPA_E_NONE)
+            {
+                orc_err("Failed to delete policy ACL flow for masked-match, kernel-bound route. rc=%d\r\n", rc);
+                return -1;
+            }
+            else
+            {
+                orc_warn("Deleted policy ACL flow for masked-match, kernel-bound route\r\n");
+            }
+        }
+        
+        /* Now add in place the new next hop that avoids the kernel */
+        rc = ofdpaFlowEntryInit(OFDPA_FLOW_TABLE_ID_ACL_POLICY, &flow);
+        if (rc != OFDPA_E_NONE)
+        {
+            orc_err("Failed to initialize hardware-routing policy ACL flow. rc=%d\r\n", rc);
+            return -1;
+        } else
+        {
+            /*
+             * Clear the entire structure to avoid having to set
+             * "default" values that we do not care about.
+             */
+            memset(&(flow.flowData), 0, sizeof(ofdpaPolicyAclFlowEntry_t));
+            
+            flow.priority = 100;
+            
+            /* Matches -- no MAC address; IPv4 w/mask */
+            flow.flowData.policyAclFlowEntry.match_criteria.inPort = OFDPA_PORT_TYPE_PHYSICAL; /* Must explicitly specify ANY physical port + type_mask */
+            flow.flowData.policyAclFlowEntry.match_criteria.inPortMask = OFDPA_INPORT_TYPE_MASK;
+            flow.flowData.policyAclFlowEntry.match_criteria.etherType = 0x0800; /* we assume IPv4 */
+            flow.flowData.policyAclFlowEntry.match_criteria.etherTypeMask = OFDPA_ETHERTYPE_EXACT_MASK;
+            flow.flowData.policyAclFlowEntry.match_criteria.destIp4 = ip_dst;
+            flow.flowData.policyAclFlowEntry.match_criteria.destIp4Mask = netmask;
+            
+            /* NO Apply Actions Instruction */
+            
+            /* Now we're finally ready to add the flow */
+            rc = ofdpaFlowAdd(&flow);
+            if (rc == OFDPA_E_EXISTS)
+            {
+                orc_warn("Policy ACL flow for hardware-routing route already exists\r\n");
+            }
+            else if (rc != OFDPA_E_NONE)
+            {
+                orc_err("Failed to add policy ACL flow for hardware-routing route. rc=%d\r\n", rc);
+                return -1;
+            }
+            {
+                orc_warn("Added policy ACL flow for hardware-routing route\r\n");
+            }
+        }
     }
     
     return 0;
@@ -1991,7 +2076,7 @@ int ofdpa_del_l3_v4_route(u32 ip_dst, u32 netmask, l3_next_hop_id_t l3_next_hop_
             orc_debug("Using default next hop L3 unicast group for kernel-bound route\r\n");
             flow.flowData.unicastRoutingFlowEntry.groupID = default_next_hop_group_id;
         }
-
+        
         /*
          * Goto Table Instruction: Still need to send here or will drop.
          * Policy ACL will then do the saved write-actions and send to the
@@ -2059,7 +2144,49 @@ int ofdpa_del_l3_v4_route(u32 ip_dst, u32 netmask, l3_next_hop_id_t l3_next_hop_
                 orc_warn("Deleted policy ACL flow for masked-match, kernel-bound route\r\n");
             }
         }
-        
+    }
+    else
+    {
+        rc = ofdpaFlowEntryInit(OFDPA_FLOW_TABLE_ID_ACL_POLICY, &flow);
+        if (rc != OFDPA_E_NONE)
+        {
+            orc_err("Failed to initialize hardware-routing policy ACL flow. rc=%d\r\n", rc);
+            return -1;
+        } else
+        {
+            /*
+             * Clear the entire structure to avoid having to set
+             * "default" values that we do not care about.
+             */
+            memset(&(flow.flowData), 0, sizeof(ofdpaPolicyAclFlowEntry_t));
+            
+            flow.priority = 100;
+            
+            /* Matches -- no MAC address; IPv4 w/mask */
+            flow.flowData.policyAclFlowEntry.match_criteria.inPort = OFDPA_PORT_TYPE_PHYSICAL; /* Must explicitly specify ANY physical port + type_mask */
+            flow.flowData.policyAclFlowEntry.match_criteria.inPortMask = OFDPA_INPORT_TYPE_MASK;
+            flow.flowData.policyAclFlowEntry.match_criteria.etherType = 0x0800; /* we assume IPv4 */
+            flow.flowData.policyAclFlowEntry.match_criteria.etherTypeMask = OFDPA_ETHERTYPE_EXACT_MASK;
+            flow.flowData.policyAclFlowEntry.match_criteria.destIp4 = ip_dst;
+            flow.flowData.policyAclFlowEntry.match_criteria.destIp4Mask = netmask;
+            
+            /* NO Apply Actions Instruction */
+            
+            /* Now we're finally ready to add the flow */
+            rc = ofdpaFlowDelete(&flow);
+            if (rc == OFDPA_E_NOT_FOUND || rc == OFDPA_E_EMPTY)
+            {
+                orc_warn("Policy ACL flow for hardware-routing route not found\r\n");
+            }
+            else if (rc != OFDPA_E_NONE)
+            {
+                orc_err("Failed to delete policy ACL flow for hardware-routing route. rc=%d\r\n", rc);
+                return -1;
+            }
+            {
+                orc_warn("Deleted policy ACL flow for hardware-routing route\r\n");
+            }
+        }
     }
     
     return 0;
