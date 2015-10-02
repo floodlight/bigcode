@@ -86,6 +86,64 @@ ppe_slow_protocol_valid(ppe_slow_protocol_t e)
 }
 
 
+aim_map_si_t ppe_pim_type_map[] =
+{
+    { "HELLO", PPE_PIM_TYPE_HELLO },
+    { NULL, 0 }
+};
+
+aim_map_si_t ppe_pim_type_desc_map[] =
+{
+    { "None", PPE_PIM_TYPE_HELLO },
+    { NULL, 0 }
+};
+
+const char*
+ppe_pim_type_name(ppe_pim_type_t e)
+{
+    const char* name;
+    if(aim_map_si_i(&name, e, ppe_pim_type_map, 0)) {
+        return name;
+    }
+    else {
+        return "-invalid value for enum type 'ppe_pim_type'";
+    }
+}
+
+int
+ppe_pim_type_value(const char* str, ppe_pim_type_t* e, int substr)
+{
+    int i;
+    AIM_REFERENCE(substr);
+    if(aim_map_si_s(&i, str, ppe_pim_type_map, 0)) {
+        /* Enum Found */
+        *e = i;
+        return 0;
+    }
+    else {
+        return -1;
+    }
+}
+
+const char*
+ppe_pim_type_desc(ppe_pim_type_t e)
+{
+    const char* name;
+    if(aim_map_si_i(&name, e, ppe_pim_type_desc_map, 0)) {
+        return name;
+    }
+    else {
+        return "-invalid value for enum type 'ppe_pim_type'";
+    }
+}
+
+int
+ppe_pim_type_valid(ppe_pim_type_t e)
+{
+    return aim_map_si_i(NULL, e, ppe_pim_type_map, 0) ? 1 : 0;
+}
+
+
 aim_map_si_t ppe_field_map[] =
 {
     { "META_INGRESS_PORT", PPE_FIELD_META_INGRESS_PORT },
@@ -238,6 +296,9 @@ aim_map_si_t ppe_field_map[] =
     { "OF10_ARP_PTYPE", PPE_FIELD_OF10_ARP_PTYPE },
     { "OF10_ARP_OPERATION", PPE_FIELD_OF10_ARP_OPERATION },
     { "OF10_LAST", PPE_FIELD_OF10_LAST },
+    { "PIM_VERSION", PPE_FIELD_PIM_VERSION },
+    { "PIM_TYPE", PPE_FIELD_PIM_TYPE },
+    { "PIM_CHECKSUM", PPE_FIELD_PIM_CHECKSUM },
     { NULL, 0 }
 };
 
@@ -393,6 +454,9 @@ aim_map_si_t ppe_field_desc_map[] =
     { "None", PPE_FIELD_OF10_ARP_PTYPE },
     { "None", PPE_FIELD_OF10_ARP_OPERATION },
     { "None", PPE_FIELD_OF10_LAST },
+    { "None", PPE_FIELD_PIM_VERSION },
+    { "None", PPE_FIELD_PIM_TYPE },
+    { "None", PPE_FIELD_PIM_CHECKSUM },
     { NULL, 0 }
 };
 
@@ -461,6 +525,7 @@ aim_map_si_t ppe_header_map[] =
     { "ETHERTYPE_MISSING", PPE_HEADER_ETHERTYPE_MISSING },
     { "OF10", PPE_HEADER_OF10 },
     { "IGMP", PPE_HEADER_IGMP },
+    { "PIM", PPE_HEADER_PIM },
     { NULL, 0 }
 };
 
@@ -489,6 +554,7 @@ aim_map_si_t ppe_header_desc_map[] =
     { "None", PPE_HEADER_ETHERTYPE_MISSING },
     { "None", PPE_HEADER_OF10 },
     { "None", PPE_HEADER_IGMP },
+    { "None", PPE_HEADER_PIM },
     { NULL, 0 }
 };
 
@@ -538,6 +604,7 @@ aim_map_si_t ppe_ip_protocol_map[] =
     { "IGMP", PPE_IP_PROTOCOL_IGMP },
     { "TCP", PPE_IP_PROTOCOL_TCP },
     { "UDP", PPE_IP_PROTOCOL_UDP },
+    { "PIM", PPE_IP_PROTOCOL_PIM },
     { NULL, 0 }
 };
 
@@ -547,6 +614,7 @@ aim_map_si_t ppe_ip_protocol_desc_map[] =
     { "None", PPE_IP_PROTOCOL_IGMP },
     { "None", PPE_IP_PROTOCOL_TCP },
     { "None", PPE_IP_PROTOCOL_UDP },
+    { "None", PPE_IP_PROTOCOL_PIM },
     { NULL, 0 }
 };
 

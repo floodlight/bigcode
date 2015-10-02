@@ -359,3 +359,11 @@
     - check IGMP_MAX_RESP_TIME == 0x14
     - check IGMP_CHECKSUM == 0x0de9
     - check IGMP_GROUP_ADDRESS == 0xe0010101
+
+- PIM:
+    - data 01005e00000d000102030405080045000018000100004067986f01010101e000000d2000dfff
+    - chm PIM true
+    - check PIM_VERSION == 2
+    - check PIM_TYPE == 0
+    - check PIM_CHECKSUM == 0xdfff
+
