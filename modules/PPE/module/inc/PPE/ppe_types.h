@@ -57,6 +57,32 @@ extern aim_map_si_t ppe_slow_protocol_map[];
 /** ppe_slow_protocol_desc_map table. */
 extern aim_map_si_t ppe_slow_protocol_desc_map[];
 
+/** ppe_pim_type */
+typedef enum ppe_pim_type_e {
+    PPE_PIM_TYPE_HELLO = 0,
+} ppe_pim_type_t;
+
+/** Enum names. */
+const char* ppe_pim_type_name(ppe_pim_type_t e);
+
+/** Enum values. */
+int ppe_pim_type_value(const char* str, ppe_pim_type_t* e, int substr);
+
+/** Enum descriptions. */
+const char* ppe_pim_type_desc(ppe_pim_type_t e);
+
+/** Enum validator. */
+int ppe_pim_type_valid(ppe_pim_type_t e);
+
+/** validator */
+#define PPE_PIM_TYPE_VALID(_e) \
+    (ppe_pim_type_valid((_e)))
+
+/** ppe_pim_type_map table. */
+extern aim_map_si_t ppe_pim_type_map[];
+/** ppe_pim_type_desc_map table. */
+extern aim_map_si_t ppe_pim_type_desc_map[];
+
 /** ppe_field */
 typedef enum ppe_field_e {
     PPE_FIELD_META_INGRESS_PORT,
@@ -209,7 +235,10 @@ typedef enum ppe_field_e {
     PPE_FIELD_OF10_ARP_PTYPE,
     PPE_FIELD_OF10_ARP_OPERATION,
     PPE_FIELD_OF10_LAST,
-    PPE_FIELD_LAST = PPE_FIELD_OF10_LAST,
+    PPE_FIELD_PIM_VERSION,
+    PPE_FIELD_PIM_TYPE,
+    PPE_FIELD_PIM_CHECKSUM,
+    PPE_FIELD_LAST = PPE_FIELD_PIM_CHECKSUM,
     PPE_FIELD_COUNT,
     PPE_FIELD_INVALID = -1,
 } ppe_field_t;
@@ -225,7 +254,7 @@ const char* ppe_field_desc(ppe_field_t e);
 
 /** validator */
 #define PPE_FIELD_VALID(_e) \
-    ( (0 <= (_e)) && ((_e) <= PPE_FIELD_OF10_LAST))
+    ( (0 <= (_e)) && ((_e) <= PPE_FIELD_PIM_CHECKSUM))
 
 /** ppe_field_map table. */
 extern aim_map_si_t ppe_field_map[];
@@ -257,7 +286,8 @@ typedef enum ppe_header_e {
     PPE_HEADER_ETHERTYPE_MISSING,
     PPE_HEADER_OF10,
     PPE_HEADER_IGMP,
-    PPE_HEADER_LAST = PPE_HEADER_IGMP,
+    PPE_HEADER_PIM,
+    PPE_HEADER_LAST = PPE_HEADER_PIM,
     PPE_HEADER_COUNT,
     PPE_HEADER_INVALID = -1,
 } ppe_header_t;
@@ -288,6 +318,7 @@ typedef enum ppe_header_e {
     "ETHERTYPE_MISSING", \
     "OF10", \
     "IGMP", \
+    "PIM", \
 }
 /** Enum names. */
 const char* ppe_header_name(ppe_header_t e);
@@ -300,7 +331,7 @@ const char* ppe_header_desc(ppe_header_t e);
 
 /** validator */
 #define PPE_HEADER_VALID(_e) \
-    ( (0 <= (_e)) && ((_e) <= PPE_HEADER_IGMP))
+    ( (0 <= (_e)) && ((_e) <= PPE_HEADER_PIM))
 
 /** ppe_header_map table. */
 extern aim_map_si_t ppe_header_map[];
@@ -313,6 +344,7 @@ typedef enum ppe_ip_protocol_e {
     PPE_IP_PROTOCOL_IGMP = 2,
     PPE_IP_PROTOCOL_TCP = 6,
     PPE_IP_PROTOCOL_UDP = 17,
+    PPE_IP_PROTOCOL_PIM = 103,
 } ppe_ip_protocol_t;
 
 /** Enum names. */
