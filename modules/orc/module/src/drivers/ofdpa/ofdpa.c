@@ -52,11 +52,30 @@
 #define CLIENT_NAME "orc client"
 
 /*
- * VLAN-related info for packet RX
+ * Networking constants
  */
-#define ETH_HEADER_VLAN_TAG_BYTES 4
-#define ETH_HEADER_BEFORE_VLAN_TAG_BYTES 8
-#define JUMBO_FRAME_BYTES 9300
+#define ETHERTYPE_IPV4                      0x0800
+#define ETHERTYPE_ARP                       0x0806
+
+#define ETH_VLAN_MASK_ANY_WO_PRESENT_BIT    0x0fff
+#define ETH_VLAN_MASK_ANY_W_PRESENT_BIT     0x1fff
+#define ETH_VLAN_MASK_EXACT_W_PRESENT_BIT   0x1000
+#define ETH_VLAN_MASK_EXACT_WO_PRESENT_BIT  0x0000
+
+#define BYTE_MASK_ANY                       0xff
+#define BYTE_MASK_EXACT                     0x00
+#define BYTE_MASK_ONE                       0x01
+
+#define ETH_HEADER_VLAN_TAG_BYTES           4
+#define ETH_HEADER_BEFORE_VLAN_TAG_BYTES    8
+#define JUMBO_FRAME_BYTES                   9300
+
+/*
+ * The flow priority we assign to specific next hops.
+ * The kernel next hop priority is implied 0, since it
+ * is not ever set.
+ */
+#define NON_KERNEL_NEXT_HOP_FLOW_PRIORITY   100
 
 /*
  * Default values for fields we might not
@@ -144,29 +163,42 @@ int ofdpa_del_l3_v4_route(u32, u32, l3_next_hop_id_t);
 void ofdpa_log_debug_info(void);
 
 /*********
- * Helper function prototypes
+ * OF-DPA helper function prototypes
  */
+int add_default_next_hop(void);
+int ofdpa_add_or_update_l3_v4_interface(port_t *, u8 *, int, u32, l3_intf_id_t *, bool);
+
 uint32_t add_group_l2_interface(uint32_t, uint32_t);
 uint32_t add_group_l3_unicast(uint32_t, uint32_t, uint32_t, u8 *, u8 *);
+uint32_t delete_group_l2_interface(uint32_t, uint32_t);
+uint32_t delete_group_l3_unicast(uint32_t, uint32_t);
+int clear_ofdpa_tables(void); /* both flow and group */
+int clear_ofdpa_flow_table(OFDPA_FLOW_TABLE_ID_t);
+
 int get_num_ofdpa_ports(void);
 void * port_rx_monitor(void *);
-void free_ports(void);
-void add_interface(ofdpa_interface_t *);
-ofdpa_interface_t * get_interface(l3_intf_id_t);
-void del_interface(l3_intf_id_t);
-void del_next_hop_from_interfaces(ofdpa_next_hop_t *);
-void free_interfaces(void);
+
+/*********
+ * Driver data structure manipulation helper function prototypes
+ */
 void add_next_hop(ofdpa_next_hop_t *);
+void add_interface(ofdpa_interface_t *);
 ofdpa_next_hop_t * get_next_hop(l3_next_hop_id_t);
+ofdpa_interface_t * get_interface(l3_intf_id_t);
 void del_next_hop(l3_next_hop_id_t);
+void del_next_hop_from_interfaces(ofdpa_next_hop_t *);
+void del_interface(l3_intf_id_t);
+void free_ports(void);
 void free_next_hops(void);
+void free_interfaces(void);
+
+/*********
+ * Misc driver helper function prototypes
+ */
 l3_intf_id_t generate_l3_intf_id(void);
 l3_next_hop_id_t generate_l3_next_hop_id(void);
 uint16_t compute_vlan_id(uint32_t);
-int ofdpa_add_or_update_l3_v4_interface(port_t *, u8 *, int, u32, l3_intf_id_t *, bool);
-int add_default_next_hop(void);
-int clear_ofdpa_tables(void);
-int clear_ofdpa_flow_table(OFDPA_FLOW_TABLE_ID_t);
+
 void mac_to_str(char *, u8 *);
 void ipv4_to_str(char *, uint32_t);
 
@@ -239,190 +271,6 @@ int ofdpa_init_driver(orc_options_t *options, int argc, char * argv[])
     }
     
     return add_default_next_hop();
-}
-
-/******
- * add_group_l2_interface: Add a new L2 interface group.
- * @return 0 on error; otherwise the group ID
- */
-uint32_t add_group_l2_interface(uint32_t vlan_id, uint32_t port_id)
-{
-    uint32_t group_type = (uint32_t) OFDPA_GROUP_ENTRY_TYPE_L2_INTERFACE;
-    ofdpaGroupEntry_t group;
-    ofdpaGroupBucketEntry_t group_bucket;
-    memset(&group, 0, sizeof(ofdpaGroupEntry_t));
-    memset(&group_bucket, 0, sizeof(ofdpaGroupBucketEntry_t));
-    
-    uint32_t group_id = 0;
-    
-    OFDPA_ERROR_t rc = ofdpaGroupTypeSet(&group_id, group_type);
-    if (rc != OFDPA_E_NONE)
-    {
-        orc_err("Failed to set L2 interface group type. rc=%d\r\n", rc);
-        return 0;
-    }
-    
-    rc = ofdpaGroupVlanSet(&group_id, vlan_id);
-    if (rc != OFDPA_E_NONE)
-    {
-        orc_err("Failed to set L2 interface group VLAN. rc=%d\r\n", rc);
-        return 0;
-    }
-    
-    rc = ofdpaGroupPortIdSet(&group_id, port_id);
-    if (rc != OFDPA_E_NONE)
-    {
-        orc_err("Failed to set L2 interface group port. rc=%d\r\n", rc);
-        return 0;
-    }
-    
-    rc = ofdpaGroupEntryInit(group_type, &group);
-    if (rc != OFDPA_E_NONE)
-    {
-        orc_err("Failed to initialize L2 interface group. rc=%d\r\n", rc);
-        return 0;
-    }
-    
-    group.groupId = group_id;
-    rc = ofdpaGroupAdd(&group);
-    if (rc != OFDPA_E_NONE)
-    {
-        orc_err("Failed to push L2 interface group. rc=%d\r\n", rc);
-        return 0;
-    }
-    orc_warn("L2 interface group %#010x added for VLAN %d out port %d\r\n", group_id, vlan_id, port_id);
-    
-    rc = ofdpaGroupBucketEntryInit(group_type, &group_bucket);
-    if (rc != OFDPA_E_NONE)
-    {
-        orc_err("Failed to initialize L2 interface bucket. rc=%d\r\n", rc);
-        return 0;
-    }
-    
-    group_bucket.groupId = group_id;
-    group_bucket.bucketIndex = 0;
-    group_bucket.bucketData.l2Interface.popVlanTag = ACTION; /* yes, remove the VLAN tag */
-    group_bucket.bucketData.l2Interface.outputPort = port_id;
-    
-    rc = ofdpaGroupBucketEntryAdd(&group_bucket);
-    if (rc != OFDPA_E_NONE)
-    {
-        orc_err("Failed to add L2 interface bucket. rc=%d\r\n", rc);
-        return 0;
-    }
-    orc_warn("L2 interface group %#010x bucket added for VLAN %d out port %d\r\n", group_id, vlan_id, port_id);
-
-    return group_id;
-}
-
-/******
- * add_group_l3_unicast: Add a new L3 unicast group.
- * @return 0 on error; otherwise the group ID
- */
-uint32_t add_group_l3_unicast(uint32_t index, uint32_t reference_group_id, uint32_t vlan_id, u8 src_mac[6], u8 dst_mac[6])
-{
-    uint32_t group_type = (uint32_t) OFDPA_GROUP_ENTRY_TYPE_L3_UNICAST;
-    ofdpaGroupEntry_t group;
-    ofdpaGroupBucketEntry_t group_bucket;
-    memset(&group, 0, sizeof(ofdpaGroupEntry_t));
-    memset(&group_bucket, 0, sizeof(ofdpaGroupBucketEntry_t));
-    
-    uint32_t group_id = 0;
-    
-    OFDPA_ERROR_t rc = ofdpaGroupTypeSet(&group_id, group_type);
-    if (rc != OFDPA_E_NONE)
-    {
-        orc_err("Failed to set L3 unicast group type. rc=%d\r\n", rc);
-        return 0;
-    }
-    
-    rc = ofdpaGroupIndexSet(&group_id, index);
-    if (rc != OFDPA_E_NONE)
-    {
-        orc_err("Failed to set L3 unicast group index/ID. rc=%d\r\n", rc);
-        return 0;
-    }
-    
-    rc = ofdpaGroupEntryInit(group_type, &group);
-    if (rc != OFDPA_E_NONE)
-    {
-        orc_err("Failed to initialize L3 unicast group. rc=%d\r\n", rc);
-        return 0;
-    }
-    
-    group.groupId = group_id;
-    rc = ofdpaGroupAdd(&group);
-    if (rc != OFDPA_E_NONE)
-    {
-        orc_err("Failed to push L3 unicast group. rc=%d\r\n", rc);
-        return 0;
-    }
-    orc_warn("L3 unicast group entry %#010x added.\r\n", group_id);
-    
-    memset(&group_bucket, 0, sizeof(ofdpaGroupBucketEntry_t));
-    rc = ofdpaGroupBucketEntryInit(group_type, &group_bucket);
-    if (rc != OFDPA_E_NONE)
-    {
-        orc_err("Failed to initialize L3 unicast bucket. rc=%d\r\n", rc);
-        return 0;
-    }
-    
-    group_bucket.groupId = group_id;
-    group_bucket.referenceGroupId = reference_group_id;
-    group_bucket.bucketIndex = 0;
-    group_bucket.bucketData.l3Unicast.vlanId = vlan_id;
-    memcpy(&(group_bucket.bucketData.l3Unicast.srcMac), src_mac, OFDPA_MAC_ADDR_LEN);
-    memcpy(&(group_bucket.bucketData.l3Unicast.dstMac), dst_mac, OFDPA_MAC_ADDR_LEN);
-    
-    rc = ofdpaGroupBucketEntryAdd(&group_bucket);
-    if (rc != OFDPA_E_NONE)
-    {
-        orc_err("Failed to add L3 unicast bucket. rc=%d\r\n", rc);
-        return 0;
-    }
-    orc_warn("L3 unicast group %#010x bucket added for VLAN %d; Referencing L2 interface group %#010x\r\n", group_id, vlan_id, group_bucket.referenceGroupId);
-    
-    return group_id;
-}
-
-int add_default_next_hop()
-{
-    /* Init global structs */
-    default_next_hop_port.index = 1; /* Assume port #1 */
-    default_next_hop.id = generate_l3_next_hop_id(); /* ID is guaranteed to be unique */
-    memcpy(&(default_next_hop.mac), &default_next_hop_mac, OFDPA_MAC_ADDR_LEN);
-    default_next_hop.port = (ofdpa_port_t *) &default_next_hop_ofdpa_port;
-    
-    add_next_hop(&default_next_hop);
-    
-    /*
-     * First do the L2 Interface group, since we need to reference it
-     * in the L3 Unicast group as a bucket.
-     */
-
-    uint32_t group_id = add_group_l2_interface(default_next_hop_port.index, /* Use port (1) for unused VLAN */
-                                                  default_next_hop_port.index);
-    if (group_id == -1) {
-        return -1;
-    }
-    
-    default_interface_group_id = group_id;
-    
-    /*
-     * Now, we can do the L3 Unicast group.
-     */
-    group_id = add_group_l3_unicast(default_next_hop.id,
-                                                group_id,
-                                                default_next_hop_port.index, /* Use port (1) for unused VLAN */
-                                                default_next_hop_mac,
-                                                default_next_hop_mac);
-    if (group_id == 0) {
-        return -1;
-    }
-    
-    default_next_hop_group_id = group_id;
-
-    return 0;
 }
 
 /******************
@@ -608,8 +456,8 @@ int ofdpa_add_or_update_l3_v4_interface(port_t * port, u8 hw_mac[6], int mtu, u3
 
         /* Matches */
         flow.flowData.vlanFlowEntry.match_criteria.inPort = port->index;
-        flow.flowData.vlanFlowEntry.match_criteria.vlanId = compute_vlan_id(port->index) | 0x1000;
-        flow.flowData.vlanFlowEntry.match_criteria.vlanIdMask = 0x1fff;
+        flow.flowData.vlanFlowEntry.match_criteria.vlanId = compute_vlan_id(port->index) | ETH_VLAN_MASK_EXACT_W_PRESENT_BIT; // 0x1000
+        flow.flowData.vlanFlowEntry.match_criteria.vlanIdMask = ETH_VLAN_MASK_ANY_W_PRESENT_BIT; // 0x1fff
         
         /* Goto Table Instruction */
         flow.flowData.vlanFlowEntry.gotoTableId = OFDPA_FLOW_TABLE_ID_TERMINATION_MAC;
@@ -647,8 +495,8 @@ int ofdpa_add_or_update_l3_v4_interface(port_t * port, u8 hw_mac[6], int mtu, u3
         
         /* Matches -- pick up any untagged packets to assign tag */
         flow.flowData.vlanFlowEntry.match_criteria.inPort = port->index;
-        flow.flowData.vlanFlowEntry.match_criteria.vlanId = 0x0000;
-        flow.flowData.vlanFlowEntry.match_criteria.vlanIdMask = 0x0fff;
+        flow.flowData.vlanFlowEntry.match_criteria.vlanId = ETH_VLAN_MASK_EXACT_WO_PRESENT_BIT; // 0x0000
+        flow.flowData.vlanFlowEntry.match_criteria.vlanIdMask = ETH_VLAN_MASK_ANY_WO_PRESENT_BIT; // 0x0fff
         
         /* Goto Table Instruction */
         flow.flowData.vlanFlowEntry.gotoTableId = OFDPA_FLOW_TABLE_ID_TERMINATION_MAC;
@@ -691,9 +539,9 @@ int ofdpa_add_or_update_l3_v4_interface(port_t * port, u8 hw_mac[6], int mtu, u3
         /* Matches */
         flow.flowData.terminationMacFlowEntry.match_criteria.inPort = port->index;
         flow.flowData.terminationMacFlowEntry.match_criteria.inPortMask = OFDPA_INPORT_EXACT_MASK;
-        flow.flowData.terminationMacFlowEntry.match_criteria.etherType = 0x0800; /* we assume IPv4 */
+        flow.flowData.terminationMacFlowEntry.match_criteria.etherType = ETHERTYPE_IPV4; 
         memcpy(&(flow.flowData.terminationMacFlowEntry.match_criteria.destMac), hw_mac, OFDPA_MAC_ADDR_LEN);
-        memset(&(flow.flowData.terminationMacFlowEntry.match_criteria.destMacMask), 0xff, OFDPA_MAC_ADDR_LEN);
+        memset(&(flow.flowData.terminationMacFlowEntry.match_criteria.destMacMask), BYTE_MASK_ANY, OFDPA_MAC_ADDR_LEN);
         
         /* Goto Table Instruction */
         flow.flowData.terminationMacFlowEntry.gotoTableId = OFDPA_FLOW_TABLE_ID_UNICAST_ROUTING;
@@ -728,7 +576,7 @@ int ofdpa_add_or_update_l3_v4_interface(port_t * port, u8 hw_mac[6], int mtu, u3
         memset(&(flow.flowData), 0, sizeof(ofdpaUnicastRoutingFlowEntry_t));
         
         /* Matches */
-        flow.flowData.unicastRoutingFlowEntry.match_criteria.etherType = 0x0800; /* we assume IPv4 */
+        flow.flowData.unicastRoutingFlowEntry.match_criteria.etherType = ETHERTYPE_IPV4; 
         flow.flowData.unicastRoutingFlowEntry.match_criteria.dstIp4 = ipv4_addr;
         flow.flowData.unicastRoutingFlowEntry.match_criteria.dstIp4Mask = OFDPA_IPV4_ADDR_EXACT_MASK; /* exact IPv4 match */
         
@@ -772,8 +620,8 @@ int ofdpa_add_or_update_l3_v4_interface(port_t * port, u8 hw_mac[6], int mtu, u3
         flow.flowData.policyAclFlowEntry.match_criteria.inPort = OFDPA_PORT_TYPE_PHYSICAL; /* Must explicitly specify ANY physical port + type_mask */
         flow.flowData.policyAclFlowEntry.match_criteria.inPortMask = OFDPA_INPORT_TYPE_MASK;
         memcpy(&(flow.flowData.policyAclFlowEntry.match_criteria.destMac), hw_mac, OFDPA_MAC_ADDR_LEN);
-        memset(&(flow.flowData.policyAclFlowEntry.match_criteria.destMacMask), 0xff, OFDPA_MAC_ADDR_LEN);
-        flow.flowData.policyAclFlowEntry.match_criteria.etherType = 0x0800; /* we assume IPv4 */
+        memset(&(flow.flowData.policyAclFlowEntry.match_criteria.destMacMask), BYTE_MASK_ANY, OFDPA_MAC_ADDR_LEN);
+        flow.flowData.policyAclFlowEntry.match_criteria.etherType = ETHERTYPE_IPV4; 
         flow.flowData.policyAclFlowEntry.match_criteria.etherTypeMask = OFDPA_ETHERTYPE_EXACT_MASK;
         flow.flowData.policyAclFlowEntry.match_criteria.destIp4 = ipv4_addr;
         flow.flowData.policyAclFlowEntry.match_criteria.destIp4Mask = OFDPA_IPV4_ADDR_EXACT_MASK; /* exact IPv4 match */
@@ -821,9 +669,9 @@ int ofdpa_add_or_update_l3_v4_interface(port_t * port, u8 hw_mac[6], int mtu, u3
         
         /* Matches */
         memcpy(&(flow.flowData.bridgingFlowEntry.match_criteria.destMac), hw_mac, OFDPA_MAC_ADDR_LEN);
-        memset(&(flow.flowData.bridgingFlowEntry.match_criteria.destMacMask), 0xff, OFDPA_MAC_ADDR_LEN); /* exact MAC match */
+        memset(&(flow.flowData.bridgingFlowEntry.match_criteria.destMacMask), BYTE_MASK_ANY, OFDPA_MAC_ADDR_LEN); /* exact MAC match */
         flow.flowData.bridgingFlowEntry.match_criteria.vlanId = compute_vlan_id(port->index); /* must match on VLAN w/o 'present' bit set */
-        flow.flowData.bridgingFlowEntry.match_criteria.vlanIdMask = 0x0fff;
+        flow.flowData.bridgingFlowEntry.match_criteria.vlanIdMask = ETH_VLAN_MASK_ANY_WO_PRESENT_BIT; // 0x0fff
         
         /* Must also supply L2 interface group, even though we won't use it. */
         flow.flowData.bridgingFlowEntry.groupID = default_interface_group_id;
@@ -860,7 +708,7 @@ int ofdpa_add_or_update_l3_v4_interface(port_t * port, u8 hw_mac[6], int mtu, u3
         /* Matches -- all ARP packets */
         flow.flowData.policyAclFlowEntry.match_criteria.inPort = OFDPA_PORT_TYPE_PHYSICAL; /* Must explicitly specify ANY physical port + type_mask */
         flow.flowData.policyAclFlowEntry.match_criteria.inPortMask = OFDPA_INPORT_TYPE_MASK;
-        flow.flowData.policyAclFlowEntry.match_criteria.etherType = 0x0806;
+        flow.flowData.policyAclFlowEntry.match_criteria.etherType = ETHERTYPE_ARP;
         flow.flowData.policyAclFlowEntry.match_criteria.etherTypeMask = OFDPA_ETHERTYPE_EXACT_MASK;
         
         /* Apply Actions Instruction */
@@ -983,8 +831,8 @@ int ofdpa_del_l3_v4_interface(port_t * port, l3_intf_id_t l3_intf_id) {
         
         /* Matches */
         flow.flowData.vlanFlowEntry.match_criteria.inPort = port->index;
-        flow.flowData.vlanFlowEntry.match_criteria.vlanId = 0x0000;
-        flow.flowData.vlanFlowEntry.match_criteria.vlanIdMask = 0x0fff;
+        flow.flowData.vlanFlowEntry.match_criteria.vlanId = ETH_VLAN_MASK_EXACT_WO_PRESENT_BIT; // 0x0000
+        flow.flowData.vlanFlowEntry.match_criteria.vlanIdMask = ETH_VLAN_MASK_ANY_WO_PRESENT_BIT; // 0x0fff
         
         /* Goto Table Instruction */
         flow.flowData.vlanFlowEntry.gotoTableId = OFDPA_FLOW_TABLE_ID_TERMINATION_MAC;
@@ -1020,8 +868,8 @@ int ofdpa_del_l3_v4_interface(port_t * port, l3_intf_id_t l3_intf_id) {
 
         /* Matches */
         flow.flowData.vlanFlowEntry.match_criteria.inPort = port->index;
-        flow.flowData.vlanFlowEntry.match_criteria.vlanId = vlan_id | 0x1000;
-        flow.flowData.vlanFlowEntry.match_criteria.vlanIdMask = 0x1fff;
+        flow.flowData.vlanFlowEntry.match_criteria.vlanId = vlan_id | ETH_VLAN_MASK_EXACT_W_PRESENT_BIT; // 0x1000
+        flow.flowData.vlanFlowEntry.match_criteria.vlanIdMask = ETH_VLAN_MASK_ANY_W_PRESENT_BIT; // 0x1fff
         
         /* Goto Table Instruction */
         flow.flowData.vlanFlowEntry.gotoTableId = OFDPA_FLOW_TABLE_ID_TERMINATION_MAC;
@@ -1059,9 +907,9 @@ int ofdpa_del_l3_v4_interface(port_t * port, l3_intf_id_t l3_intf_id) {
         /* Matches */
         flow.flowData.terminationMacFlowEntry.match_criteria.inPort = port->index;
         flow.flowData.terminationMacFlowEntry.match_criteria.inPortMask = OFDPA_INPORT_EXACT_MASK;
-        flow.flowData.terminationMacFlowEntry.match_criteria.etherType = 0x0800; /* we assume IPv4 */
+        flow.flowData.terminationMacFlowEntry.match_criteria.etherType = ETHERTYPE_IPV4; 
         memcpy(&(flow.flowData.terminationMacFlowEntry.match_criteria.destMac), hw_mac, OFDPA_MAC_ADDR_LEN);
-        memset(&(flow.flowData.terminationMacFlowEntry.match_criteria.destMacMask), 0xff, OFDPA_MAC_ADDR_LEN);
+        memset(&(flow.flowData.terminationMacFlowEntry.match_criteria.destMacMask), BYTE_MASK_ANY, OFDPA_MAC_ADDR_LEN);
         
         /* Goto Table Instruction */
         flow.flowData.terminationMacFlowEntry.gotoTableId = OFDPA_FLOW_TABLE_ID_UNICAST_ROUTING;
@@ -1093,7 +941,7 @@ int ofdpa_del_l3_v4_interface(port_t * port, l3_intf_id_t l3_intf_id) {
         memset(&(flow.flowData), 0, sizeof(ofdpaUnicastRoutingFlowEntry_t));
         
         /* Matches */
-        flow.flowData.unicastRoutingFlowEntry.match_criteria.etherType = 0x0800; /* we assume IPv4 */
+        flow.flowData.unicastRoutingFlowEntry.match_criteria.etherType = ETHERTYPE_IPV4; 
         flow.flowData.unicastRoutingFlowEntry.match_criteria.dstIp4 = ipv4_addr;
         flow.flowData.unicastRoutingFlowEntry.match_criteria.dstIp4Mask = OFDPA_IPV4_ADDR_EXACT_MASK; /* exact IPv4 match */
         
@@ -1133,8 +981,8 @@ int ofdpa_del_l3_v4_interface(port_t * port, l3_intf_id_t l3_intf_id) {
         flow.flowData.policyAclFlowEntry.match_criteria.inPort = OFDPA_PORT_TYPE_PHYSICAL; /* Must explicitly specify ANY physical port + type_mask */
         flow.flowData.policyAclFlowEntry.match_criteria.inPortMask = OFDPA_INPORT_TYPE_MASK;
         memcpy(&(flow.flowData.policyAclFlowEntry.match_criteria.destMac), hw_mac, OFDPA_MAC_ADDR_LEN);
-        memset(&(flow.flowData.policyAclFlowEntry.match_criteria.destMacMask), 0xff, OFDPA_MAC_ADDR_LEN); /* exact MAC match -- TODO might be redundant? */
-        flow.flowData.policyAclFlowEntry.match_criteria.etherType = 0x0800; /* we assume IPv4 */
+        memset(&(flow.flowData.policyAclFlowEntry.match_criteria.destMacMask), BYTE_MASK_ANY, OFDPA_MAC_ADDR_LEN); /* exact MAC match */
+        flow.flowData.policyAclFlowEntry.match_criteria.etherType = ETHERTYPE_IPV4; 
         flow.flowData.policyAclFlowEntry.match_criteria.etherTypeMask = OFDPA_ETHERTYPE_EXACT_MASK;
         flow.flowData.policyAclFlowEntry.match_criteria.destIp4 = ipv4_addr;
         flow.flowData.policyAclFlowEntry.match_criteria.destIp4Mask = OFDPA_IPV4_ADDR_EXACT_MASK; /* exact IPv4 match */
@@ -1170,9 +1018,9 @@ int ofdpa_del_l3_v4_interface(port_t * port, l3_intf_id_t l3_intf_id) {
         
         /* Matches */
         memcpy(&(flow.flowData.bridgingFlowEntry.match_criteria.destMac), hw_mac, OFDPA_MAC_ADDR_LEN);
-        memset(&(flow.flowData.bridgingFlowEntry.match_criteria.destMacMask), 0xff, OFDPA_MAC_ADDR_LEN); /* exact MAC match */
+        memset(&(flow.flowData.bridgingFlowEntry.match_criteria.destMacMask), BYTE_MASK_ANY, OFDPA_MAC_ADDR_LEN); /* exact MAC match */
         flow.flowData.bridgingFlowEntry.match_criteria.vlanId = compute_vlan_id(port->index); /* must match on VLAN w/o 'present' bit set */
-        flow.flowData.bridgingFlowEntry.match_criteria.vlanIdMask = 0x0fff;
+        flow.flowData.bridgingFlowEntry.match_criteria.vlanIdMask = ETH_VLAN_MASK_ANY_WO_PRESENT_BIT; // 0x0fff
         
         /* Must also supply L2 interface group, even though we won't use it. */
         flow.flowData.bridgingFlowEntry.groupID = default_interface_group_id;
@@ -1208,7 +1056,7 @@ int ofdpa_del_l3_v4_interface(port_t * port, l3_intf_id_t l3_intf_id) {
         /* Matches -- all ARP packets */
         flow.flowData.policyAclFlowEntry.match_criteria.inPort = OFDPA_PORT_TYPE_PHYSICAL; /* Must explicitly specify ANY physical port + type_mask */
         flow.flowData.policyAclFlowEntry.match_criteria.inPortMask = OFDPA_INPORT_TYPE_MASK;
-        flow.flowData.policyAclFlowEntry.match_criteria.etherType = 0x0806;
+        flow.flowData.policyAclFlowEntry.match_criteria.etherType = ETHERTYPE_ARP;
         flow.flowData.policyAclFlowEntry.match_criteria.etherTypeMask = OFDPA_ETHERTYPE_EXACT_MASK;
         
         /* Apply Actions Instruction */
@@ -1258,27 +1106,27 @@ int ofdpa_add_l3_v4_next_hop(port_t * port, l3_intf_id_t l3_intf_id, u8 next_hop
     /* Verify next hop MAC is valid */
     char mac[OFDPA_MAC_ADDR_LEN * 2 * 2];
     mac_to_str(mac, next_hop_hw_mac);
-    if (next_hop_hw_mac[0] == 0xff &&
-        next_hop_hw_mac[1] == 0xff &&
-        next_hop_hw_mac[2] == 0xff &&
-        next_hop_hw_mac[3] == 0xff &&
-        next_hop_hw_mac[4] == 0xff &&
-        next_hop_hw_mac[5] == 0xff)
+    if (next_hop_hw_mac[0] == BYTE_MASK_ANY &&
+        next_hop_hw_mac[1] == BYTE_MASK_ANY &&
+        next_hop_hw_mac[2] == BYTE_MASK_ANY &&
+        next_hop_hw_mac[3] == BYTE_MASK_ANY &&
+        next_hop_hw_mac[4] == BYTE_MASK_ANY &&
+        next_hop_hw_mac[5] == BYTE_MASK_ANY)
     {
         orc_err("Received invalid broadcast MAC %s as next hop. Expected unicast\r\n", mac);
         return -1;
     }
-    else if (next_hop_hw_mac[0] == 0x00 &&
-             next_hop_hw_mac[1] == 0x00 &&
-             next_hop_hw_mac[2] == 0x00 &&
-             next_hop_hw_mac[3] == 0x00 &&
-             next_hop_hw_mac[4] == 0x00 &&
-             next_hop_hw_mac[5] == 0x00)
+    else if (next_hop_hw_mac[0] == BYTE_MASK_EXACT &&
+             next_hop_hw_mac[1] == BYTE_MASK_EXACT &&
+             next_hop_hw_mac[2] == BYTE_MASK_EXACT &&
+             next_hop_hw_mac[3] == BYTE_MASK_EXACT &&
+             next_hop_hw_mac[4] == BYTE_MASK_EXACT &&
+             next_hop_hw_mac[5] == BYTE_MASK_EXACT)
     {
         orc_err("Received invalid zero MAC %s as next hop. Expected unicast\r\n", mac);
         return -1;
     }
-    else if (next_hop_hw_mac[0] & 0x01)
+    else if (next_hop_hw_mac[0] & BYTE_MASK_ONE)
     {
         orc_err("Received invalid multicast MAC %s as next hop. Expected unicast\r\n", mac);
         return -1;
@@ -1369,116 +1217,18 @@ int ofdpa_del_l3_v4_next_hop(l3_next_hop_id_t l3_next_hop_id) {
         orc_warn("Found next hop %d. Proceeding to delete it\r\n", next_hop->id);
     }
     
-    
-    port_t * port = &(next_hop->port->port);
-    
-    uint32_t group_id = 0;
-    uint32_t port_id;
-    uint32_t vlan_id;
-    uint32_t group_type;
+    uint32_t vlan_id = compute_vlan_id(next_hop->port->port.index);
     
     /* First do the L3 Unicast group. */
-    port_id = port->index;
-    vlan_id = compute_vlan_id(port->index);
-    group_type = (uint32_t) OFDPA_GROUP_ENTRY_TYPE_L3_UNICAST;
-    
-    OFDPA_ERROR_t rc = ofdpaGroupTypeSet(&group_id, group_type); 
-    if (rc != OFDPA_E_NONE)
+    if (delete_group_l3_unicast(next_hop->id, vlan_id) == 0)
     {
-        orc_err("Failed to set L3 unicast group type. rc=%d\r\n", rc);
         return -1;
-    }
-    
-    rc = ofdpaGroupIndexSet(&group_id, next_hop->id);
-    if (rc != OFDPA_E_NONE)
-    {
-        orc_err("Failed to set L3 unicast group index/ID. rc=%d\r\n", rc);
-        return -1;
-    }
-    
-    rc = ofdpaGroupBucketsDeleteAll(group_id);
-    if (rc == OFDPA_E_NOT_FOUND || rc == OFDPA_E_EMPTY)
-    {
-        orc_warn("L3 unicast group %#010x not found\r\n", group_id);
-    }
-    else if (rc != OFDPA_E_NONE)
-    {
-        orc_err("Failed to delete L3 unicast group %#010x buckets. rc=%d\r\n", group_id, rc);
-        return -1;
-    }
-    else
-    {
-        orc_warn("L3 unicast group %#010x bucket deleted from port %d, VLAN %d\r\n", group_id, port_id, vlan_id);
-    }
-    
-    rc = ofdpaGroupDelete(group_id);
-    if (rc == OFDPA_E_NOT_FOUND || rc == OFDPA_E_EMPTY)
-    {
-        orc_warn("L3 unicast group %#010x not found\r\n", group_id);
-    }
-    else if (rc != OFDPA_E_NONE)
-    {
-        orc_err("Failed to delete L3 unicast group %#010x. rc=%d\r\n", group_id, rc);
-        return -1;
-    }
-    else
-    {
-        orc_warn("L3 unicast group entry %#010x deleted.\r\n", group_id);
     }
     
     /* Now, we can do the L2 Interface group. */
-    group_id = 0;
-    group_type = (uint32_t) OFDPA_GROUP_ENTRY_TYPE_L2_INTERFACE;
-    
-    rc = ofdpaGroupTypeSet(&group_id, group_type); 
-    if (rc != OFDPA_E_NONE)
+    if (delete_group_l2_interface(next_hop->port->port.index, vlan_id) == 0)
     {
-        orc_err("Failed to set L2 interface group type. rc=%d\r\n", rc);
         return -1;
-    }
-    
-    rc = ofdpaGroupVlanSet(&group_id, vlan_id); 
-    if (rc != OFDPA_E_NONE)
-    {
-        orc_err("Failed to set L2 interface group VLAN. rc=%d\r\n", rc);
-        return -1;
-    }
-    
-    rc = ofdpaGroupPortIdSet(&group_id, port_id); 
-    if (rc != OFDPA_E_NONE)
-    {
-        orc_err("Failed to set L2 interface group port. rc=%d\r\n", rc);
-        return -1;
-    }
-    
-    rc = ofdpaGroupBucketsDeleteAll(group_id);
-    if (rc == OFDPA_E_NOT_FOUND || rc == OFDPA_E_EMPTY)
-    {
-        orc_warn("L2 interface group %#010x buckets not found\r\n", group_id);
-    }
-    else if (rc != OFDPA_E_NONE)
-    {
-        orc_err("Failed to delete L2 interface group %#010x buckets. rc=%d\r\n", group_id, rc);
-        return -1;
-    }
-    else
-    {
-        orc_warn("L2 interface group %#010x buckets deleted from port %d\r\n", group_id, port_id);
-    }
-    
-    rc = ofdpaGroupDelete(group_id);
-    if (rc == OFDPA_E_NOT_FOUND || rc == OFDPA_E_EMPTY)
-    {
-        orc_warn("L2 interface group %#010x not found\r\n", group_id);
-    }
-    else if (rc != OFDPA_E_NONE)
-    {
-        orc_err("Failed to delete L2 interface group %#010x. rc=%d\r\n", group_id, rc);
-        return -1;
-    }
-    else
-    {
-        orc_warn("L2 interface group %#010x deleted\r\n", group_id);
     }
     
     /*
@@ -1529,7 +1279,7 @@ int ofdpa_add_l3_v4_route(u32 ip_dst, u32 netmask, l3_next_hop_id_t l3_next_hop_
         memset(&(flow.flowData), 0, sizeof(ofdpaUnicastRoutingFlowEntry_t));
         
         /* Matches */
-        flow.flowData.unicastRoutingFlowEntry.match_criteria.etherType = 0x0800; /* we assume IPv4 */
+        flow.flowData.unicastRoutingFlowEntry.match_criteria.etherType = ETHERTYPE_IPV4; 
         flow.flowData.unicastRoutingFlowEntry.match_criteria.dstIp4 = ip_dst;
         flow.flowData.unicastRoutingFlowEntry.match_criteria.dstIp4Mask = netmask; /* exact IPv4 match */
         
@@ -1604,7 +1354,7 @@ int ofdpa_add_l3_v4_route(u32 ip_dst, u32 netmask, l3_next_hop_id_t l3_next_hop_
             /* Matches -- no MAC address; IPv4 w/mask */
             flow.flowData.policyAclFlowEntry.match_criteria.inPort = OFDPA_PORT_TYPE_PHYSICAL; /* Must explicitly specify ANY physical port + type_mask */
             flow.flowData.policyAclFlowEntry.match_criteria.inPortMask = OFDPA_INPORT_TYPE_MASK;
-            flow.flowData.policyAclFlowEntry.match_criteria.etherType = 0x0800; /* we assume IPv4 */
+            flow.flowData.policyAclFlowEntry.match_criteria.etherType = ETHERTYPE_IPV4; 
             flow.flowData.policyAclFlowEntry.match_criteria.etherTypeMask = OFDPA_ETHERTYPE_EXACT_MASK;
             flow.flowData.policyAclFlowEntry.match_criteria.destIp4 = ip_dst;
             flow.flowData.policyAclFlowEntry.match_criteria.destIp4Mask = netmask;
@@ -1642,7 +1392,7 @@ int ofdpa_add_l3_v4_route(u32 ip_dst, u32 netmask, l3_next_hop_id_t l3_next_hop_
             /* Matches -- no MAC address; IPv4 w/mask */
             flow.flowData.policyAclFlowEntry.match_criteria.inPort = OFDPA_PORT_TYPE_PHYSICAL; /* Must explicitly specify ANY physical port + type_mask */
             flow.flowData.policyAclFlowEntry.match_criteria.inPortMask = OFDPA_INPORT_TYPE_MASK;
-            flow.flowData.policyAclFlowEntry.match_criteria.etherType = 0x0800; /* we assume IPv4 */
+            flow.flowData.policyAclFlowEntry.match_criteria.etherType = ETHERTYPE_IPV4; 
             flow.flowData.policyAclFlowEntry.match_criteria.etherTypeMask = OFDPA_ETHERTYPE_EXACT_MASK;
             flow.flowData.policyAclFlowEntry.match_criteria.destIp4 = ip_dst;
             flow.flowData.policyAclFlowEntry.match_criteria.destIp4Mask = netmask;
@@ -1676,12 +1426,12 @@ int ofdpa_add_l3_v4_route(u32 ip_dst, u32 netmask, l3_next_hop_id_t l3_next_hop_
         {
             memset(&(flow.flowData), 0, sizeof(ofdpaPolicyAclFlowEntry_t));
             
-            flow.priority = 100;
+            flow.priority = NON_KERNEL_NEXT_HOP_FLOW_PRIORITY;
             
             /* Matches -- no MAC address; IPv4 w/mask */
             flow.flowData.policyAclFlowEntry.match_criteria.inPort = OFDPA_PORT_TYPE_PHYSICAL; /* Must explicitly specify ANY physical port + type_mask */
             flow.flowData.policyAclFlowEntry.match_criteria.inPortMask = OFDPA_INPORT_TYPE_MASK;
-            flow.flowData.policyAclFlowEntry.match_criteria.etherType = 0x0800; /* we assume IPv4 */
+            flow.flowData.policyAclFlowEntry.match_criteria.etherType = ETHERTYPE_IPV4; 
             flow.flowData.policyAclFlowEntry.match_criteria.etherTypeMask = OFDPA_ETHERTYPE_EXACT_MASK;
             flow.flowData.policyAclFlowEntry.match_criteria.destIp4 = ip_dst;
             flow.flowData.policyAclFlowEntry.match_criteria.destIp4Mask = netmask;
@@ -1738,7 +1488,7 @@ int ofdpa_del_l3_v4_route(u32 ip_dst, u32 netmask, l3_next_hop_id_t l3_next_hop_
         memset(&(flow.flowData), 0, sizeof(ofdpaUnicastRoutingFlowEntry_t));
         
         /* Matches */
-        flow.flowData.unicastRoutingFlowEntry.match_criteria.etherType = 0x0800; /* we assume IPv4 */
+        flow.flowData.unicastRoutingFlowEntry.match_criteria.etherType = ETHERTYPE_IPV4; 
         flow.flowData.unicastRoutingFlowEntry.match_criteria.dstIp4 = ip_dst;
         flow.flowData.unicastRoutingFlowEntry.match_criteria.dstIp4Mask = netmask; /* exact IPv4 match */
         
@@ -1808,7 +1558,7 @@ int ofdpa_del_l3_v4_route(u32 ip_dst, u32 netmask, l3_next_hop_id_t l3_next_hop_
             /* Matches -- no MAC address; IPv4 w/mask */
             flow.flowData.policyAclFlowEntry.match_criteria.inPort = OFDPA_PORT_TYPE_PHYSICAL; /* Must explicitly specify ANY physical port + type_mask */
             flow.flowData.policyAclFlowEntry.match_criteria.inPortMask = OFDPA_INPORT_TYPE_MASK;
-            flow.flowData.policyAclFlowEntry.match_criteria.etherType = 0x0800; /* we assume IPv4 */
+            flow.flowData.policyAclFlowEntry.match_criteria.etherType = ETHERTYPE_IPV4; 
             flow.flowData.policyAclFlowEntry.match_criteria.etherTypeMask = OFDPA_ETHERTYPE_EXACT_MASK;
             flow.flowData.policyAclFlowEntry.match_criteria.destIp4 = ip_dst;
             flow.flowData.policyAclFlowEntry.match_criteria.destIp4Mask = netmask;
@@ -1843,12 +1593,12 @@ int ofdpa_del_l3_v4_route(u32 ip_dst, u32 netmask, l3_next_hop_id_t l3_next_hop_
         {
             memset(&(flow.flowData), 0, sizeof(ofdpaPolicyAclFlowEntry_t));
             
-            flow.priority = 100;
+            flow.priority = NON_KERNEL_NEXT_HOP_FLOW_PRIORITY;
             
             /* Matches -- no MAC address; IPv4 w/mask */
             flow.flowData.policyAclFlowEntry.match_criteria.inPort = OFDPA_PORT_TYPE_PHYSICAL; /* Must explicitly specify ANY physical port + type_mask */
             flow.flowData.policyAclFlowEntry.match_criteria.inPortMask = OFDPA_INPORT_TYPE_MASK;
-            flow.flowData.policyAclFlowEntry.match_criteria.etherType = 0x0800; /* we assume IPv4 */
+            flow.flowData.policyAclFlowEntry.match_criteria.etherType = ETHERTYPE_IPV4; 
             flow.flowData.policyAclFlowEntry.match_criteria.etherTypeMask = OFDPA_ETHERTYPE_EXACT_MASK;
             flow.flowData.policyAclFlowEntry.match_criteria.destIp4 = ip_dst;
             flow.flowData.policyAclFlowEntry.match_criteria.destIp4Mask = netmask;
@@ -1904,9 +1654,318 @@ orc_driver_t DRIVER_HOOKS = {
     .log_debug_info = ofdpa_log_debug_info
 };
 
-/********************
- * Helper functions *
- ********************/
+/***************************
+ * OF-DPA helper functions *
+ ***************************/
+
+/******
+ * add_group_l2_interface: Add a new L2 interface group.
+ * @return 0 on error; otherwise the group ID
+ */
+uint32_t add_group_l2_interface(uint32_t vlan_id, uint32_t port_id)
+{
+    uint32_t group_type = (uint32_t) OFDPA_GROUP_ENTRY_TYPE_L2_INTERFACE;
+    ofdpaGroupEntry_t group;
+    ofdpaGroupBucketEntry_t group_bucket;
+    memset(&group, 0, sizeof(ofdpaGroupEntry_t));
+    memset(&group_bucket, 0, sizeof(ofdpaGroupBucketEntry_t));
+    
+    uint32_t group_id = 0;
+    
+    OFDPA_ERROR_t rc = ofdpaGroupTypeSet(&group_id, group_type);
+    if (rc != OFDPA_E_NONE)
+    {
+        orc_err("Failed to set L2 interface group type. rc=%d\r\n", rc);
+        return 0;
+    }
+    
+    rc = ofdpaGroupVlanSet(&group_id, vlan_id);
+    if (rc != OFDPA_E_NONE)
+    {
+        orc_err("Failed to set L2 interface group VLAN. rc=%d\r\n", rc);
+        return 0;
+    }
+    
+    rc = ofdpaGroupPortIdSet(&group_id, port_id);
+    if (rc != OFDPA_E_NONE)
+    {
+        orc_err("Failed to set L2 interface group port. rc=%d\r\n", rc);
+        return 0;
+    }
+    
+    rc = ofdpaGroupEntryInit(group_type, &group);
+    if (rc != OFDPA_E_NONE)
+    {
+        orc_err("Failed to initialize L2 interface group. rc=%d\r\n", rc);
+        return 0;
+    }
+    
+    group.groupId = group_id;
+    rc = ofdpaGroupAdd(&group);
+    if (rc != OFDPA_E_NONE)
+    {
+        orc_err("Failed to push L2 interface group. rc=%d\r\n", rc);
+        return 0;
+    }
+    orc_warn("L2 interface group %#010x added for VLAN %d out port %d\r\n", group_id, vlan_id, port_id);
+    
+    rc = ofdpaGroupBucketEntryInit(group_type, &group_bucket);
+    if (rc != OFDPA_E_NONE)
+    {
+        orc_err("Failed to initialize L2 interface bucket. rc=%d\r\n", rc);
+        return 0;
+    }
+    
+    group_bucket.groupId = group_id;
+    group_bucket.bucketIndex = 0;
+    group_bucket.bucketData.l2Interface.popVlanTag = ACTION; /* yes, remove the VLAN tag */
+    group_bucket.bucketData.l2Interface.outputPort = port_id;
+    
+    rc = ofdpaGroupBucketEntryAdd(&group_bucket);
+    if (rc != OFDPA_E_NONE)
+    {
+        orc_err("Failed to add L2 interface bucket. rc=%d\r\n", rc);
+        return 0;
+    }
+    orc_warn("L2 interface group %#010x bucket added for VLAN %d out port %d\r\n", group_id, vlan_id, port_id);
+    
+    return group_id;
+}
+
+/******
+ * add_group_l3_unicast: Add a new L3 unicast group.
+ * @return 0 on error; otherwise the group ID
+ */
+uint32_t add_group_l3_unicast(uint32_t index, uint32_t reference_group_id, uint32_t vlan_id, u8 src_mac[6], u8 dst_mac[6])
+{
+    uint32_t group_type = (uint32_t) OFDPA_GROUP_ENTRY_TYPE_L3_UNICAST;
+    ofdpaGroupEntry_t group;
+    ofdpaGroupBucketEntry_t group_bucket;
+    memset(&group, 0, sizeof(ofdpaGroupEntry_t));
+    memset(&group_bucket, 0, sizeof(ofdpaGroupBucketEntry_t));
+    
+    uint32_t group_id = 0;
+    
+    OFDPA_ERROR_t rc = ofdpaGroupTypeSet(&group_id, group_type);
+    if (rc != OFDPA_E_NONE)
+    {
+        orc_err("Failed to set L3 unicast group type. rc=%d\r\n", rc);
+        return 0;
+    }
+    
+    rc = ofdpaGroupIndexSet(&group_id, index);
+    if (rc != OFDPA_E_NONE)
+    {
+        orc_err("Failed to set L3 unicast group index/ID. rc=%d\r\n", rc);
+        return 0;
+    }
+    
+    rc = ofdpaGroupEntryInit(group_type, &group);
+    if (rc != OFDPA_E_NONE)
+    {
+        orc_err("Failed to initialize L3 unicast group. rc=%d\r\n", rc);
+        return 0;
+    }
+    
+    group.groupId = group_id;
+    rc = ofdpaGroupAdd(&group);
+    if (rc != OFDPA_E_NONE)
+    {
+        orc_err("Failed to push L3 unicast group. rc=%d\r\n", rc);
+        return 0;
+    }
+    orc_warn("L3 unicast group entry %#010x added.\r\n", group_id);
+    
+    memset(&group_bucket, 0, sizeof(ofdpaGroupBucketEntry_t));
+    rc = ofdpaGroupBucketEntryInit(group_type, &group_bucket);
+    if (rc != OFDPA_E_NONE)
+    {
+        orc_err("Failed to initialize L3 unicast bucket. rc=%d\r\n", rc);
+        return 0;
+    }
+    
+    group_bucket.groupId = group_id;
+    group_bucket.referenceGroupId = reference_group_id;
+    group_bucket.bucketIndex = 0;
+    group_bucket.bucketData.l3Unicast.vlanId = vlan_id;
+    memcpy(&(group_bucket.bucketData.l3Unicast.srcMac), src_mac, OFDPA_MAC_ADDR_LEN);
+    memcpy(&(group_bucket.bucketData.l3Unicast.dstMac), dst_mac, OFDPA_MAC_ADDR_LEN);
+    
+    rc = ofdpaGroupBucketEntryAdd(&group_bucket);
+    if (rc != OFDPA_E_NONE)
+    {
+        orc_err("Failed to add L3 unicast bucket. rc=%d\r\n", rc);
+        return 0;
+    }
+    orc_warn("L3 unicast group %#010x bucket added for VLAN %d; Referencing L2 interface group %#010x\r\n", group_id, vlan_id, group_bucket.referenceGroupId);
+    
+    return group_id;
+}
+
+/******
+ * delete_group_l2_interface: Remove an L2 Interface group and all of its
+ * buckets from the group table. If the group or its buckets do not exist,
+ * success will still be returned.
+ * @return 0 upon error; 1 upon success
+ */
+uint32_t delete_group_l2_interface(uint32_t port_id, uint32_t vlan_id)
+{
+    uint32_t group_id = 0;
+    uint32_t group_type = (uint32_t) OFDPA_GROUP_ENTRY_TYPE_L2_INTERFACE;
+    
+    OFDPA_ERROR_t rc = ofdpaGroupTypeSet(&group_id, group_type);
+    if (rc != OFDPA_E_NONE)
+    {
+        orc_err("Failed to set L2 interface group type. rc=%d\r\n", rc);
+        return 0;
+    }
+    
+    rc = ofdpaGroupVlanSet(&group_id, vlan_id);
+    if (rc != OFDPA_E_NONE)
+    {
+        orc_err("Failed to set L2 interface group VLAN. rc=%d\r\n", rc);
+        return 0;
+    }
+    
+    rc = ofdpaGroupPortIdSet(&group_id, port_id);
+    if (rc != OFDPA_E_NONE)
+    {
+        orc_err("Failed to set L2 interface group port. rc=%d\r\n", rc);
+        return 0;
+    }
+    
+    rc = ofdpaGroupBucketsDeleteAll(group_id);
+    if (rc == OFDPA_E_NOT_FOUND || rc == OFDPA_E_EMPTY)
+    {
+        orc_warn("L2 interface group %#010x buckets not found\r\n", group_id);
+    }
+    else if (rc != OFDPA_E_NONE)
+    {
+        orc_err("Failed to delete L2 interface group %#010x buckets. rc=%d\r\n", group_id, rc);
+        return 0;
+    }
+    else
+    {
+        orc_warn("L2 interface group %#010x buckets deleted from port %d\r\n", group_id, port_id);
+    }
+    
+    rc = ofdpaGroupDelete(group_id);
+    if (rc == OFDPA_E_NOT_FOUND || rc == OFDPA_E_EMPTY)
+    {
+        orc_warn("L2 interface group %#010x not found\r\n", group_id);
+    }
+    else if (rc != OFDPA_E_NONE)
+    {
+        orc_err("Failed to delete L2 interface group %#010x. rc=%d\r\n", group_id, rc);
+        return 0;
+    }
+    else
+    {
+        orc_warn("L2 interface group %#010x deleted\r\n", group_id);
+    }
+    return 1;
+}
+
+/******
+ * delete_group_l3_unicast: Remove an L3 Unicast group and all of its
+ * buckets from the group table. If the group or its buckets do not exist,
+ * success will still be returned.
+ * @return 0 upon error; 1 upon success
+ */
+uint32_t delete_group_l3_unicast(uint32_t index, uint32_t vlan_id)
+{
+    uint32_t group_type = (uint32_t) OFDPA_GROUP_ENTRY_TYPE_L3_UNICAST;
+    uint32_t group_id = 0;
+    
+    OFDPA_ERROR_t rc = ofdpaGroupTypeSet(&group_id, group_type);
+    if (rc != OFDPA_E_NONE)
+    {
+        orc_err("Failed to set L3 unicast group type. rc=%d\r\n", rc);
+        return 0;
+    }
+    
+    rc = ofdpaGroupIndexSet(&group_id, index);
+    if (rc != OFDPA_E_NONE)
+    {
+        orc_err("Failed to set L3 unicast group index/ID. rc=%d\r\n", rc);
+        return 0;
+    }
+    
+    rc = ofdpaGroupBucketsDeleteAll(group_id);
+    if (rc == OFDPA_E_NOT_FOUND || rc == OFDPA_E_EMPTY)
+    {
+        orc_warn("L3 unicast group %#010x not found\r\n", group_id);
+    }
+    else if (rc != OFDPA_E_NONE)
+    {
+        orc_err("Failed to delete L3 unicast group %#010x buckets. rc=%d\r\n", group_id, rc);
+        return 0;
+    }
+    else
+    {
+        orc_warn("L3 unicast group %#010x bucket deleted for VLAN %d\r\n", group_id, vlan_id);
+    }
+    
+    rc = ofdpaGroupDelete(group_id);
+    if (rc == OFDPA_E_NOT_FOUND || rc == OFDPA_E_EMPTY)
+    {
+        orc_warn("L3 unicast group %#010x not found\r\n", group_id);
+    }
+    else if (rc != OFDPA_E_NONE)
+    {
+        orc_err("Failed to delete L3 unicast group %#010x. rc=%d\r\n", group_id, rc);
+        return 0;
+    }
+    else
+    {
+        orc_warn("L3 unicast group entry %#010x deleted.\r\n", group_id);
+    }
+    
+    return 1;
+}
+
+/******
+ * add_default_next_hop: Required for OF-DPA. Should never actually see packets.
+ */
+int add_default_next_hop()
+{
+    /* Init global structs */
+    default_next_hop_port.index = 1; /* Assume port #1 */
+    default_next_hop.id = generate_l3_next_hop_id(); /* ID is guaranteed to be unique */
+    memcpy(&(default_next_hop.mac), &default_next_hop_mac, OFDPA_MAC_ADDR_LEN);
+    default_next_hop.port = (ofdpa_port_t *) &default_next_hop_ofdpa_port;
+    
+    add_next_hop(&default_next_hop);
+    
+    /*
+     * First do the L2 Interface group, since we need to reference it
+     * in the L3 Unicast group as a bucket.
+     */
+    
+    uint32_t group_id = add_group_l2_interface(default_next_hop_port.index, /* Use port (1) for unused VLAN */
+                                               default_next_hop_port.index);
+    if (group_id == -1) {
+        return -1;
+    }
+    
+    default_interface_group_id = group_id;
+    
+    /*
+     * Now, we can do the L3 Unicast group.
+     */
+    group_id = add_group_l3_unicast(default_next_hop.id,
+                                    group_id,
+                                    default_next_hop_port.index, /* Use port (1) for unused VLAN */
+                                    default_next_hop_mac,
+                                    default_next_hop_mac);
+    if (group_id == 0) {
+        return -1;
+    }
+    
+    default_next_hop_group_id = group_id;
+    
+    return 0;
+}
 
 /******
  * Determine the number of ports exposed through ofdpa.
@@ -2193,10 +2252,11 @@ void free_next_hops() {
 /******
  * compute_vlan_id: from an ofdpa port index, determine the correct
  * VLAN ID to associate/assign to the port. The algorithm at present
- * uses the port index + 100.
+ * uses the port index + PORT_VLAN_OFFSET.
  */
+#define PORT_VLAN_OFFSET 100
 uint16_t compute_vlan_id(uint32_t port) {
-    return (uint16_t) (port + 100);
+    return (uint16_t) (port + PORT_VLAN_OFFSET);
 }
 
 /******
@@ -2409,8 +2469,8 @@ void mac_to_str(char * str, u8 * hw_mac) {
  */
 void ipv4_to_str(char * str, uint32_t ipv4) {
     sprintf(str, "%d.%d.%d.%d",
-            ipv4 >> 24 & 0xff,
-            ipv4 >> 16 & 0xff,
-            ipv4 >> 8 & 0xff,
-            ipv4 >> 0 & 0xff);
+            ipv4 >> 24 & BYTE_MASK_ANY,
+            ipv4 >> 16 & BYTE_MASK_ANY,
+            ipv4 >> 8 & BYTE_MASK_ANY,
+            ipv4 >> 0 & BYTE_MASK_ANY);
 }
