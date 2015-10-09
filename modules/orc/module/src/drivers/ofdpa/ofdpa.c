@@ -172,6 +172,16 @@ uint32_t add_group_l2_interface(uint32_t, uint32_t);
 uint32_t add_group_l3_unicast(uint32_t, uint32_t, uint32_t, u8 *, u8 *);
 uint32_t delete_group_l2_interface(uint32_t, uint32_t);
 uint32_t delete_group_l3_unicast(uint32_t, uint32_t);
+
+uint32_t add_flow_vlan(uint32_t, uint32_t, uint32_t, uint32_t, uint32_t);
+
+
+uint32_t del_flow_vlan(uint32_t, uint32_t, uint32_t, uint32_t, uint32_t);
+
+
+uint32_t init_flow_vlan(ofdpaFlowEntry_t *, uint32_t, uint32_t, uint32_t, uint32_t, uint32_t);
+
+
 int clear_ofdpa_tables(void); /* both flow and group */
 int clear_ofdpa_flow_table(OFDPA_FLOW_TABLE_ID_t);
 
@@ -433,187 +443,6 @@ int ofdpa_stop_rx()
  */
 int ofdpa_add_l3_v4_interface(port_t * port, u8 hw_mac[6], int mtu, u32 ipv4_addr, l3_intf_id_t * l3_intf_id) {
     return ofdpa_add_or_update_l3_v4_interface(port, hw_mac, mtu, ipv4_addr, l3_intf_id, false);
-}
-
-uint32_t init_flow_vlan(ofdpaFlowEntry_t * flow, uint32_t in_port, uint32_t vlan_id_match, uint32_t vlan_id_match_or, uint32_t vlan_match_mask, uint32_t vlan_push)
-{
-    OFDPA_ERROR_t rc;
-    
-    rc = ofdpaFlowEntryInit(OFDPA_FLOW_TABLE_ID_VLAN, flow);
-    if (rc != OFDPA_E_NONE)
-    {
-        if (vlan_id_match == ETH_VLAN_MASK_EXACT_WO_PRESENT_BIT)
-        {
-            orc_err("Failed to initialize untagged VLAN flow. rc=%d\r\n", rc);
-        }
-        else
-        {
-            orc_err("Failed to initialize VLAN flow. rc=%d\r\n", rc);
-        }
-        return 0;
-    } else
-    {
-        memset(&(flow->flowData), 0, sizeof(ofdpaVlanFlowEntry_t));
-        
-        /* Matches */
-        flow->flowData.vlanFlowEntry.match_criteria.inPort = in_port;
-        flow->flowData.vlanFlowEntry.match_criteria.vlanId = vlan_id_match | vlan_id_match_or;
-        flow->flowData.vlanFlowEntry.match_criteria.vlanIdMask = vlan_match_mask;
-        
-        /* Goto Table Instruction */
-        flow->flowData.vlanFlowEntry.gotoTableId = OFDPA_FLOW_TABLE_ID_TERMINATION_MAC;
-        
-        /* Apply Actions Instruction */
-        flow->flowData.vlanFlowEntry.setVlanIdAction = ACTION;
-        flow->flowData.vlanFlowEntry.newVlanId = vlan_push;
-    }
-    return 1;
-}
-
-uint32_t add_flow_vlan(uint32_t in_port, uint32_t vlan_id_match, uint32_t vlan_id_match_or, uint32_t vlan_match_mask, uint32_t vlan_push)
-{
-    OFDPA_ERROR_t rc;
-    ofdpaFlowEntry_t flow;
-    
-    if (init_flow_vlan(&flow, in_port, vlan_id_match, vlan_id_match_or, vlan_match_mask, vlan_push) == 0)
-    {
-        return 0;
-    }
-    if (vlan_id_match == ETH_VLAN_MASK_EXACT_WO_PRESENT_BIT)
-    {
-        orc_debug("Pushing untagged VLAN flow for port %d with VLAN %d\r\n",
-                  flow.flowData.vlanFlowEntry.match_criteria.inPort,
-                  flow.flowData.vlanFlowEntry.newVlanId);
-    }
-    else
-    {
-        orc_debug("Pushing VLAN flow for port %d with VLAN %d\r\n",
-                  flow.flowData.vlanFlowEntry.match_criteria.inPort,
-                  flow.flowData.vlanFlowEntry.newVlanId);
-    }
-    
-    rc = ofdpaFlowAdd(&flow);
-    if (rc == OFDPA_E_EXISTS)
-    {
-        if (vlan_id_match == ETH_VLAN_MASK_EXACT_WO_PRESENT_BIT)
-        {
-            orc_warn("Untagged VLAN flow already exists for port %d with VLAN %d. Continuing\r\rn",
-                     flow.flowData.vlanFlowEntry.match_criteria.inPort,
-                     flow.flowData.vlanFlowEntry.newVlanId);
-        }
-        else
-        {
-            orc_warn("VLAN flow already exists for port %d with VLAN %d. Continuing\r\rn",
-                     flow.flowData.vlanFlowEntry.match_criteria.inPort,
-                     flow.flowData.vlanFlowEntry.newVlanId);
-        }
-    }
-    else if (rc != OFDPA_E_NONE)
-    {
-        if (vlan_id_match == ETH_VLAN_MASK_EXACT_WO_PRESENT_BIT)
-        {
-            orc_err("Failed to push untagged VLAN flow. rc=%d\r\n", rc);
-        }
-        else
-        {
-            orc_err("Failed to push VLAN flow. rc=%d\r\n", rc);
-        }
-        return 0;
-    }
-    else
-    {
-        if (vlan_id_match == ETH_VLAN_MASK_EXACT_WO_PRESENT_BIT)
-        {
-            orc_warn("Pushed untagged VLAN flow for port %d with VLAN %d\r\n",
-                     flow.flowData.vlanFlowEntry.match_criteria.inPort,
-                     flow.flowData.vlanFlowEntry.newVlanId);
-        }
-        else
-        {
-            orc_warn("Pushed VLAN flow for port %d with VLAN %d\r\n",
-                     flow.flowData.vlanFlowEntry.match_criteria.inPort,
-                     flow.flowData.vlanFlowEntry.newVlanId);
-        }
-    }
-    return 1;
-}
-
-uint32_t del_flow_vlan(uint32_t in_port, uint32_t vlan_id_match, uint32_t vlan_id_match_or, uint32_t vlan_match_mask, uint32_t vlan_push)
-{
-    OFDPA_ERROR_t rc;
-    ofdpaFlowEntry_t flow;
-    
-    if (init_flow_vlan(&flow, in_port, vlan_id_match, vlan_id_match_or, vlan_match_mask, vlan_push) == 0)
-    {
-        return 0;
-    }
-    if (vlan_id_match == ETH_VLAN_MASK_EXACT_WO_PRESENT_BIT)
-    {
-        if (vlan_id_match == ETH_VLAN_MASK_EXACT_WO_PRESENT_BIT)
-        {
-            orc_debug("Deleting untagged VLAN flow for port %d with VLAN %d\r\n",
-                      flow.flowData.vlanFlowEntry.match_criteria.inPort,
-                      flow.flowData.vlanFlowEntry.newVlanId);
-        }
-        else
-        {
-            orc_debug("Deleting VLAN flow for port %d with VLAN %d\r\n",
-                      flow.flowData.vlanFlowEntry.match_criteria.inPort,
-                      flow.flowData.vlanFlowEntry.newVlanId);
-        }
-    }
-    else
-    {
-        if (vlan_id_match == ETH_VLAN_MASK_EXACT_WO_PRESENT_BIT)
-        {
-            orc_debug("Deleting untagged VLAN flow for port %d with VLAN %d\r\n",
-                      flow.flowData.vlanFlowEntry.match_criteria.inPort,
-                      flow.flowData.vlanFlowEntry.newVlanId);
-        }
-        else
-        {
-            orc_debug("Deleting VLAN flow for port %d with VLAN %d\r\n",
-                      flow.flowData.vlanFlowEntry.match_criteria.inPort,
-                      flow.flowData.vlanFlowEntry.newVlanId);
-        }
-    }
-    
-    rc = ofdpaFlowDelete(&flow);
-    if (rc == OFDPA_E_NOT_FOUND || rc == OFDPA_E_EMPTY)
-    {
-        if (vlan_id_match == ETH_VLAN_MASK_EXACT_WO_PRESENT_BIT)
-        {
-            orc_warn("Untagged VLAN %d on port %d flow not found\r\n", vlan_id_match, flow.flowData.vlanFlowEntry.match_criteria.inPort);
-        }
-        else
-        {
-            orc_warn("VLAN %d on port %d flow not found\r\n", vlan_id_match, flow.flowData.vlanFlowEntry.match_criteria.inPort);
-        }
-    }
-    else if (rc != OFDPA_E_NONE)
-    {
-        if (vlan_id_match == ETH_VLAN_MASK_EXACT_WO_PRESENT_BIT)
-        {
-            orc_err("Failed to delete untagged VLAN %d flow on port %d. rc=%d\r\n", vlan_id_match, flow.flowData.vlanFlowEntry.match_criteria.inPort, rc);
-        }
-        else
-        {
-            orc_err("Failed to delete VLAN %d flow on port %d. rc=%d\r\n", vlan_id_match, flow.flowData.vlanFlowEntry.match_criteria.inPort, rc);
-        }
-        return 0;
-    }
-    else
-    {
-        if (vlan_id_match == ETH_VLAN_MASK_EXACT_WO_PRESENT_BIT)
-        {
-            orc_warn("Untagged VLAN %d flow on port %d deleted\r\n", vlan_id_match, flow.flowData.vlanFlowEntry.match_criteria.inPort);
-        }
-        else
-        {
-            orc_warn("VLAN %d flow on port %d deleted\r\n", vlan_id_match, flow.flowData.vlanFlowEntry.match_criteria.inPort);
-        }
-    }
-    return 1;
 }
 
 /******
@@ -1997,6 +1826,210 @@ uint32_t delete_group_l3_unicast(uint32_t index, uint32_t vlan_id)
         orc_warn("L3 unicast group entry %#010x deleted.\r\n", group_id);
     }
     
+    return 1;
+}
+
+/******
+ * init_flow_vlan: Construct a VLAN flow. Use add_flow_vlan() or del_flow_vlan()
+ * instead of calling this function directly.
+ * @return 0 for error; 1 for success
+ */
+uint32_t init_flow_vlan(ofdpaFlowEntry_t * flow, uint32_t in_port, uint32_t vlan_id_match, uint32_t vlan_id_match_or, uint32_t vlan_match_mask, uint32_t vlan_push)
+{
+    OFDPA_ERROR_t rc;
+    
+    rc = ofdpaFlowEntryInit(OFDPA_FLOW_TABLE_ID_VLAN, flow);
+    if (rc != OFDPA_E_NONE)
+    {
+        if (vlan_id_match == ETH_VLAN_MASK_EXACT_WO_PRESENT_BIT)
+        {
+            orc_err("Failed to initialize untagged VLAN flow. rc=%d\r\n", rc);
+        }
+        else
+        {
+            orc_err("Failed to initialize VLAN flow. rc=%d\r\n", rc);
+        }
+        return 0;
+    } else
+    {
+        memset(&(flow->flowData), 0, sizeof(ofdpaVlanFlowEntry_t));
+        
+        /* Matches */
+        flow->flowData.vlanFlowEntry.match_criteria.inPort = in_port;
+        flow->flowData.vlanFlowEntry.match_criteria.vlanId = vlan_id_match | vlan_id_match_or;
+        flow->flowData.vlanFlowEntry.match_criteria.vlanIdMask = vlan_match_mask;
+        
+        /* Goto Table Instruction */
+        flow->flowData.vlanFlowEntry.gotoTableId = OFDPA_FLOW_TABLE_ID_TERMINATION_MAC;
+        
+        /* Apply Actions Instruction */
+        flow->flowData.vlanFlowEntry.setVlanIdAction = ACTION;
+        flow->flowData.vlanFlowEntry.newVlanId = vlan_push;
+    }
+    return 1;
+}
+
+/******
+ * add_flow_vlan: Add a VLAN flow.
+ * @param in_port the ingress port
+ * @param vlan_id the ingress VLAN
+ * @param vlan_id_or mask to logically OR with vlan_id_match (e.g. present bit)
+ * @param vlan_mask the mask to logically AND with (vlan_id OR vlan_id_or)
+ * @param vlan_push the new VLAN tag to assign
+ * @return 0 for error; 1 for success
+ */
+uint32_t add_flow_vlan(uint32_t in_port, uint32_t vlan_id, uint32_t vlan_id_or, uint32_t vlan_mask, uint32_t vlan_push)
+{
+    OFDPA_ERROR_t rc;
+    ofdpaFlowEntry_t flow;
+    
+    if (init_flow_vlan(&flow, in_port, vlan_id, vlan_id_or, vlan_mask, vlan_push) == 0)
+    {
+        return 0;
+    }
+    if (vlan_id == ETH_VLAN_MASK_EXACT_WO_PRESENT_BIT)
+    {
+        orc_debug("Pushing untagged VLAN flow for port %d with VLAN %d\r\n",
+                  flow.flowData.vlanFlowEntry.match_criteria.inPort,
+                  flow.flowData.vlanFlowEntry.newVlanId);
+    }
+    else
+    {
+        orc_debug("Pushing VLAN flow for port %d with VLAN %d\r\n",
+                  flow.flowData.vlanFlowEntry.match_criteria.inPort,
+                  flow.flowData.vlanFlowEntry.newVlanId);
+    }
+    
+    rc = ofdpaFlowAdd(&flow);
+    if (rc == OFDPA_E_EXISTS)
+    {
+        if (vlan_id == ETH_VLAN_MASK_EXACT_WO_PRESENT_BIT)
+        {
+            orc_warn("Untagged VLAN flow already exists for port %d with VLAN %d. Continuing\r\rn",
+                     flow.flowData.vlanFlowEntry.match_criteria.inPort,
+                     flow.flowData.vlanFlowEntry.newVlanId);
+        }
+        else
+        {
+            orc_warn("VLAN flow already exists for port %d with VLAN %d. Continuing\r\rn",
+                     flow.flowData.vlanFlowEntry.match_criteria.inPort,
+                     flow.flowData.vlanFlowEntry.newVlanId);
+        }
+    }
+    else if (rc != OFDPA_E_NONE)
+    {
+        if (vlan_id == ETH_VLAN_MASK_EXACT_WO_PRESENT_BIT)
+        {
+            orc_err("Failed to push untagged VLAN flow. rc=%d\r\n", rc);
+        }
+        else
+        {
+            orc_err("Failed to push VLAN flow. rc=%d\r\n", rc);
+        }
+        return 0;
+    }
+    else
+    {
+        if (vlan_id == ETH_VLAN_MASK_EXACT_WO_PRESENT_BIT)
+        {
+            orc_warn("Pushed untagged VLAN flow for port %d with VLAN %d\r\n",
+                     flow.flowData.vlanFlowEntry.match_criteria.inPort,
+                     flow.flowData.vlanFlowEntry.newVlanId);
+        }
+        else
+        {
+            orc_warn("Pushed VLAN flow for port %d with VLAN %d\r\n",
+                     flow.flowData.vlanFlowEntry.match_criteria.inPort,
+                     flow.flowData.vlanFlowEntry.newVlanId);
+        }
+    }
+    return 1;
+}
+
+/******
+ * del_flow_vlan: Delete a VLAN flow.
+ * @param in_port the ingress port
+ * @param vlan_id the ingress VLAN
+ * @param vlan_id_or mask to logically OR with vlan_id_match (e.g. present bit)
+ * @param vlan_mask the mask to logically AND with (vlan_id OR vlan_id_or)
+ * @param vlan_push the new VLAN tag to assign
+ * @return 0 for error; 1 for success
+ */
+uint32_t del_flow_vlan(uint32_t in_port, uint32_t vlan_id_match, uint32_t vlan_id_match_or, uint32_t vlan_match_mask, uint32_t vlan_push)
+{
+    OFDPA_ERROR_t rc;
+    ofdpaFlowEntry_t flow;
+    
+    if (init_flow_vlan(&flow, in_port, vlan_id_match, vlan_id_match_or, vlan_match_mask, vlan_push) == 0)
+    {
+        return 0;
+    }
+    if (vlan_id_match == ETH_VLAN_MASK_EXACT_WO_PRESENT_BIT)
+    {
+        if (vlan_id_match == ETH_VLAN_MASK_EXACT_WO_PRESENT_BIT)
+        {
+            orc_debug("Deleting untagged VLAN flow for port %d with VLAN %d\r\n",
+                      flow.flowData.vlanFlowEntry.match_criteria.inPort,
+                      flow.flowData.vlanFlowEntry.newVlanId);
+        }
+        else
+        {
+            orc_debug("Deleting VLAN flow for port %d with VLAN %d\r\n",
+                      flow.flowData.vlanFlowEntry.match_criteria.inPort,
+                      flow.flowData.vlanFlowEntry.newVlanId);
+        }
+    }
+    else
+    {
+        if (vlan_id_match == ETH_VLAN_MASK_EXACT_WO_PRESENT_BIT)
+        {
+            orc_debug("Deleting untagged VLAN flow for port %d with VLAN %d\r\n",
+                      flow.flowData.vlanFlowEntry.match_criteria.inPort,
+                      flow.flowData.vlanFlowEntry.newVlanId);
+        }
+        else
+        {
+            orc_debug("Deleting VLAN flow for port %d with VLAN %d\r\n",
+                      flow.flowData.vlanFlowEntry.match_criteria.inPort,
+                      flow.flowData.vlanFlowEntry.newVlanId);
+        }
+    }
+    
+    rc = ofdpaFlowDelete(&flow);
+    if (rc == OFDPA_E_NOT_FOUND || rc == OFDPA_E_EMPTY)
+    {
+        if (vlan_id_match == ETH_VLAN_MASK_EXACT_WO_PRESENT_BIT)
+        {
+            orc_warn("Untagged VLAN %d on port %d flow not found\r\n", vlan_id_match, flow.flowData.vlanFlowEntry.match_criteria.inPort);
+        }
+        else
+        {
+            orc_warn("VLAN %d on port %d flow not found\r\n", vlan_id_match, flow.flowData.vlanFlowEntry.match_criteria.inPort);
+        }
+    }
+    else if (rc != OFDPA_E_NONE)
+    {
+        if (vlan_id_match == ETH_VLAN_MASK_EXACT_WO_PRESENT_BIT)
+        {
+            orc_err("Failed to delete untagged VLAN %d flow on port %d. rc=%d\r\n", vlan_id_match, flow.flowData.vlanFlowEntry.match_criteria.inPort, rc);
+        }
+        else
+        {
+            orc_err("Failed to delete VLAN %d flow on port %d. rc=%d\r\n", vlan_id_match, flow.flowData.vlanFlowEntry.match_criteria.inPort, rc);
+        }
+        return 0;
+    }
+    else
+    {
+        if (vlan_id_match == ETH_VLAN_MASK_EXACT_WO_PRESENT_BIT)
+        {
+            orc_warn("Untagged VLAN %d flow on port %d deleted\r\n", vlan_id_match, flow.flowData.vlanFlowEntry.match_criteria.inPort);
+        }
+        else
+        {
+            orc_warn("VLAN %d flow on port %d deleted\r\n", vlan_id_match, flow.flowData.vlanFlowEntry.match_criteria.inPort);
+        }
+    }
     return 1;
 }
 
