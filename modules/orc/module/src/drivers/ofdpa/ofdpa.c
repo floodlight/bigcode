@@ -325,7 +325,7 @@ int ofdpa_tx_pkt(port_t *port, u8 *pkt, unsigned int len)
     ofdpa_buffdesc buf;
     buf.size = len;
     buf.pstart = (char *) pkt;
-
+    
     OFDPA_ERROR_t rc = ofdpaPktSend(&buf, 0, port->index, OFDPA_PORT_CONTROLLER);
     if (rc == OFDPA_E_NONE) {
         orc_debug("TX packet out port %s, ID %d returned success code %d\r\n", ofdpa->port.name, ofdpa->port.index, rc);
@@ -435,6 +435,187 @@ int ofdpa_add_l3_v4_interface(port_t * port, u8 hw_mac[6], int mtu, u32 ipv4_add
     return ofdpa_add_or_update_l3_v4_interface(port, hw_mac, mtu, ipv4_addr, l3_intf_id, false);
 }
 
+uint32_t init_flow_vlan(ofdpaFlowEntry_t * flow, uint32_t in_port, uint32_t vlan_id_match, uint32_t vlan_id_match_or, uint32_t vlan_match_mask, uint32_t vlan_push)
+{
+    OFDPA_ERROR_t rc;
+    
+    rc = ofdpaFlowEntryInit(OFDPA_FLOW_TABLE_ID_VLAN, flow);
+    if (rc != OFDPA_E_NONE)
+    {
+        if (vlan_id_match == ETH_VLAN_MASK_EXACT_WO_PRESENT_BIT)
+        {
+            orc_err("Failed to initialize untagged VLAN flow. rc=%d\r\n", rc);
+        }
+        else
+        {
+            orc_err("Failed to initialize VLAN flow. rc=%d\r\n", rc);
+        }
+        return 0;
+    } else
+    {
+        memset(&(flow->flowData), 0, sizeof(ofdpaVlanFlowEntry_t));
+        
+        /* Matches */
+        flow->flowData.vlanFlowEntry.match_criteria.inPort = in_port;
+        flow->flowData.vlanFlowEntry.match_criteria.vlanId = vlan_id_match | vlan_id_match_or;
+        flow->flowData.vlanFlowEntry.match_criteria.vlanIdMask = vlan_match_mask;
+        
+        /* Goto Table Instruction */
+        flow->flowData.vlanFlowEntry.gotoTableId = OFDPA_FLOW_TABLE_ID_TERMINATION_MAC;
+        
+        /* Apply Actions Instruction */
+        flow->flowData.vlanFlowEntry.setVlanIdAction = ACTION;
+        flow->flowData.vlanFlowEntry.newVlanId = vlan_push;
+    }
+    return 1;
+}
+
+uint32_t add_flow_vlan(uint32_t in_port, uint32_t vlan_id_match, uint32_t vlan_id_match_or, uint32_t vlan_match_mask, uint32_t vlan_push)
+{
+    OFDPA_ERROR_t rc;
+    ofdpaFlowEntry_t flow;
+    
+    if (init_flow_vlan(&flow, in_port, vlan_id_match, vlan_id_match_or, vlan_match_mask, vlan_push) == 0)
+    {
+        return 0;
+    }
+    if (vlan_id_match == ETH_VLAN_MASK_EXACT_WO_PRESENT_BIT)
+    {
+        orc_debug("Pushing untagged VLAN flow for port %d with VLAN %d\r\n",
+                  flow.flowData.vlanFlowEntry.match_criteria.inPort,
+                  flow.flowData.vlanFlowEntry.newVlanId);
+    }
+    else
+    {
+        orc_debug("Pushing VLAN flow for port %d with VLAN %d\r\n",
+                  flow.flowData.vlanFlowEntry.match_criteria.inPort,
+                  flow.flowData.vlanFlowEntry.newVlanId);
+    }
+    
+    rc = ofdpaFlowAdd(&flow);
+    if (rc == OFDPA_E_EXISTS)
+    {
+        if (vlan_id_match == ETH_VLAN_MASK_EXACT_WO_PRESENT_BIT)
+        {
+            orc_warn("Untagged VLAN flow already exists for port %d with VLAN %d. Continuing\r\rn",
+                     flow.flowData.vlanFlowEntry.match_criteria.inPort,
+                     flow.flowData.vlanFlowEntry.newVlanId);
+        }
+        else
+        {
+            orc_warn("VLAN flow already exists for port %d with VLAN %d. Continuing\r\rn",
+                     flow.flowData.vlanFlowEntry.match_criteria.inPort,
+                     flow.flowData.vlanFlowEntry.newVlanId);
+        }
+    }
+    else if (rc != OFDPA_E_NONE)
+    {
+        if (vlan_id_match == ETH_VLAN_MASK_EXACT_WO_PRESENT_BIT)
+        {
+            orc_err("Failed to push untagged VLAN flow. rc=%d\r\n", rc);
+        }
+        else
+        {
+            orc_err("Failed to push VLAN flow. rc=%d\r\n", rc);
+        }
+        return 0;
+    }
+    else
+    {
+        if (vlan_id_match == ETH_VLAN_MASK_EXACT_WO_PRESENT_BIT)
+        {
+            orc_warn("Pushed untagged VLAN flow for port %d with VLAN %d\r\n",
+                     flow.flowData.vlanFlowEntry.match_criteria.inPort,
+                     flow.flowData.vlanFlowEntry.newVlanId);
+        }
+        else
+        {
+            orc_warn("Pushed VLAN flow for port %d with VLAN %d\r\n",
+                     flow.flowData.vlanFlowEntry.match_criteria.inPort,
+                     flow.flowData.vlanFlowEntry.newVlanId);
+        }
+    }
+    return 1;
+}
+
+uint32_t del_flow_vlan(uint32_t in_port, uint32_t vlan_id_match, uint32_t vlan_id_match_or, uint32_t vlan_match_mask, uint32_t vlan_push)
+{
+    OFDPA_ERROR_t rc;
+    ofdpaFlowEntry_t flow;
+    
+    if (init_flow_vlan(&flow, in_port, vlan_id_match, vlan_id_match_or, vlan_match_mask, vlan_push) == 0)
+    {
+        return 0;
+    }
+    if (vlan_id_match == ETH_VLAN_MASK_EXACT_WO_PRESENT_BIT)
+    {
+        if (vlan_id_match == ETH_VLAN_MASK_EXACT_WO_PRESENT_BIT)
+        {
+            orc_debug("Deleting untagged VLAN flow for port %d with VLAN %d\r\n",
+                      flow.flowData.vlanFlowEntry.match_criteria.inPort,
+                      flow.flowData.vlanFlowEntry.newVlanId);
+        }
+        else
+        {
+            orc_debug("Deleting VLAN flow for port %d with VLAN %d\r\n",
+                      flow.flowData.vlanFlowEntry.match_criteria.inPort,
+                      flow.flowData.vlanFlowEntry.newVlanId);
+        }
+    }
+    else
+    {
+        if (vlan_id_match == ETH_VLAN_MASK_EXACT_WO_PRESENT_BIT)
+        {
+            orc_debug("Deleting untagged VLAN flow for port %d with VLAN %d\r\n",
+                      flow.flowData.vlanFlowEntry.match_criteria.inPort,
+                      flow.flowData.vlanFlowEntry.newVlanId);
+        }
+        else
+        {
+            orc_debug("Deleting VLAN flow for port %d with VLAN %d\r\n",
+                      flow.flowData.vlanFlowEntry.match_criteria.inPort,
+                      flow.flowData.vlanFlowEntry.newVlanId);
+        }
+    }
+    
+    rc = ofdpaFlowDelete(&flow);
+    if (rc == OFDPA_E_NOT_FOUND || rc == OFDPA_E_EMPTY)
+    {
+        if (vlan_id_match == ETH_VLAN_MASK_EXACT_WO_PRESENT_BIT)
+        {
+            orc_warn("Untagged VLAN %d on port %d flow not found\r\n", vlan_id_match, flow.flowData.vlanFlowEntry.match_criteria.inPort);
+        }
+        else
+        {
+            orc_warn("VLAN %d on port %d flow not found\r\n", vlan_id_match, flow.flowData.vlanFlowEntry.match_criteria.inPort);
+        }
+    }
+    else if (rc != OFDPA_E_NONE)
+    {
+        if (vlan_id_match == ETH_VLAN_MASK_EXACT_WO_PRESENT_BIT)
+        {
+            orc_err("Failed to delete untagged VLAN %d flow on port %d. rc=%d\r\n", vlan_id_match, flow.flowData.vlanFlowEntry.match_criteria.inPort, rc);
+        }
+        else
+        {
+            orc_err("Failed to delete VLAN %d flow on port %d. rc=%d\r\n", vlan_id_match, flow.flowData.vlanFlowEntry.match_criteria.inPort, rc);
+        }
+        return 0;
+    }
+    else
+    {
+        if (vlan_id_match == ETH_VLAN_MASK_EXACT_WO_PRESENT_BIT)
+        {
+            orc_warn("Untagged VLAN %d flow on port %d deleted\r\n", vlan_id_match, flow.flowData.vlanFlowEntry.match_criteria.inPort);
+        }
+        else
+        {
+            orc_warn("VLAN %d flow on port %d deleted\r\n", vlan_id_match, flow.flowData.vlanFlowEntry.match_criteria.inPort);
+        }
+    }
+    return 1;
+}
+
 /******
  * ofdpa_add_or_update_l3_v4_interface: add new or update existing L3 interface.
  * If an update, assumes flows have already been deleted.
@@ -445,82 +626,28 @@ int ofdpa_add_or_update_l3_v4_interface(port_t * port, u8 hw_mac[6], int mtu, u3
     OFDPA_ERROR_t rc;
     ofdpaFlowEntry_t flow;
     
-    rc = ofdpaFlowEntryInit(OFDPA_FLOW_TABLE_ID_VLAN, &flow);
-    if (rc != OFDPA_E_NONE)
+    uint32_t vlan_id = compute_vlan_id(port->index);
+    
+    /* Tagged VLAN */
+    if (add_flow_vlan(port->index,
+                      vlan_id,
+                      ETH_VLAN_MASK_EXACT_W_PRESENT_BIT,
+                      ETH_VLAN_MASK_ANY_W_PRESENT_BIT,
+                      vlan_id
+                      ) == 0)
     {
-        orc_err("Failed to initialize VLAN flow. rc=%d\r\n", rc);
         return -1;
-    } else
-    {
-        memset(&(flow.flowData), 0, sizeof(ofdpaVlanFlowEntry_t));
-
-        /* Matches */
-        flow.flowData.vlanFlowEntry.match_criteria.inPort = port->index;
-        flow.flowData.vlanFlowEntry.match_criteria.vlanId = compute_vlan_id(port->index) | ETH_VLAN_MASK_EXACT_W_PRESENT_BIT; // 0x1000
-        flow.flowData.vlanFlowEntry.match_criteria.vlanIdMask = ETH_VLAN_MASK_ANY_W_PRESENT_BIT; // 0x1fff
-        
-        /* Goto Table Instruction */
-        flow.flowData.vlanFlowEntry.gotoTableId = OFDPA_FLOW_TABLE_ID_TERMINATION_MAC;
-        
-        /* Apply Actions Instruction */
-        flow.flowData.vlanFlowEntry.setVlanIdAction = ACTION;
-        flow.flowData.vlanFlowEntry.newVlanId = compute_vlan_id(port->index);
-        
-        orc_debug("Pushing VLAN flow for port %d with VLAN %d\r\n", flow.flowData.vlanFlowEntry.match_criteria.inPort, flow.flowData.vlanFlowEntry.newVlanId);
-        
-        rc = ofdpaFlowAdd(&flow);
-        if (rc == OFDPA_E_EXISTS)
-        {
-            orc_warn("VLAN flow already exists for port %d with VLAN %d. Continuing\r\rn", flow.flowData.vlanFlowEntry.match_criteria.inPort, flow.flowData.vlanFlowEntry.newVlanId);
-        }
-        else if (rc != OFDPA_E_NONE)
-        {
-            orc_err("Failed to push VLAN flow. rc=%d\r\n", rc);
-            return -1;
-        }
-        else
-        {
-            orc_warn("Pushed VLAN flow for port %d with VLAN %d\r\n", flow.flowData.vlanFlowEntry.match_criteria.inPort, flow.flowData.vlanFlowEntry.newVlanId);
-        }
     }
     
-    rc = ofdpaFlowEntryInit(OFDPA_FLOW_TABLE_ID_VLAN, &flow);
-    if (rc != OFDPA_E_NONE)
+    /* Untagged VLAN */
+    if (add_flow_vlan(port->index,
+                      ETH_VLAN_MASK_EXACT_WO_PRESENT_BIT,
+                      ETH_VLAN_MASK_EXACT_WO_PRESENT_BIT,
+                      ETH_VLAN_MASK_ANY_WO_PRESENT_BIT,
+                      vlan_id
+                      ) == 0)
     {
-        orc_err("Failed to initialize untagged VLAN flow. rc=%d\r\n", rc);
         return -1;
-    } else
-    {
-        memset(&(flow.flowData), 0, sizeof(ofdpaVlanFlowEntry_t));
-        
-        /* Matches -- pick up any untagged packets to assign tag */
-        flow.flowData.vlanFlowEntry.match_criteria.inPort = port->index;
-        flow.flowData.vlanFlowEntry.match_criteria.vlanId = ETH_VLAN_MASK_EXACT_WO_PRESENT_BIT; // 0x0000
-        flow.flowData.vlanFlowEntry.match_criteria.vlanIdMask = ETH_VLAN_MASK_ANY_WO_PRESENT_BIT; // 0x0fff
-        
-        /* Goto Table Instruction */
-        flow.flowData.vlanFlowEntry.gotoTableId = OFDPA_FLOW_TABLE_ID_TERMINATION_MAC;
-        
-        /* Apply Actions Instruction */
-        flow.flowData.vlanFlowEntry.setVlanIdAction = ACTION;
-        flow.flowData.vlanFlowEntry.newVlanId = compute_vlan_id(port->index);
-        
-        orc_debug("Pushing untagged VLAN flow for port %d with VLAN %d\r\n", flow.flowData.vlanFlowEntry.match_criteria.inPort, flow.flowData.vlanFlowEntry.newVlanId);
-        
-        rc = ofdpaFlowAdd(&flow);
-        if (rc == OFDPA_E_EXISTS)
-        {
-            orc_warn("Untagged VLAN flow already exists for port %d with VLAN %d. Continuing\r\rn", flow.flowData.vlanFlowEntry.match_criteria.inPort, flow.flowData.vlanFlowEntry.newVlanId);
-        }
-        else if (rc != OFDPA_E_NONE)
-        {
-            orc_err("Failed to push untagged VLAN flow. rc=%d\r\n", rc);
-            return -1;
-        }
-        else
-        {
-            orc_warn("Pushed untagged VLAN flow for port %d with VLAN %d\r\n", flow.flowData.vlanFlowEntry.match_criteria.inPort, flow.flowData.vlanFlowEntry.newVlanId);
-        }
     }
     
     /* Now do the termination MAC flow */
@@ -539,7 +666,7 @@ int ofdpa_add_or_update_l3_v4_interface(port_t * port, u8 hw_mac[6], int mtu, u3
         /* Matches */
         flow.flowData.terminationMacFlowEntry.match_criteria.inPort = port->index;
         flow.flowData.terminationMacFlowEntry.match_criteria.inPortMask = OFDPA_INPORT_EXACT_MASK;
-        flow.flowData.terminationMacFlowEntry.match_criteria.etherType = ETHERTYPE_IPV4; 
+        flow.flowData.terminationMacFlowEntry.match_criteria.etherType = ETHERTYPE_IPV4;
         memcpy(&(flow.flowData.terminationMacFlowEntry.match_criteria.destMac), hw_mac, OFDPA_MAC_ADDR_LEN);
         memset(&(flow.flowData.terminationMacFlowEntry.match_criteria.destMacMask), BYTE_MASK_ANY, OFDPA_MAC_ADDR_LEN);
         
@@ -576,7 +703,7 @@ int ofdpa_add_or_update_l3_v4_interface(port_t * port, u8 hw_mac[6], int mtu, u3
         memset(&(flow.flowData), 0, sizeof(ofdpaUnicastRoutingFlowEntry_t));
         
         /* Matches */
-        flow.flowData.unicastRoutingFlowEntry.match_criteria.etherType = ETHERTYPE_IPV4; 
+        flow.flowData.unicastRoutingFlowEntry.match_criteria.etherType = ETHERTYPE_IPV4;
         flow.flowData.unicastRoutingFlowEntry.match_criteria.dstIp4 = ipv4_addr;
         flow.flowData.unicastRoutingFlowEntry.match_criteria.dstIp4Mask = OFDPA_IPV4_ADDR_EXACT_MASK; /* exact IPv4 match */
         
@@ -621,7 +748,7 @@ int ofdpa_add_or_update_l3_v4_interface(port_t * port, u8 hw_mac[6], int mtu, u3
         flow.flowData.policyAclFlowEntry.match_criteria.inPortMask = OFDPA_INPORT_TYPE_MASK;
         memcpy(&(flow.flowData.policyAclFlowEntry.match_criteria.destMac), hw_mac, OFDPA_MAC_ADDR_LEN);
         memset(&(flow.flowData.policyAclFlowEntry.match_criteria.destMacMask), BYTE_MASK_ANY, OFDPA_MAC_ADDR_LEN);
-        flow.flowData.policyAclFlowEntry.match_criteria.etherType = ETHERTYPE_IPV4; 
+        flow.flowData.policyAclFlowEntry.match_criteria.etherType = ETHERTYPE_IPV4;
         flow.flowData.policyAclFlowEntry.match_criteria.etherTypeMask = OFDPA_ETHERTYPE_EXACT_MASK;
         flow.flowData.policyAclFlowEntry.match_criteria.destIp4 = ipv4_addr;
         flow.flowData.policyAclFlowEntry.match_criteria.destIp4Mask = OFDPA_IPV4_ADDR_EXACT_MASK; /* exact IPv4 match */
@@ -820,78 +947,27 @@ int ofdpa_del_l3_v4_interface(port_t * port, l3_intf_id_t l3_intf_id) {
     uint32_t vlan_id = compute_vlan_id(port->index);
     ipv4_addr = iface->ipv4;
     
-    rc = ofdpaFlowEntryInit(OFDPA_FLOW_TABLE_ID_VLAN, &flow);
-    if (rc != OFDPA_E_NONE)
+    /* Delete untagged VLAN flow before tagged */
+    if (del_flow_vlan(port->index,
+                  ETH_VLAN_MASK_EXACT_WO_PRESENT_BIT,
+                  ETH_VLAN_MASK_EXACT_WO_PRESENT_BIT,
+                  ETH_VLAN_MASK_ANY_WO_PRESENT_BIT,
+                  vlan_id
+                  ) == 0
+        )
     {
-        orc_err("Failed to initialize untagged VLAN %d flow. rc=%d\r\n", vlan_id, rc);
         return -1;
-    } else
-    {
-        memset(&(flow.flowData), 0, sizeof(ofdpaVlanFlowEntry_t));
-        
-        /* Matches */
-        flow.flowData.vlanFlowEntry.match_criteria.inPort = port->index;
-        flow.flowData.vlanFlowEntry.match_criteria.vlanId = ETH_VLAN_MASK_EXACT_WO_PRESENT_BIT; // 0x0000
-        flow.flowData.vlanFlowEntry.match_criteria.vlanIdMask = ETH_VLAN_MASK_ANY_WO_PRESENT_BIT; // 0x0fff
-        
-        /* Goto Table Instruction */
-        flow.flowData.vlanFlowEntry.gotoTableId = OFDPA_FLOW_TABLE_ID_TERMINATION_MAC;
-        
-        /* Apply Actions Instruction */
-        flow.flowData.vlanFlowEntry.setVlanIdAction = ACTION;
-        flow.flowData.vlanFlowEntry.newVlanId = compute_vlan_id(port->index);
-        
-        rc = ofdpaFlowDelete(&flow);
-        if (rc == OFDPA_E_NOT_FOUND || rc == OFDPA_E_EMPTY)
-        {
-            orc_warn("Untagged VLAN %d on port %d flow not found\r\n", vlan_id, flow.flowData.vlanFlowEntry.match_criteria.inPort);
-        }
-        else if (rc != OFDPA_E_NONE)
-        {
-            orc_err("Failed to delete untagged VLAN %d flow on port %d. rc=%d\r\n", vlan_id, flow.flowData.vlanFlowEntry.match_criteria.inPort, rc);
-            return -1;
-        }
-        else
-        {
-            orc_warn("Untagged VLAN %d flow on port %d deleted\r\n", vlan_id, flow.flowData.vlanFlowEntry.match_criteria.inPort);
-        }
     }
     
-    rc = ofdpaFlowEntryInit(OFDPA_FLOW_TABLE_ID_VLAN, &flow);
-    if (rc != OFDPA_E_NONE)
+    if (del_flow_vlan(port->index,
+                      vlan_id,
+                      ETH_VLAN_MASK_EXACT_W_PRESENT_BIT,
+                      ETH_VLAN_MASK_ANY_W_PRESENT_BIT,
+                      vlan_id
+                      ) == 0
+        )
     {
-        orc_err("Failed to initialize VLAN %d flow. rc=%d\r\n", vlan_id, rc);
         return -1;
-    } else
-    {
-        memset(&(flow.flowData), 0, sizeof(ofdpaVlanFlowEntry_t));
-
-        /* Matches */
-        flow.flowData.vlanFlowEntry.match_criteria.inPort = port->index;
-        flow.flowData.vlanFlowEntry.match_criteria.vlanId = vlan_id | ETH_VLAN_MASK_EXACT_W_PRESENT_BIT; // 0x1000
-        flow.flowData.vlanFlowEntry.match_criteria.vlanIdMask = ETH_VLAN_MASK_ANY_W_PRESENT_BIT; // 0x1fff
-        
-        /* Goto Table Instruction */
-        flow.flowData.vlanFlowEntry.gotoTableId = OFDPA_FLOW_TABLE_ID_TERMINATION_MAC;
-        
-        /* Apply Actions Instruction */
-        flow.flowData.vlanFlowEntry.setVlanIdAction = ACTION;
-        flow.flowData.vlanFlowEntry.newVlanId = vlan_id;
-        
-        rc = ofdpaFlowDelete(&flow);
-        if (rc == OFDPA_E_NOT_FOUND || rc == OFDPA_E_EMPTY)
-        {
-            orc_warn("VLAN %d flow on port %d not found\r\n", vlan_id, flow.flowData.vlanFlowEntry.match_criteria.inPort);
-        }
-        else if (rc != OFDPA_E_NONE)
-        {
-            orc_err("Failed to delete VLAN %d flow on port %d. rc=%d\r\n", vlan_id, flow.flowData.vlanFlowEntry.match_criteria.inPort, rc);
-            return -1;
-        }
-        else
-        {
-            orc_warn("VLAN %d flow on port %d deleted\r\n", vlan_id, flow.flowData.vlanFlowEntry.match_criteria.inPort);
-        }
     }
     
     /* Now do the termination MAC flow */
@@ -907,7 +983,7 @@ int ofdpa_del_l3_v4_interface(port_t * port, l3_intf_id_t l3_intf_id) {
         /* Matches */
         flow.flowData.terminationMacFlowEntry.match_criteria.inPort = port->index;
         flow.flowData.terminationMacFlowEntry.match_criteria.inPortMask = OFDPA_INPORT_EXACT_MASK;
-        flow.flowData.terminationMacFlowEntry.match_criteria.etherType = ETHERTYPE_IPV4; 
+        flow.flowData.terminationMacFlowEntry.match_criteria.etherType = ETHERTYPE_IPV4;
         memcpy(&(flow.flowData.terminationMacFlowEntry.match_criteria.destMac), hw_mac, OFDPA_MAC_ADDR_LEN);
         memset(&(flow.flowData.terminationMacFlowEntry.match_criteria.destMacMask), BYTE_MASK_ANY, OFDPA_MAC_ADDR_LEN);
         
@@ -941,7 +1017,7 @@ int ofdpa_del_l3_v4_interface(port_t * port, l3_intf_id_t l3_intf_id) {
         memset(&(flow.flowData), 0, sizeof(ofdpaUnicastRoutingFlowEntry_t));
         
         /* Matches */
-        flow.flowData.unicastRoutingFlowEntry.match_criteria.etherType = ETHERTYPE_IPV4; 
+        flow.flowData.unicastRoutingFlowEntry.match_criteria.etherType = ETHERTYPE_IPV4;
         flow.flowData.unicastRoutingFlowEntry.match_criteria.dstIp4 = ipv4_addr;
         flow.flowData.unicastRoutingFlowEntry.match_criteria.dstIp4Mask = OFDPA_IPV4_ADDR_EXACT_MASK; /* exact IPv4 match */
         
@@ -982,7 +1058,7 @@ int ofdpa_del_l3_v4_interface(port_t * port, l3_intf_id_t l3_intf_id) {
         flow.flowData.policyAclFlowEntry.match_criteria.inPortMask = OFDPA_INPORT_TYPE_MASK;
         memcpy(&(flow.flowData.policyAclFlowEntry.match_criteria.destMac), hw_mac, OFDPA_MAC_ADDR_LEN);
         memset(&(flow.flowData.policyAclFlowEntry.match_criteria.destMacMask), BYTE_MASK_ANY, OFDPA_MAC_ADDR_LEN); /* exact MAC match */
-        flow.flowData.policyAclFlowEntry.match_criteria.etherType = ETHERTYPE_IPV4; 
+        flow.flowData.policyAclFlowEntry.match_criteria.etherType = ETHERTYPE_IPV4;
         flow.flowData.policyAclFlowEntry.match_criteria.etherTypeMask = OFDPA_ETHERTYPE_EXACT_MASK;
         flow.flowData.policyAclFlowEntry.match_criteria.destIp4 = ipv4_addr;
         flow.flowData.policyAclFlowEntry.match_criteria.destIp4Mask = OFDPA_IPV4_ADDR_EXACT_MASK; /* exact IPv4 match */
@@ -1178,7 +1254,7 @@ int ofdpa_add_l3_v4_next_hop(port_t * port, l3_intf_id_t l3_intf_id, u8 next_hop
     if (group_id == 0) {
         return -1;
     }
-
+    
     /* Now, we can do the L3 Unicast group. */
     group_id = add_group_l3_unicast(next_hop->id,
                                     group_id,
@@ -1279,7 +1355,7 @@ int ofdpa_add_l3_v4_route(u32 ip_dst, u32 netmask, l3_next_hop_id_t l3_next_hop_
         memset(&(flow.flowData), 0, sizeof(ofdpaUnicastRoutingFlowEntry_t));
         
         /* Matches */
-        flow.flowData.unicastRoutingFlowEntry.match_criteria.etherType = ETHERTYPE_IPV4; 
+        flow.flowData.unicastRoutingFlowEntry.match_criteria.etherType = ETHERTYPE_IPV4;
         flow.flowData.unicastRoutingFlowEntry.match_criteria.dstIp4 = ip_dst;
         flow.flowData.unicastRoutingFlowEntry.match_criteria.dstIp4Mask = netmask; /* exact IPv4 match */
         
@@ -1293,7 +1369,7 @@ int ofdpa_add_l3_v4_route(u32 ip_dst, u32 netmask, l3_next_hop_id_t l3_next_hop_
         {
             uint32_t group_type = (uint32_t) OFDPA_GROUP_ENTRY_TYPE_L3_UNICAST;
             
-            rc = ofdpaGroupTypeSet(&group_id, group_type); 
+            rc = ofdpaGroupTypeSet(&group_id, group_type);
             if (rc != OFDPA_E_NONE)
             {
                 orc_err("Failed to set L3 unicast group type for masked-match route. rc=%d\r\n", rc);
@@ -1354,7 +1430,7 @@ int ofdpa_add_l3_v4_route(u32 ip_dst, u32 netmask, l3_next_hop_id_t l3_next_hop_
             /* Matches -- no MAC address; IPv4 w/mask */
             flow.flowData.policyAclFlowEntry.match_criteria.inPort = OFDPA_PORT_TYPE_PHYSICAL; /* Must explicitly specify ANY physical port + type_mask */
             flow.flowData.policyAclFlowEntry.match_criteria.inPortMask = OFDPA_INPORT_TYPE_MASK;
-            flow.flowData.policyAclFlowEntry.match_criteria.etherType = ETHERTYPE_IPV4; 
+            flow.flowData.policyAclFlowEntry.match_criteria.etherType = ETHERTYPE_IPV4;
             flow.flowData.policyAclFlowEntry.match_criteria.etherTypeMask = OFDPA_ETHERTYPE_EXACT_MASK;
             flow.flowData.policyAclFlowEntry.match_criteria.destIp4 = ip_dst;
             flow.flowData.policyAclFlowEntry.match_criteria.destIp4Mask = netmask;
@@ -1392,7 +1468,7 @@ int ofdpa_add_l3_v4_route(u32 ip_dst, u32 netmask, l3_next_hop_id_t l3_next_hop_
             /* Matches -- no MAC address; IPv4 w/mask */
             flow.flowData.policyAclFlowEntry.match_criteria.inPort = OFDPA_PORT_TYPE_PHYSICAL; /* Must explicitly specify ANY physical port + type_mask */
             flow.flowData.policyAclFlowEntry.match_criteria.inPortMask = OFDPA_INPORT_TYPE_MASK;
-            flow.flowData.policyAclFlowEntry.match_criteria.etherType = ETHERTYPE_IPV4; 
+            flow.flowData.policyAclFlowEntry.match_criteria.etherType = ETHERTYPE_IPV4;
             flow.flowData.policyAclFlowEntry.match_criteria.etherTypeMask = OFDPA_ETHERTYPE_EXACT_MASK;
             flow.flowData.policyAclFlowEntry.match_criteria.destIp4 = ip_dst;
             flow.flowData.policyAclFlowEntry.match_criteria.destIp4Mask = netmask;
@@ -1431,7 +1507,7 @@ int ofdpa_add_l3_v4_route(u32 ip_dst, u32 netmask, l3_next_hop_id_t l3_next_hop_
             /* Matches -- no MAC address; IPv4 w/mask */
             flow.flowData.policyAclFlowEntry.match_criteria.inPort = OFDPA_PORT_TYPE_PHYSICAL; /* Must explicitly specify ANY physical port + type_mask */
             flow.flowData.policyAclFlowEntry.match_criteria.inPortMask = OFDPA_INPORT_TYPE_MASK;
-            flow.flowData.policyAclFlowEntry.match_criteria.etherType = ETHERTYPE_IPV4; 
+            flow.flowData.policyAclFlowEntry.match_criteria.etherType = ETHERTYPE_IPV4;
             flow.flowData.policyAclFlowEntry.match_criteria.etherTypeMask = OFDPA_ETHERTYPE_EXACT_MASK;
             flow.flowData.policyAclFlowEntry.match_criteria.destIp4 = ip_dst;
             flow.flowData.policyAclFlowEntry.match_criteria.destIp4Mask = netmask;
@@ -1488,7 +1564,7 @@ int ofdpa_del_l3_v4_route(u32 ip_dst, u32 netmask, l3_next_hop_id_t l3_next_hop_
         memset(&(flow.flowData), 0, sizeof(ofdpaUnicastRoutingFlowEntry_t));
         
         /* Matches */
-        flow.flowData.unicastRoutingFlowEntry.match_criteria.etherType = ETHERTYPE_IPV4; 
+        flow.flowData.unicastRoutingFlowEntry.match_criteria.etherType = ETHERTYPE_IPV4;
         flow.flowData.unicastRoutingFlowEntry.match_criteria.dstIp4 = ip_dst;
         flow.flowData.unicastRoutingFlowEntry.match_criteria.dstIp4Mask = netmask; /* exact IPv4 match */
         
@@ -1497,7 +1573,7 @@ int ofdpa_del_l3_v4_route(u32 ip_dst, u32 netmask, l3_next_hop_id_t l3_next_hop_
         {
             uint32_t group_type = (uint32_t) OFDPA_GROUP_ENTRY_TYPE_L3_UNICAST;
             
-            rc = ofdpaGroupTypeSet(&group_id, group_type); 
+            rc = ofdpaGroupTypeSet(&group_id, group_type);
             if (rc != OFDPA_E_NONE)
             {
                 orc_err("Failed to set L3 unicast group type for masked-match route. rc=%d\r\n", rc);
@@ -1558,7 +1634,7 @@ int ofdpa_del_l3_v4_route(u32 ip_dst, u32 netmask, l3_next_hop_id_t l3_next_hop_
             /* Matches -- no MAC address; IPv4 w/mask */
             flow.flowData.policyAclFlowEntry.match_criteria.inPort = OFDPA_PORT_TYPE_PHYSICAL; /* Must explicitly specify ANY physical port + type_mask */
             flow.flowData.policyAclFlowEntry.match_criteria.inPortMask = OFDPA_INPORT_TYPE_MASK;
-            flow.flowData.policyAclFlowEntry.match_criteria.etherType = ETHERTYPE_IPV4; 
+            flow.flowData.policyAclFlowEntry.match_criteria.etherType = ETHERTYPE_IPV4;
             flow.flowData.policyAclFlowEntry.match_criteria.etherTypeMask = OFDPA_ETHERTYPE_EXACT_MASK;
             flow.flowData.policyAclFlowEntry.match_criteria.destIp4 = ip_dst;
             flow.flowData.policyAclFlowEntry.match_criteria.destIp4Mask = netmask;
@@ -1598,7 +1674,7 @@ int ofdpa_del_l3_v4_route(u32 ip_dst, u32 netmask, l3_next_hop_id_t l3_next_hop_
             /* Matches -- no MAC address; IPv4 w/mask */
             flow.flowData.policyAclFlowEntry.match_criteria.inPort = OFDPA_PORT_TYPE_PHYSICAL; /* Must explicitly specify ANY physical port + type_mask */
             flow.flowData.policyAclFlowEntry.match_criteria.inPortMask = OFDPA_INPORT_TYPE_MASK;
-            flow.flowData.policyAclFlowEntry.match_criteria.etherType = ETHERTYPE_IPV4; 
+            flow.flowData.policyAclFlowEntry.match_criteria.etherType = ETHERTYPE_IPV4;
             flow.flowData.policyAclFlowEntry.match_criteria.etherTypeMask = OFDPA_ETHERTYPE_EXACT_MASK;
             flow.flowData.policyAclFlowEntry.match_criteria.destIp4 = ip_dst;
             flow.flowData.policyAclFlowEntry.match_criteria.destIp4Mask = netmask;
