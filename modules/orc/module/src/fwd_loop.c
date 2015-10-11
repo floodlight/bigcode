@@ -1,21 +1,21 @@
 /************************************************************
  * <bsn.cl fy=2013 v=epl>
- * 
- *        Copyright 2013, 2014 Big Switch Networks, Inc.       
- * 
+ *
+ *        Copyright 2013, 2014 Big Switch Networks, Inc.
+ *
  * Licensed under the Eclipse Public License, Version 1.0 (the
  * "License"); you may not use this file except in compliance
  * with the License. You may obtain a copy of the License at
- * 
+ *
  *        http://www.eclipse.org/legal/epl-v10.html
- * 
+ *
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND,
  * either express or implied. See the License for the specific
  * language governing permissions and limitations under the
  * License.
- * 
+ *
  * </bsn.cl>
  ************************************************************
  *
@@ -56,18 +56,18 @@ read_packet_from_port(orc_driver_t * drv, port_t * port)
     else if (len < 0)
     {
         if ((errno == EWOULDBLOCK) || (errno == EAGAIN))
-           return 0;
+            return 0;
         else
         {
             orc_err("read() for port %s returned : %s\n",
-                            port->name, strerror(errno));
+                    port->name, strerror(errno));
             return -1;
         }
     }
     else if (len == 0)
     {
         orc_err("read() for port %s returned EOF (!?) -- ignoring\n",
-                        port->name);
+                port->name);
     }
     return 0;
 }
@@ -82,30 +82,33 @@ int orc_els_callback(void *);
 
 int
 packet_forwarding_loop(orc_options_t * options,
-                orc_driver_t * drv,
-                int num_ports,
-                port_t * ports[],
-                int netlink_sock)
+                       orc_driver_t * drv,
+                       int num_ports,
+                       port_t * ports[],
+                       int netlink_sock)
 {
     int epoll_fd;
     struct epoll_event * events, ev;
     int i, nfds;
     int err;
     orc_log("Entering forwarding loop.\n");
-    epoll_fd = epoll_create(num_ports + 1 ); /* +1 for netlink_sock */
+    epoll_fd = epoll_create(num_ports
+                            + 1 /* +1 for netlink_sock */
+                            + (options->els != NULL ? 1 : 0) /* +1 for CLI, if configured */
+                            );
     if (epoll_fd == -1)
     {
         orc_err("epoll_create() : %s\n", strerror(errno));
         return -1;
     }
-
+    
     events = malloc(num_ports * sizeof(struct epoll_event));
     if (events == NULL)
     {
         orc_err("malloc() : %s\n", strerror(errno));
         return -1;
     }
-
+    
     /* First add ports to epoll list */
     for (i=0; i<num_ports; i++)
     {
@@ -129,7 +132,7 @@ packet_forwarding_loop(orc_options_t * options,
             return -1;
         }
     }
-
+    
     /* Add the CLI if configured */
     if (options->els)
     {
@@ -141,10 +144,10 @@ packet_forwarding_loop(orc_options_t * options,
             orc_err("epoll_ctl(cli) : %s\n", strerror(errno));
             return -1;
         }
-
+        
     }
-
-
+    
+    
     orc_debug("Going into epoll() loop\n");
     err = 0;
     while (!err)
@@ -169,7 +172,7 @@ packet_forwarding_loop(orc_options_t * options,
                 read_packet_from_port(drv, (port_t *) events[i].data.ptr);
         }
     }
-
+    
     orc_log("Exiting forwarding loop.\n");
     return 0;
 }
