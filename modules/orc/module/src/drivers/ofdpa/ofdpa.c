@@ -479,13 +479,45 @@ int ofdpa_add_or_update_l3_v4_interface(port_t * port, u8 hw_mac[6], int mtu, u3
         return -1;
     }
     
-    /* Termination MAC */
-    if (add_flow_termination_mac(port->index,
-                                 hw_mac,
-                                 ETHERTYPE_IPV4
-                                 ) == 0)
+    /* Now do the termination MAC flow */
+    char mac[OFDPA_MAC_ADDR_LEN * 2 * 2];
+    mac_to_str(mac, hw_mac);
+    
+    rc = ofdpaFlowEntryInit(OFDPA_FLOW_TABLE_ID_TERMINATION_MAC, &flow);
+    if (rc != OFDPA_E_NONE)
     {
+        orc_err("Failed to initialize termination MAC flow. rc=%d\r\n", rc);
         return -1;
+    } else
+    {
+        memset(&(flow.flowData), 0, sizeof(ofdpaTerminationMacFlowEntry_t));
+        
+        /* Matches */
+        flow.flowData.terminationMacFlowEntry.match_criteria.inPort = port->index;
+        flow.flowData.terminationMacFlowEntry.match_criteria.inPortMask = OFDPA_INPORT_EXACT_MASK;
+        flow.flowData.terminationMacFlowEntry.match_criteria.etherType = ETHERTYPE_IPV4;
+        memcpy(&(flow.flowData.terminationMacFlowEntry.match_criteria.destMac), hw_mac, OFDPA_MAC_ADDR_LEN);
+        memset(&(flow.flowData.terminationMacFlowEntry.match_criteria.destMacMask), BYTE_MASK_ANY, OFDPA_MAC_ADDR_LEN);
+        
+        /* Goto Table Instruction */
+        flow.flowData.terminationMacFlowEntry.gotoTableId = OFDPA_FLOW_TABLE_ID_UNICAST_ROUTING;
+        
+        orc_debug("Termination MAC flow about to be added for port %d with MAC %s\r\n", flow.flowData.terminationMacFlowEntry.match_criteria.inPort, mac);
+        
+        rc = ofdpaFlowAdd(&flow);
+        if (rc == OFDPA_E_EXISTS)
+        {
+            orc_warn("Termination MAC flow already exists for port %d with MAC %s. Continuing\r\n", flow.flowData.terminationMacFlowEntry.match_criteria.inPort, mac);
+        }
+        else if (rc != OFDPA_E_NONE)
+        {
+            orc_err("Failed to push termination MAC flow. rc=%d\r\n", rc);
+            return -1;
+        }
+        else
+        {
+            orc_warn("Pushed Termination MAC flow for port %d with MAC %s\r\n", flow.flowData.terminationMacFlowEntry.match_criteria.inPort, mac);
+        }
     }
     
     /* Now do the unicast routing flow */
@@ -756,7 +788,6 @@ int ofdpa_del_l3_v4_interface(port_t * port, l3_intf_id_t l3_intf_id) {
         return -1;
     }
     
-    /* Tagged VLAN */
     if (del_flow_vlan(port->index,
                       vlan_id,
                       ETH_VLAN_MASK_EXACT_W_PRESENT_BIT,
@@ -768,13 +799,40 @@ int ofdpa_del_l3_v4_interface(port_t * port, l3_intf_id_t l3_intf_id) {
         return -1;
     }
     
-    /* Termination MAC */
-    if (del_flow_termination_mac(port->index,
-                                 hw_mac,
-                                 ETHERTYPE_IPV4
-                                 ) == 0)
+    /* Now do the termination MAC flow */
+    rc = ofdpaFlowEntryInit(OFDPA_FLOW_TABLE_ID_TERMINATION_MAC, &flow);
+    if (rc != OFDPA_E_NONE)
     {
+        orc_err("Failed to initialize termination MAC flow. rc=%d\r\n", rc);
         return -1;
+    } else
+    {
+        memset(&(flow.flowData), 0, sizeof(ofdpaTerminationMacFlowEntry_t));
+        
+        /* Matches */
+        flow.flowData.terminationMacFlowEntry.match_criteria.inPort = port->index;
+        flow.flowData.terminationMacFlowEntry.match_criteria.inPortMask = OFDPA_INPORT_EXACT_MASK;
+        flow.flowData.terminationMacFlowEntry.match_criteria.etherType = ETHERTYPE_IPV4;
+        memcpy(&(flow.flowData.terminationMacFlowEntry.match_criteria.destMac), hw_mac, OFDPA_MAC_ADDR_LEN);
+        memset(&(flow.flowData.terminationMacFlowEntry.match_criteria.destMacMask), BYTE_MASK_ANY, OFDPA_MAC_ADDR_LEN);
+        
+        /* Goto Table Instruction */
+        flow.flowData.terminationMacFlowEntry.gotoTableId = OFDPA_FLOW_TABLE_ID_UNICAST_ROUTING;
+        
+        rc = ofdpaFlowDelete(&flow);
+        if (rc == OFDPA_E_NOT_FOUND || rc == OFDPA_E_EMPTY)
+        {
+            orc_warn("Termination MAC flow not found\r\n");
+        }
+        else if (rc != OFDPA_E_NONE)
+        {
+            orc_err("Failed to delete termination MAC flow. rc=%d\r\n", rc);
+            return -1;
+        }
+        else
+        {
+            orc_warn("Termination MAC flow deleted\r\n");
+        }
     }
     
     /* Now do the unicast routing flow */
@@ -1811,35 +1869,6 @@ uint32_t init_flow_vlan(ofdpaFlowEntry_t * flow, uint32_t in_port, uint32_t vlan
     return 1;
 }
 
-uint32_t init_flow_termination_mac(ofdpaFlowEntry_t * flow, uint32_t in_port, u8 dst_mac[OFDPA_MAC_ADDR_LEN], uint16_t ether_type)
-{
-    char mac[OFDPA_MAC_ADDR_LEN * 2 * 2];
-    mac_to_str(mac, dst_mac);
-    
-    OFDPA_ERROR_t rc = ofdpaFlowEntryInit(OFDPA_FLOW_TABLE_ID_TERMINATION_MAC, flow);
-    if (rc != OFDPA_E_NONE)
-    {
-        orc_err("Failed to initialize termination MAC flow. rc=%d\r\n", rc);
-        return 0;
-    } else
-    {
-        memset(&(flow->flowData), 0, sizeof(ofdpaTerminationMacFlowEntry_t));
-        
-        /* Matches */
-        flow->flowData.terminationMacFlowEntry.match_criteria.inPort = port->index;
-        flow->flowData.terminationMacFlowEntry.match_criteria.inPortMask = OFDPA_INPORT_EXACT_MASK;
-        flow->flowData.terminationMacFlowEntry.match_criteria.etherType = ETHERTYPE_IPV4;
-        memcpy(&(flow->flowData.terminationMacFlowEntry.match_criteria.destMac), hw_mac, OFDPA_MAC_ADDR_LEN);
-        memset(&(flow->flowData.terminationMacFlowEntry.match_criteria.destMacMask), BYTE_MASK_ANY, OFDPA_MAC_ADDR_LEN);
-        
-        /* Goto Table Instruction */
-        flow->flowData.terminationMacFlowEntry.gotoTableId = OFDPA_FLOW_TABLE_ID_UNICAST_ROUTING;
-        
-        orc_debug("Termination MAC flow about to be added for port %d with MAC %s\r\n", flow.flowData.terminationMacFlowEntry.match_criteria.inPort, mac);
-    }
-    return 1;
-}
-
 /******
  * add_flow_vlan: Add a VLAN flow.
  * @param in_port the ingress port
@@ -1915,32 +1944,6 @@ uint32_t add_flow_vlan(uint32_t in_port, uint32_t vlan_id, uint32_t vlan_id_or, 
         }
     }
     return 1;
-}
-
-uint32_t add_flow_termination_mac(uint32_t in_port, u8 dst_mac[OFDPA_MAC_ADDR_LEN], uint16_t ether_type)
-{
-    OFDPA_ERROR_t rc;
-    ofdpaFlowEntry_t flow;
-    
-    if (init_flow_termination_mac(&flow, in_port, dst_mac, ether_type) == 0)
-    {
-        return 0;
-    }
-    
-    rc = ofdpaFlowAdd(&flow);
-    if (rc == OFDPA_E_EXISTS)
-    {
-        orc_warn("Termination MAC flow already exists for port %d with MAC %s. Continuing\r\n", flow.flowData.terminationMacFlowEntry.match_criteria.inPort, mac);
-    }
-    else if (rc != OFDPA_E_NONE)
-    {
-        orc_err("Failed to push termination MAC flow. rc=%d\r\n", rc);
-        return -1;
-    }
-    else
-    {
-        orc_warn("Pushed Termination MAC flow for port %d with MAC %s\r\n", flow.flowData.terminationMacFlowEntry.match_criteria.inPort, mac);
-    }
 }
 
 /******
@@ -2028,32 +2031,6 @@ uint32_t del_flow_vlan(uint32_t in_port, uint32_t vlan_id_match, uint32_t vlan_i
         }
     }
     return 1;
-}
-
-uint32_t del_flow_termination_mac(uint32_t in_port, u8 dst_mac[OFDPA_MAC_ADDR_LEN], uint16_t ether_type)
-{
-    OFDPA_ERROR_t rc;
-    ofdpaFlowEntry_t flow;
-    
-    if (init_flow_termination_mac(&flow, in_port, dst_mac, ether_type) == 0)
-    {
-        return 0;
-    }
-    
-    rc = ofdpaFlowDelete(&flow);
-    if (rc == OFDPA_E_NOT_FOUND || rc == OFDPA_E_EMPTY)
-    {
-        orc_warn("Termination MAC flow not found\r\n");
-    }
-    else if (rc != OFDPA_E_NONE)
-    {
-        orc_err("Failed to delete termination MAC flow. rc=%d\r\n", rc);
-        return -1;
-    }
-    else
-    {
-        orc_warn("Termination MAC flow deleted\r\n");
-    }
 }
 
 /******
