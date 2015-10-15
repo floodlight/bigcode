@@ -72,10 +72,9 @@
 
 /*
  * The flow priority we assign to specific next hops.
- * The kernel next hop priority is implied 0, since it
- * is not ever set.
  */
 #define NON_KERNEL_NEXT_HOP_FLOW_PRIORITY   100
+#define KERNEL_NEXT_HOP_FLOW_PRIORITY       0
 
 /*
  * Default values for fields we might not
@@ -174,12 +173,22 @@ uint32_t delete_group_l2_interface(uint32_t, uint32_t);
 uint32_t delete_group_l3_unicast(uint32_t, uint32_t);
 
 uint32_t add_flow_vlan(uint32_t, uint32_t, uint32_t, uint32_t, uint32_t);
-
+uint32_t add_flow_termination_mac(uint32_t, u8 *, uint16_t);
+uint32_t add_flow_unicast_routing(uint32_t, uint32_t, uint32_t);
+uint32_t add_flow_policy_acl(uint32_t, u8 *, u8 *, uint16_t, uint16_t, uint32_t, uint32_t, uint32_t, uint32_t);
+uint32_t add_flow_bridging(u8 *, u8 *, uint16_t, uint16_t, uint32_t, uint32_t);
 
 uint32_t del_flow_vlan(uint32_t, uint32_t, uint32_t, uint32_t, uint32_t);
-
+uint32_t del_flow_termination_mac(uint32_t, u8 *, uint16_t);
+uint32_t del_flow_unicast_routing(uint32_t, uint32_t, uint32_t);
+uint32_t del_flow_policy_acl(uint32_t, u8 *, u8 *, uint16_t, uint16_t, uint32_t, uint32_t, uint32_t, uint32_t);
+uint32_t del_flow_bridging(u8 *, u8 *, uint16_t, uint16_t, uint32_t, uint32_t);
 
 uint32_t init_flow_vlan(ofdpaFlowEntry_t *, uint32_t, uint32_t, uint32_t, uint32_t, uint32_t);
+uint32_t init_flow_termination_mac(ofdpaFlowEntry_t *, uint32_t, u8 *, uint16_t);
+uint32_t init_flow_unicast_routing(ofdpaFlowEntry_t *, uint32_t, uint32_t, uint32_t);
+uint32_t init_flow_policy_acl(ofdpaFlowEntry_t *, uint32_t, u8 *, u8 *, uint16_t, uint16_t, uint32_t, uint32_t, uint32_t, uint32_t);
+uint32_t init_flow_bridging(ofdpaFlowEntry_t *, u8 *, u8 *, uint16_t, uint16_t, uint32_t, uint32_t);
 
 
 int clear_ofdpa_tables(void); /* both flow and group */
@@ -452,8 +461,6 @@ int ofdpa_add_l3_v4_interface(port_t * port, u8 hw_mac[6], int mtu, u32 ipv4_add
  * contains the meat of adding and updating and many ofdpa function calls.
  */
 int ofdpa_add_or_update_l3_v4_interface(port_t * port, u8 hw_mac[6], int mtu, u32 ipv4_addr, l3_intf_id_t * l3_intf_id, bool is_update) {
-    OFDPA_ERROR_t rc;
-    ofdpaFlowEntry_t flow;
     
     uint32_t vlan_id = compute_vlan_id(port->index);
     
@@ -479,212 +486,60 @@ int ofdpa_add_or_update_l3_v4_interface(port_t * port, u8 hw_mac[6], int mtu, u3
         return -1;
     }
     
-    /* Now do the termination MAC flow */
-    char mac[OFDPA_MAC_ADDR_LEN * 2 * 2];
-    mac_to_str(mac, hw_mac);
-    
-    rc = ofdpaFlowEntryInit(OFDPA_FLOW_TABLE_ID_TERMINATION_MAC, &flow);
-    if (rc != OFDPA_E_NONE)
+    /* Termination MAC */
+    if (add_flow_termination_mac(port->index,
+                                 hw_mac,
+                                 ETHERTYPE_IPV4
+                                 ) == 0)
     {
-        orc_err("Failed to initialize termination MAC flow. rc=%d\r\n", rc);
         return -1;
-    } else
-    {
-        memset(&(flow.flowData), 0, sizeof(ofdpaTerminationMacFlowEntry_t));
-        
-        /* Matches */
-        flow.flowData.terminationMacFlowEntry.match_criteria.inPort = port->index;
-        flow.flowData.terminationMacFlowEntry.match_criteria.inPortMask = OFDPA_INPORT_EXACT_MASK;
-        flow.flowData.terminationMacFlowEntry.match_criteria.etherType = ETHERTYPE_IPV4;
-        memcpy(&(flow.flowData.terminationMacFlowEntry.match_criteria.destMac), hw_mac, OFDPA_MAC_ADDR_LEN);
-        memset(&(flow.flowData.terminationMacFlowEntry.match_criteria.destMacMask), BYTE_MASK_ANY, OFDPA_MAC_ADDR_LEN);
-        
-        /* Goto Table Instruction */
-        flow.flowData.terminationMacFlowEntry.gotoTableId = OFDPA_FLOW_TABLE_ID_UNICAST_ROUTING;
-        
-        orc_debug("Termination MAC flow about to be added for port %d with MAC %s\r\n", flow.flowData.terminationMacFlowEntry.match_criteria.inPort, mac);
-        
-        rc = ofdpaFlowAdd(&flow);
-        if (rc == OFDPA_E_EXISTS)
-        {
-            orc_warn("Termination MAC flow already exists for port %d with MAC %s. Continuing\r\n", flow.flowData.terminationMacFlowEntry.match_criteria.inPort, mac);
-        }
-        else if (rc != OFDPA_E_NONE)
-        {
-            orc_err("Failed to push termination MAC flow. rc=%d\r\n", rc);
-            return -1;
-        }
-        else
-        {
-            orc_warn("Pushed Termination MAC flow for port %d with MAC %s\r\n", flow.flowData.terminationMacFlowEntry.match_criteria.inPort, mac);
-        }
     }
     
-    /* Now do the unicast routing flow */
-    char str_ip[16];
-    rc = ofdpaFlowEntryInit(OFDPA_FLOW_TABLE_ID_UNICAST_ROUTING, &flow);
-    if (rc != OFDPA_E_NONE)
+    /* Unicast routing */
+    if (add_flow_unicast_routing(ipv4_addr,
+                                 OFDPA_IPV4_ADDR_EXACT_MASK,
+                                 default_next_hop_group_id
+                                 ) == 0)
     {
-        orc_err("Failed to initialize unicast routing flow. rc=%d\r\n", rc);
         return -1;
-    } else
-    {
-        memset(&(flow.flowData), 0, sizeof(ofdpaUnicastRoutingFlowEntry_t));
-        
-        /* Matches */
-        flow.flowData.unicastRoutingFlowEntry.match_criteria.etherType = ETHERTYPE_IPV4;
-        flow.flowData.unicastRoutingFlowEntry.match_criteria.dstIp4 = ipv4_addr;
-        flow.flowData.unicastRoutingFlowEntry.match_criteria.dstIp4Mask = OFDPA_IPV4_ADDR_EXACT_MASK; /* exact IPv4 match */
-        
-        /* We will specify the default group; required */
-        flow.flowData.unicastRoutingFlowEntry.groupID = default_next_hop_group_id;
-        
-        /* Goto Table Instruction */
-        flow.flowData.unicastRoutingFlowEntry.gotoTableId = OFDPA_FLOW_TABLE_ID_ACL_POLICY;
-        
-        ipv4_to_str(str_ip, flow.flowData.unicastRoutingFlowEntry.match_criteria.dstIp4);
-        orc_debug("Attempting to push exact unicast routing flow for IP %s\r\n", str_ip);
-        
-        rc = ofdpaFlowAdd(&flow);
-        if (rc == OFDPA_E_EXISTS)
-        {
-            orc_warn("Exact unicast routing flow already exists for IP %s. Continuing\r\n", str_ip);
-        }
-        else if (rc != OFDPA_E_NONE)
-        {
-            orc_err("Failed to push exact unicast routing flow for IP %s. rc=%d\r\n", str_ip, rc);
-            return -1;
-        }
-        else
-        {
-            orc_warn("Pushed exact unicast routing flow for IP %s\r\n", str_ip);
-        }
-        
     }
     
-    /* Now do the policy ACL flow */
-    rc = ofdpaFlowEntryInit(OFDPA_FLOW_TABLE_ID_ACL_POLICY, &flow);
-    if (rc != OFDPA_E_NONE)
+    /* Policy ACL */
+    u8 mac_mask[OFDPA_MAC_ADDR_LEN];
+    memset(mac_mask, BYTE_MASK_ANY, OFDPA_MAC_ADDR_LEN);
+    if (add_flow_policy_acl(KERNEL_NEXT_HOP_FLOW_PRIORITY,
+                            hw_mac, mac_mask,
+                            ETHERTYPE_IPV4, OFDPA_ETHERTYPE_EXACT_MASK,
+                            ipv4_addr, OFDPA_IPV4_ADDR_EXACT_MASK,
+                            OFDPA_PORT_CONTROLLER,
+                            0
+                            ) == 0)
     {
-        orc_err("Failed to initialize policy ACL flow. rc=%d\r\n", rc);
         return -1;
-    } else
-    {
-        memset(&(flow.flowData), 0, sizeof(ofdpaPolicyAclFlowEntry_t));
-        
-        /* Matches */
-        flow.flowData.policyAclFlowEntry.match_criteria.inPort = OFDPA_PORT_TYPE_PHYSICAL; /* Must explicitly specify ANY physical port + type_mask */
-        flow.flowData.policyAclFlowEntry.match_criteria.inPortMask = OFDPA_INPORT_TYPE_MASK;
-        memcpy(&(flow.flowData.policyAclFlowEntry.match_criteria.destMac), hw_mac, OFDPA_MAC_ADDR_LEN);
-        memset(&(flow.flowData.policyAclFlowEntry.match_criteria.destMacMask), BYTE_MASK_ANY, OFDPA_MAC_ADDR_LEN);
-        flow.flowData.policyAclFlowEntry.match_criteria.etherType = ETHERTYPE_IPV4;
-        flow.flowData.policyAclFlowEntry.match_criteria.etherTypeMask = OFDPA_ETHERTYPE_EXACT_MASK;
-        flow.flowData.policyAclFlowEntry.match_criteria.destIp4 = ipv4_addr;
-        flow.flowData.policyAclFlowEntry.match_criteria.destIp4Mask = OFDPA_IPV4_ADDR_EXACT_MASK; /* exact IPv4 match */
-        
-        /* Apply Actions Instruction */
-        
-        /*
-         * OF-DPA IMPLEMENTATION NOTE:
-         * Including this output (apply action) will cause the
-         * goto-group (write action) set in the unicast routing
-         * flow to be ignored. This is not correct according to
-         * the OpenFlow spec, but it allows us to send to the CPU
-         * w/o also sending to a next hop group.
-         */
-        flow.flowData.policyAclFlowEntry.outputPort = OFDPA_PORT_CONTROLLER; /* punt up to ORC (will pass into RX thread) */
-        
-        ipv4_to_str(str_ip, flow.flowData.policyAclFlowEntry.match_criteria.destIp4);
-        
-        /* Now we're finally ready to add the flow */
-        rc = ofdpaFlowAdd(&flow);
-        if (rc == OFDPA_E_EXISTS)
-        {
-            orc_warn("Policy ACL flow already exists for MAC %s, IP %s. Continuing\r\n", mac, str_ip);
-        }
-        else if (rc != OFDPA_E_NONE)
-        {
-            orc_err("Failed to push policy ACL flow for MAC %s, IP %s. rc=%d\r\n", mac, str_ip, rc);
-            return -1;
-        }
-        else
-        {
-            orc_warn("Pushed policy ACL flow for for MAC %s, IP %s\r\n", mac, str_ip);
-        }
     }
     
-    /* Now do the bridging flow -- for non-IP packet delivery to ORC's RX func */
-    rc = ofdpaFlowEntryInit(OFDPA_FLOW_TABLE_ID_BRIDGING, &flow);
-    if (rc != OFDPA_E_NONE)
+    /* Bridging for non-IP packet delivery to ORC's RX func */
+    if (add_flow_bridging(hw_mac, mac_mask, /* reuse mask from above */
+                          vlan_id, ETH_VLAN_MASK_ANY_WO_PRESENT_BIT,
+                          OFDPA_PORT_CONTROLLER,
+                          default_interface_group_id
+                          ) == 0)
     {
-        orc_err("Failed to initialize bridging flow. rc=%d\r\n", rc);
         return -1;
-    } else
-    {
-        memset(&(flow.flowData), 0, sizeof(ofdpaBridgingFlowEntry_t));
-        
-        /* Matches */
-        memcpy(&(flow.flowData.bridgingFlowEntry.match_criteria.destMac), hw_mac, OFDPA_MAC_ADDR_LEN);
-        memset(&(flow.flowData.bridgingFlowEntry.match_criteria.destMacMask), BYTE_MASK_ANY, OFDPA_MAC_ADDR_LEN); /* exact MAC match */
-        flow.flowData.bridgingFlowEntry.match_criteria.vlanId = compute_vlan_id(port->index); /* must match on VLAN w/o 'present' bit set */
-        flow.flowData.bridgingFlowEntry.match_criteria.vlanIdMask = ETH_VLAN_MASK_ANY_WO_PRESENT_BIT; // 0x0fff
-        
-        /* Must also supply L2 interface group, even though we won't use it. */
-        flow.flowData.bridgingFlowEntry.groupID = default_interface_group_id;
-        
-        /* Apply Actions Instruction */
-        flow.flowData.bridgingFlowEntry.outputPort = OFDPA_PORT_CONTROLLER; /* punt non-IP packets up to ORC's RX func */
-        
-        rc = ofdpaFlowAdd(&flow);
-        if (rc == OFDPA_E_EXISTS)
-        {
-            orc_warn("Bridging flow already exists for MAC %s, VLAN %d. Continuing\r\n", mac, flow.flowData.bridgingFlowEntry.match_criteria.vlanId);
-        }
-        else if (rc != OFDPA_E_NONE)
-        {
-            orc_err("Failed to push bridging flow for MAC %s, VLAN %d. rc=%d\r\n", mac, flow.flowData.bridgingFlowEntry.match_criteria.vlanId, rc);
-            return -1;
-        }
-        else
-        {
-            orc_warn("Pushed bridging flow for for MAC %s, VLAN %d\r\n", mac, flow.flowData.bridgingFlowEntry.match_criteria.vlanId);
-        }
     }
     
     /* Handle any ARP packets that we might need to answer in the kernel */
-    rc = ofdpaFlowEntryInit(OFDPA_FLOW_TABLE_ID_ACL_POLICY, &flow);
-    if (rc != OFDPA_E_NONE)
+    if (add_flow_policy_acl(KERNEL_NEXT_HOP_FLOW_PRIORITY,
+                            NULL, NULL,
+                            ETHERTYPE_ARP, OFDPA_ETHERTYPE_EXACT_MASK,
+                            0, 0,
+                            OFDPA_PORT_CONTROLLER,
+                            0
+                            ) == 0)
     {
-        orc_err("Failed to initialize ARP policy ACL flow. rc=%d\r\n", rc);
         return -1;
-    } else
-    {
-        memset(&(flow.flowData), 0, sizeof(ofdpaPolicyAclFlowEntry_t));
-        
-        /* Matches -- all ARP packets */
-        flow.flowData.policyAclFlowEntry.match_criteria.inPort = OFDPA_PORT_TYPE_PHYSICAL; /* Must explicitly specify ANY physical port + type_mask */
-        flow.flowData.policyAclFlowEntry.match_criteria.inPortMask = OFDPA_INPORT_TYPE_MASK;
-        flow.flowData.policyAclFlowEntry.match_criteria.etherType = ETHERTYPE_ARP;
-        flow.flowData.policyAclFlowEntry.match_criteria.etherTypeMask = OFDPA_ETHERTYPE_EXACT_MASK;
-        
-        /* Apply Actions Instruction */
-        flow.flowData.policyAclFlowEntry.outputPort = OFDPA_PORT_CONTROLLER; /* punt ARP packets up to ORC's RX func */
-        
-        rc = ofdpaFlowAdd(&flow);
-        if (rc == OFDPA_E_EXISTS)
-        {
-            orc_warn("ARP policy flow already exists. Continuing\r\n");
-        }
-        else if (rc != OFDPA_E_NONE)
-        {
-            orc_err("Failed to push ARP policy ACL flow. rc=%d\r\n", rc);
-            return -1;
-        }
-        else
-        {
-            orc_warn("Pushed ARP policy ACL flow\r\n");
-        }
     }
+    orc_warn("Pushed ARP policy ACL flow\r\n");
     
     /* If we get here, then all flows should be inserted w/o error */
     ofdpa_interface_t * iface = NULL;
@@ -753,8 +608,6 @@ int ofdpa_update_l3_v4_interface(port_t * port, u8 hw_mac[6], int mtu, u32 ipv4_
  * ofdpa_del_l3_v4_interface: delete an existing IPv4 interface
  */
 int ofdpa_del_l3_v4_interface(port_t * port, l3_intf_id_t l3_intf_id) {
-    OFDPA_ERROR_t rc;
-    ofdpaFlowEntry_t flow;
     
     /* Lookup L3 interface to find the IP, MAC, etc. */
     ofdpa_interface_t * iface = get_interface(l3_intf_id);
@@ -778,16 +631,17 @@ int ofdpa_del_l3_v4_interface(port_t * port, l3_intf_id_t l3_intf_id) {
     
     /* Delete untagged VLAN flow before tagged */
     if (del_flow_vlan(port->index,
-                  ETH_VLAN_MASK_EXACT_WO_PRESENT_BIT,
-                  ETH_VLAN_MASK_EXACT_WO_PRESENT_BIT,
-                  ETH_VLAN_MASK_ANY_WO_PRESENT_BIT,
-                  vlan_id
-                  ) == 0
+                      ETH_VLAN_MASK_EXACT_WO_PRESENT_BIT,
+                      ETH_VLAN_MASK_EXACT_WO_PRESENT_BIT,
+                      ETH_VLAN_MASK_ANY_WO_PRESENT_BIT,
+                      vlan_id
+                      ) == 0
         )
     {
         return -1;
     }
     
+    /* Tagged VLAN */
     if (del_flow_vlan(port->index,
                       vlan_id,
                       ETH_VLAN_MASK_EXACT_W_PRESENT_BIT,
@@ -799,189 +653,59 @@ int ofdpa_del_l3_v4_interface(port_t * port, l3_intf_id_t l3_intf_id) {
         return -1;
     }
     
-    /* Now do the termination MAC flow */
-    rc = ofdpaFlowEntryInit(OFDPA_FLOW_TABLE_ID_TERMINATION_MAC, &flow);
-    if (rc != OFDPA_E_NONE)
+    /* Termination MAC */
+    if (del_flow_termination_mac(port->index,
+                                 hw_mac,
+                                 ETHERTYPE_IPV4
+                                 ) == 0)
     {
-        orc_err("Failed to initialize termination MAC flow. rc=%d\r\n", rc);
         return -1;
-    } else
-    {
-        memset(&(flow.flowData), 0, sizeof(ofdpaTerminationMacFlowEntry_t));
-        
-        /* Matches */
-        flow.flowData.terminationMacFlowEntry.match_criteria.inPort = port->index;
-        flow.flowData.terminationMacFlowEntry.match_criteria.inPortMask = OFDPA_INPORT_EXACT_MASK;
-        flow.flowData.terminationMacFlowEntry.match_criteria.etherType = ETHERTYPE_IPV4;
-        memcpy(&(flow.flowData.terminationMacFlowEntry.match_criteria.destMac), hw_mac, OFDPA_MAC_ADDR_LEN);
-        memset(&(flow.flowData.terminationMacFlowEntry.match_criteria.destMacMask), BYTE_MASK_ANY, OFDPA_MAC_ADDR_LEN);
-        
-        /* Goto Table Instruction */
-        flow.flowData.terminationMacFlowEntry.gotoTableId = OFDPA_FLOW_TABLE_ID_UNICAST_ROUTING;
-        
-        rc = ofdpaFlowDelete(&flow);
-        if (rc == OFDPA_E_NOT_FOUND || rc == OFDPA_E_EMPTY)
-        {
-            orc_warn("Termination MAC flow not found\r\n");
-        }
-        else if (rc != OFDPA_E_NONE)
-        {
-            orc_err("Failed to delete termination MAC flow. rc=%d\r\n", rc);
-            return -1;
-        }
-        else
-        {
-            orc_warn("Termination MAC flow deleted\r\n");
-        }
     }
     
-    /* Now do the unicast routing flow */
-    rc = ofdpaFlowEntryInit(OFDPA_FLOW_TABLE_ID_UNICAST_ROUTING, &flow);
-    if (rc != OFDPA_E_NONE)
+    /* Unicast routing */
+    if (del_flow_unicast_routing(ipv4_addr,
+                                 OFDPA_IPV4_ADDR_EXACT_MASK,
+                                 default_next_hop_group_id
+                                 ) == 0)
     {
-        orc_err("Failed to initialize unicast routing flow. rc=%d\r\n", rc);
         return -1;
-    } else
-    {
-        memset(&(flow.flowData), 0, sizeof(ofdpaUnicastRoutingFlowEntry_t));
-        
-        /* Matches */
-        flow.flowData.unicastRoutingFlowEntry.match_criteria.etherType = ETHERTYPE_IPV4;
-        flow.flowData.unicastRoutingFlowEntry.match_criteria.dstIp4 = ipv4_addr;
-        flow.flowData.unicastRoutingFlowEntry.match_criteria.dstIp4Mask = OFDPA_IPV4_ADDR_EXACT_MASK; /* exact IPv4 match */
-        
-        /* Default/bogus next hop */
-        flow.flowData.unicastRoutingFlowEntry.groupID = default_next_hop_group_id;
-        
-        /* Goto Table Instruction */
-        flow.flowData.unicastRoutingFlowEntry.gotoTableId = OFDPA_FLOW_TABLE_ID_ACL_POLICY;
-        
-        rc = ofdpaFlowDelete(&flow);
-        if (rc == OFDPA_E_NOT_FOUND || rc == OFDPA_E_EMPTY)
-        {
-            orc_warn("Unicast routing flow not found\r\n");
-        }
-        else if (rc != OFDPA_E_NONE)
-        {
-            orc_err("Failed to delete unicast routing flow. rc=%d\r\n", rc);
-            return -1;
-        }
-        else
-        {
-            orc_warn("Unicast routing flow deleted\r\n");
-        }
     }
     
-    /* Now do the policy ACL flow */
-    rc = ofdpaFlowEntryInit(OFDPA_FLOW_TABLE_ID_ACL_POLICY, &flow);
-    if (rc != OFDPA_E_NONE)
+    /* Policy ACL */
+    u8 mac_mask[OFDPA_MAC_ADDR_LEN];
+    memset(mac_mask, BYTE_MASK_ANY, OFDPA_MAC_ADDR_LEN); /* exact MAC match */
+    if (del_flow_policy_acl(KERNEL_NEXT_HOP_FLOW_PRIORITY,
+                            hw_mac, mac_mask,
+                            ETHERTYPE_IPV4, OFDPA_ETHERTYPE_EXACT_MASK,
+                            ipv4_addr, OFDPA_IPV4_ADDR_EXACT_MASK,
+                            OFDPA_PORT_CONTROLLER,
+                            0
+                            ) == 0)
     {
-        orc_err("Failed to initialize policy ACL flow. rc=%d\r\n", rc);
         return -1;
-    } else
-    {
-        memset(&(flow.flowData), 0, sizeof(ofdpaPolicyAclFlowEntry_t));
-        
-        /* Matches */
-        flow.flowData.policyAclFlowEntry.match_criteria.inPort = OFDPA_PORT_TYPE_PHYSICAL; /* Must explicitly specify ANY physical port + type_mask */
-        flow.flowData.policyAclFlowEntry.match_criteria.inPortMask = OFDPA_INPORT_TYPE_MASK;
-        memcpy(&(flow.flowData.policyAclFlowEntry.match_criteria.destMac), hw_mac, OFDPA_MAC_ADDR_LEN);
-        memset(&(flow.flowData.policyAclFlowEntry.match_criteria.destMacMask), BYTE_MASK_ANY, OFDPA_MAC_ADDR_LEN); /* exact MAC match */
-        flow.flowData.policyAclFlowEntry.match_criteria.etherType = ETHERTYPE_IPV4;
-        flow.flowData.policyAclFlowEntry.match_criteria.etherTypeMask = OFDPA_ETHERTYPE_EXACT_MASK;
-        flow.flowData.policyAclFlowEntry.match_criteria.destIp4 = ipv4_addr;
-        flow.flowData.policyAclFlowEntry.match_criteria.destIp4Mask = OFDPA_IPV4_ADDR_EXACT_MASK; /* exact IPv4 match */
-        
-        /* Apply Actions Instruction */
-        flow.flowData.policyAclFlowEntry.outputPort = OFDPA_PORT_CONTROLLER; /* punt up to ORC (will pass into RX thread) */
-        
-        rc = ofdpaFlowDelete(&flow);
-        if (rc == OFDPA_E_NOT_FOUND || rc == OFDPA_E_EMPTY)
-        {
-            orc_warn("Policy ACL flow not found\r\n");
-        }
-        else if (rc != OFDPA_E_NONE)
-        {
-            orc_err("Failed to delete policy ACL flow. rc=%d\r\n", rc);
-            return -1;
-        }
-        else
-        {
-            orc_warn("Policy ACL flow deleted\r\n");
-        }
     }
     
-    /* Now do the bridging flow -- for non-IP packet delivery to ORC's RX func */
-    rc = ofdpaFlowEntryInit(OFDPA_FLOW_TABLE_ID_BRIDGING, &flow);
-    if (rc != OFDPA_E_NONE)
+    /* Bridging for non-IP packet delivery to ORC's RX func */
+    if (del_flow_bridging(hw_mac, mac_mask, /* reuse mask from above */
+                          vlan_id, ETH_VLAN_MASK_ANY_WO_PRESENT_BIT,
+                          OFDPA_PORT_CONTROLLER,
+                          default_interface_group_id
+                          ) == 0)
     {
-        orc_err("Failed to initialize bridging flow. rc=%d\r\n", rc);
         return -1;
-    } else
-    {
-        memset(&(flow.flowData), 0, sizeof(ofdpaBridgingFlowEntry_t));
-        
-        /* Matches */
-        memcpy(&(flow.flowData.bridgingFlowEntry.match_criteria.destMac), hw_mac, OFDPA_MAC_ADDR_LEN);
-        memset(&(flow.flowData.bridgingFlowEntry.match_criteria.destMacMask), BYTE_MASK_ANY, OFDPA_MAC_ADDR_LEN); /* exact MAC match */
-        flow.flowData.bridgingFlowEntry.match_criteria.vlanId = compute_vlan_id(port->index); /* must match on VLAN w/o 'present' bit set */
-        flow.flowData.bridgingFlowEntry.match_criteria.vlanIdMask = ETH_VLAN_MASK_ANY_WO_PRESENT_BIT; // 0x0fff
-        
-        /* Must also supply L2 interface group, even though we won't use it. */
-        flow.flowData.bridgingFlowEntry.groupID = default_interface_group_id;
-        
-        /* Apply Actions Instruction */
-        flow.flowData.bridgingFlowEntry.outputPort = OFDPA_PORT_CONTROLLER; /* punt non-IP packets up to ORC's RX func */
-        
-        rc = ofdpaFlowDelete(&flow);
-        if (rc == OFDPA_E_NOT_FOUND || rc == OFDPA_E_EMPTY)
-        {
-            orc_warn("Bridging flow not found\r\n");
-        }
-        else if (rc != OFDPA_E_NONE)
-        {
-            orc_err("Failed to delete bridging flow. rc=%d\r\n", rc);
-            return -1;
-        }
-        else
-        {
-            orc_warn("Bridging flow deleted\r\n");
-        }
     }
     
-    rc = ofdpaFlowEntryInit(OFDPA_FLOW_TABLE_ID_ACL_POLICY, &flow);
-    if (rc != OFDPA_E_NONE)
+    if (del_flow_policy_acl(KERNEL_NEXT_HOP_FLOW_PRIORITY,
+                            NULL, NULL,
+                            ETHERTYPE_ARP, OFDPA_ETHERTYPE_EXACT_MASK,
+                            0, 0,
+                            OFDPA_PORT_CONTROLLER,
+                            0
+                            ) == 0)
     {
-        orc_err("Failed to initialize ARP policy ACL flow. rc=%d\r\n", rc);
         return -1;
-    } else
-    {
-        memset(&(flow.flowData), 0, sizeof(ofdpaPolicyAclFlowEntry_t));
-        
-        /* Matches -- all ARP packets */
-        flow.flowData.policyAclFlowEntry.match_criteria.inPort = OFDPA_PORT_TYPE_PHYSICAL; /* Must explicitly specify ANY physical port + type_mask */
-        flow.flowData.policyAclFlowEntry.match_criteria.inPortMask = OFDPA_INPORT_TYPE_MASK;
-        flow.flowData.policyAclFlowEntry.match_criteria.etherType = ETHERTYPE_ARP;
-        flow.flowData.policyAclFlowEntry.match_criteria.etherTypeMask = OFDPA_ETHERTYPE_EXACT_MASK;
-        
-        /* Apply Actions Instruction */
-        flow.flowData.policyAclFlowEntry.outputPort = OFDPA_PORT_CONTROLLER; /* punt ARP packets up to ORC's RX func */
-        
-        rc = ofdpaFlowDelete(&flow);
-        if (rc == OFDPA_E_NOT_FOUND || rc == OFDPA_E_EMPTY)
-        {
-            orc_warn("ARP policy flow not found. Continuing\r\n");
-        }
-        else if (rc != OFDPA_E_NONE)
-        {
-            orc_err("Failed to delete ARP policy ACL flow. rc=%d\r\n", rc);
-            return -1;
-        }
-        else
-        {
-            orc_warn("Deleted ARP policy ACL flow\r\n");
-        }
     }
+    orc_warn("Deleted ARP policy ACL flow\r\n");
     
     /* If we get here, then all flows should be deleted w/o error */
     del_interface(l3_intf_id);
@@ -1173,190 +897,87 @@ int ofdpa_add_l3_v4_route(u32 ip_dst, u32 netmask, l3_next_hop_id_t l3_next_hop_
         orc_warn("Found next hop %d. Proceeding to add route\r\n", next_hop->id);
     }
     
-    ofdpaFlowEntry_t flow;
-    OFDPA_ERROR_t rc = ofdpaFlowEntryInit(OFDPA_FLOW_TABLE_ID_UNICAST_ROUTING, &flow);
-    if (rc != OFDPA_E_NONE)
+    /*
+     * Compute the correct L3 unicast group ID and use in write-actions.
+     *
+     * The L3 group ID is defined by merely the group type + next hop ID.
+     */
+    uint32_t group_id;
+    if (next_hop != NULL)
     {
-        orc_err("Failed to initialize unicast routing flow for masked-match route. rc=%d\r\n", rc);
-        return -1;
-    } else
-    {
-        memset(&(flow.flowData), 0, sizeof(ofdpaUnicastRoutingFlowEntry_t));
+        uint32_t group_type = (uint32_t) OFDPA_GROUP_ENTRY_TYPE_L3_UNICAST;
         
-        /* Matches */
-        flow.flowData.unicastRoutingFlowEntry.match_criteria.etherType = ETHERTYPE_IPV4;
-        flow.flowData.unicastRoutingFlowEntry.match_criteria.dstIp4 = ip_dst;
-        flow.flowData.unicastRoutingFlowEntry.match_criteria.dstIp4Mask = netmask; /* exact IPv4 match */
-        
-        /*
-         * Compute the correct L3 unicast group ID and use in write-actions.
-         *
-         * The L3 group ID is defined by merely the group type + next hop ID.
-         */
-        uint32_t group_id;
-        if (next_hop != NULL)
+        OFDPA_ERROR_t rc = ofdpaGroupTypeSet(&group_id, group_type);
+        if (rc != OFDPA_E_NONE)
         {
-            uint32_t group_type = (uint32_t) OFDPA_GROUP_ENTRY_TYPE_L3_UNICAST;
-            
-            rc = ofdpaGroupTypeSet(&group_id, group_type);
-            if (rc != OFDPA_E_NONE)
-            {
-                orc_err("Failed to set L3 unicast group type for masked-match route. rc=%d\r\n", rc);
-                return -1;
-            }
-            
-            rc = ofdpaGroupIndexSet(&group_id, next_hop->id);
-            if (rc != OFDPA_E_NONE)
-            {
-                orc_err("Failed to set L3 unicast group index/ID for masked-match route. rc=%d\r\n", rc);
-                return -1;
-            }
-            
-            /* Write Actions Instruction: Group ID should now be correctly set */
-            flow.flowData.unicastRoutingFlowEntry.groupID = group_id;
-        }
-        else
-        {
-            orc_debug("Using default next hop L3 unicast group for kernel-bound route\r\n");
-            flow.flowData.unicastRoutingFlowEntry.groupID = default_next_hop_group_id;
-        }
-        
-        /*
-         * Goto Table Instruction: Still need to send here or will drop.
-         * Policy ACL will then do the saved write-actions and send to the
-         * L3 unicast group.
-         */
-        flow.flowData.unicastRoutingFlowEntry.gotoTableId = OFDPA_FLOW_TABLE_ID_ACL_POLICY;
-        
-        rc = ofdpaFlowAdd(&flow);
-        if (rc == OFDPA_E_EXISTS)
-        {
-            orc_warn("Unicast routing flow for masked-match route already exists\r\n");
-        }
-        else if (rc != OFDPA_E_NONE)
-        {
-            orc_err("Failed to push unicast routing flow for masked-match route. rc=%d\r\n", rc);
+            orc_err("Failed to set L3 unicast group type for masked-match route. rc=%d\r\n", rc);
             return -1;
         }
-        else
+        
+        rc = ofdpaGroupIndexSet(&group_id, next_hop->id);
+        if (rc != OFDPA_E_NONE)
         {
-            orc_warn("Added unicast routing flow for masked-match route\r\n");
+            orc_err("Failed to set L3 unicast group index/ID for masked-match route. rc=%d\r\n", rc);
+            return -1;
         }
+    }
+    else
+    {
+        orc_debug("Using default next hop L3 unicast group for kernel-bound route\r\n");
+        group_id = default_next_hop_group_id;
+    }
+    
+    /* Unicast routing */
+    if (add_flow_unicast_routing(ip_dst,
+                                 netmask,
+                                 group_id
+                                 ) == 0)
+    {
+        return -1;
     }
     
     if (next_hop == NULL)
     {
         /* Do policy ACL if we need to reroute to kernel (from bogus group) */
-        rc = ofdpaFlowEntryInit(OFDPA_FLOW_TABLE_ID_ACL_POLICY, &flow);
-        if (rc != OFDPA_E_NONE)
+        if (add_flow_policy_acl(KERNEL_NEXT_HOP_FLOW_PRIORITY,
+                                NULL, NULL,
+                                ETHERTYPE_IPV4, OFDPA_ETHERTYPE_EXACT_MASK,
+                                ip_dst, netmask,
+                                OFDPA_PORT_CONTROLLER,
+                                0
+                                ) == 0)
         {
-            orc_err("Failed to initialize policy ACL flow. rc=%d\r\n", rc);
             return -1;
-        } else
-        {
-            memset(&(flow.flowData), 0, sizeof(ofdpaPolicyAclFlowEntry_t));
-            
-            /* Matches -- no MAC address; IPv4 w/mask */
-            flow.flowData.policyAclFlowEntry.match_criteria.inPort = OFDPA_PORT_TYPE_PHYSICAL; /* Must explicitly specify ANY physical port + type_mask */
-            flow.flowData.policyAclFlowEntry.match_criteria.inPortMask = OFDPA_INPORT_TYPE_MASK;
-            flow.flowData.policyAclFlowEntry.match_criteria.etherType = ETHERTYPE_IPV4;
-            flow.flowData.policyAclFlowEntry.match_criteria.etherTypeMask = OFDPA_ETHERTYPE_EXACT_MASK;
-            flow.flowData.policyAclFlowEntry.match_criteria.destIp4 = ip_dst;
-            flow.flowData.policyAclFlowEntry.match_criteria.destIp4Mask = netmask;
-            
-            /* Apply Actions Instruction */
-            flow.flowData.policyAclFlowEntry.outputPort = OFDPA_PORT_CONTROLLER; /* punt up to ORC (will pass into RX thread) */
-            
-            rc = ofdpaFlowAdd(&flow);
-            if (rc == OFDPA_E_EXISTS)
-            {
-                orc_warn("Policy ACL flow for masked-match, kernel-bound route already exists\r\n");
-            }
-            else if (rc != OFDPA_E_NONE)
-            {
-                orc_err("Failed to add policy ACL flow for masked-match, kernel-bound route. rc=%d\r\n", rc);
-                return -1;
-            }
-            {
-                orc_warn("Added policy ACL flow for masked-match, kernel-bound route\r\n");
-            }
         }
+        orc_warn("Added policy ACL flow for masked-match, kernel-bound route\r\n");
     }
     else
     {
         /* DELETE existing kernel-bound flow for this same exact IP (remove old next hop) */
-        rc = ofdpaFlowEntryInit(OFDPA_FLOW_TABLE_ID_ACL_POLICY, &flow);
-        if (rc != OFDPA_E_NONE)
+        if (del_flow_policy_acl(KERNEL_NEXT_HOP_FLOW_PRIORITY,
+                                NULL, NULL,
+                                ETHERTYPE_IPV4, OFDPA_ETHERTYPE_EXACT_MASK,
+                                ip_dst, netmask,
+                                OFDPA_PORT_CONTROLLER,
+                                0
+                                ) == 0)
         {
-            orc_err("Failed to initialize policy ACL flow. rc=%d\r\n", rc);
             return -1;
-        } else
-        {
-            memset(&(flow.flowData), 0, sizeof(ofdpaPolicyAclFlowEntry_t));
-            
-            /* Matches -- no MAC address; IPv4 w/mask */
-            flow.flowData.policyAclFlowEntry.match_criteria.inPort = OFDPA_PORT_TYPE_PHYSICAL; /* Must explicitly specify ANY physical port + type_mask */
-            flow.flowData.policyAclFlowEntry.match_criteria.inPortMask = OFDPA_INPORT_TYPE_MASK;
-            flow.flowData.policyAclFlowEntry.match_criteria.etherType = ETHERTYPE_IPV4;
-            flow.flowData.policyAclFlowEntry.match_criteria.etherTypeMask = OFDPA_ETHERTYPE_EXACT_MASK;
-            flow.flowData.policyAclFlowEntry.match_criteria.destIp4 = ip_dst;
-            flow.flowData.policyAclFlowEntry.match_criteria.destIp4Mask = netmask;
-            
-            /* Apply Actions Instruction */
-            flow.flowData.policyAclFlowEntry.outputPort = OFDPA_PORT_CONTROLLER; /* punt up to ORC (will pass into RX thread) */
-            
-            rc = ofdpaFlowDelete(&flow);
-            if (rc == OFDPA_E_NOT_FOUND || rc == OFDPA_E_EMPTY)
-            {
-                orc_warn("Policy ACL flow for masked-match, kernel-bound route not found\r\n");
-            }
-            else if (rc != OFDPA_E_NONE)
-            {
-                orc_err("Failed to delete policy ACL flow for masked-match, kernel-bound route. rc=%d\r\n", rc);
-                return -1;
-            }
-            else
-            {
-                orc_warn("Deleted policy ACL flow for masked-match, kernel-bound route\r\n");
-            }
         }
+        orc_warn("Deleted policy ACL flow for masked-match, kernel-bound route\r\n");
         
         /* Now add in place the new next hop that avoids the kernel */
-        rc = ofdpaFlowEntryInit(OFDPA_FLOW_TABLE_ID_ACL_POLICY, &flow);
-        if (rc != OFDPA_E_NONE)
+        if (add_flow_policy_acl(NON_KERNEL_NEXT_HOP_FLOW_PRIORITY,
+                                NULL, NULL,
+                                ETHERTYPE_IPV4, OFDPA_ETHERTYPE_EXACT_MASK,
+                                ip_dst, netmask,
+                                0, /* NO Apply Actions Instruction */
+                                0
+                                ) == 0)
         {
-            orc_err("Failed to initialize hardware-routing policy ACL flow. rc=%d\r\n", rc);
             return -1;
-        } else
-        {
-            memset(&(flow.flowData), 0, sizeof(ofdpaPolicyAclFlowEntry_t));
-            
-            flow.priority = NON_KERNEL_NEXT_HOP_FLOW_PRIORITY;
-            
-            /* Matches -- no MAC address; IPv4 w/mask */
-            flow.flowData.policyAclFlowEntry.match_criteria.inPort = OFDPA_PORT_TYPE_PHYSICAL; /* Must explicitly specify ANY physical port + type_mask */
-            flow.flowData.policyAclFlowEntry.match_criteria.inPortMask = OFDPA_INPORT_TYPE_MASK;
-            flow.flowData.policyAclFlowEntry.match_criteria.etherType = ETHERTYPE_IPV4;
-            flow.flowData.policyAclFlowEntry.match_criteria.etherTypeMask = OFDPA_ETHERTYPE_EXACT_MASK;
-            flow.flowData.policyAclFlowEntry.match_criteria.destIp4 = ip_dst;
-            flow.flowData.policyAclFlowEntry.match_criteria.destIp4Mask = netmask;
-            
-            /* NO Apply Actions Instruction */
-            
-            rc = ofdpaFlowAdd(&flow);
-            if (rc == OFDPA_E_EXISTS)
-            {
-                orc_warn("Policy ACL flow for hardware-routing route already exists\r\n");
-            }
-            else if (rc != OFDPA_E_NONE)
-            {
-                orc_err("Failed to add policy ACL flow for hardware-routing route. rc=%d\r\n", rc);
-                return -1;
-            }
-            {
-                orc_warn("Added policy ACL flow for hardware-routing route\r\n");
-            }
         }
+        orc_warn("Added policy ACL flow for hardware-routing route\r\n");
     }
     
     return 0;
@@ -1382,148 +1003,69 @@ int ofdpa_del_l3_v4_route(u32 ip_dst, u32 netmask, l3_next_hop_id_t l3_next_hop_
         orc_warn("Found next hop %d. Proceeding to delete route\r\n", next_hop->id);
     }
     
-    ofdpaFlowEntry_t flow;
-    OFDPA_ERROR_t rc = ofdpaFlowEntryInit(OFDPA_FLOW_TABLE_ID_UNICAST_ROUTING, &flow);
-    if (rc != OFDPA_E_NONE)
+    uint32_t group_id;
+    if (next_hop != NULL)
     {
-        orc_err("Failed to initialize unicast routing flow for masked-match route. rc=%d\r\n", rc);
-        return -1;
-    } else
-    {
-        memset(&(flow.flowData), 0, sizeof(ofdpaUnicastRoutingFlowEntry_t));
+        uint32_t group_type = (uint32_t) OFDPA_GROUP_ENTRY_TYPE_L3_UNICAST;
         
-        /* Matches */
-        flow.flowData.unicastRoutingFlowEntry.match_criteria.etherType = ETHERTYPE_IPV4;
-        flow.flowData.unicastRoutingFlowEntry.match_criteria.dstIp4 = ip_dst;
-        flow.flowData.unicastRoutingFlowEntry.match_criteria.dstIp4Mask = netmask; /* exact IPv4 match */
-        
-        uint32_t group_id;
-        if (next_hop != NULL)
-        {
-            uint32_t group_type = (uint32_t) OFDPA_GROUP_ENTRY_TYPE_L3_UNICAST;
-            
-            rc = ofdpaGroupTypeSet(&group_id, group_type);
-            if (rc != OFDPA_E_NONE)
-            {
-                orc_err("Failed to set L3 unicast group type for masked-match route. rc=%d\r\n", rc);
-                return -1;
-            }
-            
-            rc = ofdpaGroupIndexSet(&group_id, next_hop->id);
-            if (rc != OFDPA_E_NONE)
-            {
-                orc_err("Failed to set L3 unicast group index/ID for masked-match route. rc=%d\r\n", rc);
-                return -1;
-            }
-            
-            /* Write Actions Instruction: Group ID should now be correctly set */
-            flow.flowData.unicastRoutingFlowEntry.groupID = group_id;
-        }
-        else
-        {
-            orc_debug("Using default next hop L3 unicast group for kernel-bound route\r\n");
-            flow.flowData.unicastRoutingFlowEntry.groupID = default_next_hop_group_id;
-        }
-        
-        /*
-         * Goto Table Instruction: Still need to send here or will drop.
-         * Policy ACL will then do the saved write-actions and send to the
-         * L3 unicast group.
-         */
-        flow.flowData.unicastRoutingFlowEntry.gotoTableId = OFDPA_FLOW_TABLE_ID_ACL_POLICY;
-        
-        rc = ofdpaFlowDelete(&flow);
-        if (rc == OFDPA_E_NOT_FOUND || rc == OFDPA_E_EMPTY)
-        {
-            orc_warn("Unicast routing flow for masked-match, kernel-bound route not found\r\n");
-        }
-        else if (rc != OFDPA_E_NONE)
-        {
-            orc_err("Failed to delete unicast routing flow for masked-match, kernel-bound route. rc=%d\r\n", rc);
-            return -1;
-        }
-        else
-        {
-            orc_warn("Unicast routing flow for masked-match, kernel-bound route deleted\r\n");
-        }
-    }
-    
-    if (next_hop == NULL)
-    {
-        /* Do policy ACL if we need to reroute to kernel (from bogus group) */
-        rc = ofdpaFlowEntryInit(OFDPA_FLOW_TABLE_ID_ACL_POLICY, &flow);
+        OFDPA_ERROR_t rc = ofdpaGroupTypeSet(&group_id, group_type);
         if (rc != OFDPA_E_NONE)
         {
-            orc_err("Failed to initialize policy ACL flow. rc=%d\r\n", rc);
+            orc_err("Failed to set L3 unicast group type for masked-match route. rc=%d\r\n", rc);
             return -1;
-        } else
+        }
+        
+        rc = ofdpaGroupIndexSet(&group_id, next_hop->id);
+        if (rc != OFDPA_E_NONE)
         {
-            memset(&(flow.flowData), 0, sizeof(ofdpaPolicyAclFlowEntry_t));
-            
-            /* Matches -- no MAC address; IPv4 w/mask */
-            flow.flowData.policyAclFlowEntry.match_criteria.inPort = OFDPA_PORT_TYPE_PHYSICAL; /* Must explicitly specify ANY physical port + type_mask */
-            flow.flowData.policyAclFlowEntry.match_criteria.inPortMask = OFDPA_INPORT_TYPE_MASK;
-            flow.flowData.policyAclFlowEntry.match_criteria.etherType = ETHERTYPE_IPV4;
-            flow.flowData.policyAclFlowEntry.match_criteria.etherTypeMask = OFDPA_ETHERTYPE_EXACT_MASK;
-            flow.flowData.policyAclFlowEntry.match_criteria.destIp4 = ip_dst;
-            flow.flowData.policyAclFlowEntry.match_criteria.destIp4Mask = netmask;
-            
-            /* Apply Actions Instruction */
-            flow.flowData.policyAclFlowEntry.outputPort = OFDPA_PORT_CONTROLLER; /* punt up to ORC (will pass into RX thread) */
-            
-            rc = ofdpaFlowDelete(&flow);
-            if (rc == OFDPA_E_NOT_FOUND || rc == OFDPA_E_EMPTY)
-            {
-                orc_warn("Policy ACL flow for masked-match, kernel-bound route not found\r\n");
-            }
-            else if (rc != OFDPA_E_NONE)
-            {
-                orc_err("Failed to delete policy ACL flow for masked-match, kernel-bound route. rc=%d\r\n", rc);
-                return -1;
-            }
-            else
-            {
-                orc_warn("Deleted policy ACL flow for masked-match, kernel-bound route\r\n");
-            }
+            orc_err("Failed to set L3 unicast group index/ID for masked-match route. rc=%d\r\n", rc);
+            return -1;
         }
     }
     else
     {
-        rc = ofdpaFlowEntryInit(OFDPA_FLOW_TABLE_ID_ACL_POLICY, &flow);
-        if (rc != OFDPA_E_NONE)
+        orc_debug("Using default next hop L3 unicast group for kernel-bound route\r\n");
+        group_id = default_next_hop_group_id;
+    }
+    
+    /* Unicast routing */
+    if (del_flow_unicast_routing(ip_dst,
+                                 netmask,
+                                 group_id
+                                 ) == 0)
+    {
+        return -1;
+    }
+    
+    if (next_hop == NULL)
+    {
+        /* Delete kernel routing policy ACL flow */
+        if (del_flow_policy_acl(KERNEL_NEXT_HOP_FLOW_PRIORITY,
+                                NULL, NULL,
+                                ETHERTYPE_IPV4, OFDPA_ETHERTYPE_EXACT_MASK,
+                                ip_dst, netmask,
+                                OFDPA_PORT_CONTROLLER,
+                                0
+                                ) == 0)
         {
-            orc_err("Failed to initialize hardware-routing policy ACL flow. rc=%d\r\n", rc);
             return -1;
-        } else
-        {
-            memset(&(flow.flowData), 0, sizeof(ofdpaPolicyAclFlowEntry_t));
-            
-            flow.priority = NON_KERNEL_NEXT_HOP_FLOW_PRIORITY;
-            
-            /* Matches -- no MAC address; IPv4 w/mask */
-            flow.flowData.policyAclFlowEntry.match_criteria.inPort = OFDPA_PORT_TYPE_PHYSICAL; /* Must explicitly specify ANY physical port + type_mask */
-            flow.flowData.policyAclFlowEntry.match_criteria.inPortMask = OFDPA_INPORT_TYPE_MASK;
-            flow.flowData.policyAclFlowEntry.match_criteria.etherType = ETHERTYPE_IPV4;
-            flow.flowData.policyAclFlowEntry.match_criteria.etherTypeMask = OFDPA_ETHERTYPE_EXACT_MASK;
-            flow.flowData.policyAclFlowEntry.match_criteria.destIp4 = ip_dst;
-            flow.flowData.policyAclFlowEntry.match_criteria.destIp4Mask = netmask;
-            
-            /* NO Apply Actions Instruction */
-            
-            rc = ofdpaFlowDelete(&flow);
-            if (rc == OFDPA_E_NOT_FOUND || rc == OFDPA_E_EMPTY)
-            {
-                orc_warn("Policy ACL flow for hardware-routing route not found\r\n");
-            }
-            else if (rc != OFDPA_E_NONE)
-            {
-                orc_err("Failed to delete policy ACL flow for hardware-routing route. rc=%d\r\n", rc);
-                return -1;
-            }
-            {
-                orc_warn("Deleted policy ACL flow for hardware-routing route\r\n");
-            }
         }
+        orc_warn("Deleted policy ACL flow for masked-match, kernel-bound route\r\n");
+    }
+    else
+    {
+        /* Delete hardware routing policy ACL flow */
+        if (del_flow_policy_acl(NON_KERNEL_NEXT_HOP_FLOW_PRIORITY,
+                                NULL, NULL,
+                                ETHERTYPE_IPV4, OFDPA_ETHERTYPE_EXACT_MASK,
+                                ip_dst, netmask,
+                                0,
+                                0
+                                ) == 0)
+        {
+            return -1;
+        }
+        orc_warn("Deleted policy ACL flow for masked-match, hardware route\r\n");
     }
     
     return 0;
@@ -1870,6 +1412,155 @@ uint32_t init_flow_vlan(ofdpaFlowEntry_t * flow, uint32_t in_port, uint32_t vlan
 }
 
 /******
+ * init_flow_termination_mac: Initialize a termination MAC flow.
+ * Use add_flow_termination_mac() or del_flow_termination_mac() instead of calling this function directly.
+ * @return 0 for error; 1 for success
+ */
+uint32_t init_flow_termination_mac(ofdpaFlowEntry_t * flow, uint32_t in_port, u8 dst_mac[OFDPA_MAC_ADDR_LEN], uint16_t ether_type)
+{
+    OFDPA_ERROR_t rc = ofdpaFlowEntryInit(OFDPA_FLOW_TABLE_ID_TERMINATION_MAC, flow);
+    if (rc != OFDPA_E_NONE)
+    {
+        orc_err("Failed to initialize termination MAC flow. rc=%d\r\n", rc);
+        return 0;
+    } else
+    {
+        memset(&(flow->flowData), 0, sizeof(ofdpaTerminationMacFlowEntry_t));
+        
+        /* Matches */
+        flow->flowData.terminationMacFlowEntry.match_criteria.inPort = in_port;
+        flow->flowData.terminationMacFlowEntry.match_criteria.inPortMask = OFDPA_INPORT_EXACT_MASK;
+        flow->flowData.terminationMacFlowEntry.match_criteria.etherType = ETHERTYPE_IPV4;
+        memcpy(&(flow->flowData.terminationMacFlowEntry.match_criteria.destMac), dst_mac, OFDPA_MAC_ADDR_LEN);
+        memset(&(flow->flowData.terminationMacFlowEntry.match_criteria.destMacMask), BYTE_MASK_ANY, OFDPA_MAC_ADDR_LEN);
+        
+        /* Goto Table Instruction */
+        flow->flowData.terminationMacFlowEntry.gotoTableId = OFDPA_FLOW_TABLE_ID_UNICAST_ROUTING;
+    }
+    return 1;
+}
+
+/******
+ * init_flow_unicast_routing: Initialize a unicast routing flow.
+ * Use add_flow_unicast_routing() or del_flow_unicast_routing() instead of calling this function directly.
+ * @return 0 for error; 1 for success
+ */
+uint32_t init_flow_unicast_routing(ofdpaFlowEntry_t * flow, uint32_t ipv4_addr, uint32_t ipv4_mask, uint32_t goto_group_id)
+{
+    OFDPA_ERROR_t rc = ofdpaFlowEntryInit(OFDPA_FLOW_TABLE_ID_UNICAST_ROUTING, flow);
+    if (rc != OFDPA_E_NONE)
+    {
+        orc_err("Failed to initialize unicast routing flow. rc=%d\r\n", rc);
+        return 0;
+    } else
+    {
+        memset(&(flow->flowData), 0, sizeof(ofdpaUnicastRoutingFlowEntry_t));
+        
+        /* Matches */
+        flow->flowData.unicastRoutingFlowEntry.match_criteria.etherType = ETHERTYPE_IPV4;
+        flow->flowData.unicastRoutingFlowEntry.match_criteria.dstIp4 = ipv4_addr;
+        flow->flowData.unicastRoutingFlowEntry.match_criteria.dstIp4Mask = ipv4_mask;
+        
+        /* Next hop; should be L3 unicast group */
+        flow->flowData.unicastRoutingFlowEntry.groupID = goto_group_id;
+        
+        /* Goto Table Instruction */
+        flow->flowData.unicastRoutingFlowEntry.gotoTableId = OFDPA_FLOW_TABLE_ID_ACL_POLICY;
+    }
+    return 1;
+}
+
+/******
+ * init_flow_policy_acl: Initialize a policy ACL flow.
+ * Use add_flow_policy_acl() or del_flow_policy_acl() instead of calling this function directly.
+ * @return 0 for error; 1 for success
+ */
+uint32_t init_flow_policy_acl(ofdpaFlowEntry_t * flow,
+                              uint32_t priority,
+                              u8 dst_mac[OFDPA_MAC_ADDR_LEN], u8 dst_mac_mask[OFDPA_MAC_ADDR_LEN],
+                              uint16_t ether_type, uint16_t ether_type_mask,
+                              uint32_t ipv4_dst, uint32_t ipv4_dst_mask,
+                              uint32_t out_port,
+                              uint32_t goto_group_id)
+{
+    OFDPA_ERROR_t rc = ofdpaFlowEntryInit(OFDPA_FLOW_TABLE_ID_ACL_POLICY, flow);
+    if (rc != OFDPA_E_NONE)
+    {
+        orc_err("Failed to initialize policy ACL flow. rc=%d\r\n", rc);
+        return 0;
+    } else
+    {
+        memset(&(flow->flowData), 0, sizeof(ofdpaPolicyAclFlowEntry_t));
+        
+        flow->priority = priority;
+        
+        /* Matches */
+        flow->flowData.policyAclFlowEntry.match_criteria.inPort = OFDPA_PORT_TYPE_PHYSICAL; /* Must explicitly specify ANY physical port + type_mask */
+        flow->flowData.policyAclFlowEntry.match_criteria.inPortMask = OFDPA_INPORT_TYPE_MASK;
+        if (dst_mac != NULL)
+        {
+            memcpy(&(flow->flowData.policyAclFlowEntry.match_criteria.destMac), dst_mac, OFDPA_MAC_ADDR_LEN);
+        }
+        if (dst_mac_mask != NULL) {
+            memcpy(&(flow->flowData.policyAclFlowEntry.match_criteria.destMacMask), dst_mac_mask, OFDPA_MAC_ADDR_LEN);
+        }
+        flow->flowData.policyAclFlowEntry.match_criteria.etherType = ether_type;
+        flow->flowData.policyAclFlowEntry.match_criteria.etherTypeMask = ether_type_mask;
+        flow->flowData.policyAclFlowEntry.match_criteria.destIp4 = ipv4_dst;
+        flow->flowData.policyAclFlowEntry.match_criteria.destIp4Mask = ipv4_dst_mask;
+        
+        /* Apply Actions Instruction */
+        flow->flowData.policyAclFlowEntry.groupID = goto_group_id;
+        
+        /*
+         * OF-DPA IMPLEMENTATION NOTE:
+         * Including this output (apply action) will cause the
+         * goto-group (write action) set in the unicast routing
+         * flow to be ignored. This is not correct according to
+         * the OpenFlow spec, but it allows us to send to the CPU
+         * w/o also sending to a next hop group.
+         */
+        flow->flowData.policyAclFlowEntry.outputPort = out_port;
+    }
+    return 1;
+}
+
+/******
+ * init_flow_bridging: Initialize a bridging flow.
+ * Use add_flow_bridging() or del_flow_bridging() instead of calling this function directly.
+ * @return 0 for error; 1 for success
+ */
+uint32_t init_flow_bridging(ofdpaFlowEntry_t * flow,
+                            u8 dst_mac[OFDPA_MAC_ADDR_LEN], u8 dst_mac_mask[OFDPA_MAC_ADDR_LEN],
+                            uint16_t vlan_id, uint16_t vlan_id_mask,
+                            uint32_t out_port,
+                            uint32_t goto_group_id)
+{
+    OFDPA_ERROR_t rc = ofdpaFlowEntryInit(OFDPA_FLOW_TABLE_ID_BRIDGING, flow);
+    if (rc != OFDPA_E_NONE)
+    {
+        orc_err("Failed to initialize bridging flow. rc=%d\r\n", rc);
+        return 0;
+    } else
+    {
+        memset(&(flow->flowData), 0, sizeof(ofdpaBridgingFlowEntry_t));
+        
+        /* Matches */
+        memcpy(&(flow->flowData.bridgingFlowEntry.match_criteria.destMac), dst_mac, OFDPA_MAC_ADDR_LEN);
+        memcpy(&(flow->flowData.bridgingFlowEntry.match_criteria.destMacMask), dst_mac_mask, OFDPA_MAC_ADDR_LEN);
+        flow->flowData.bridgingFlowEntry.match_criteria.vlanId = vlan_id;
+        flow->flowData.bridgingFlowEntry.match_criteria.vlanIdMask = vlan_id_mask;
+        
+        /* Must also supply L2 interface group, even though we won't use it. */
+        flow->flowData.bridgingFlowEntry.groupID = goto_group_id;
+        
+        /* Apply Actions Instruction */
+        flow->flowData.bridgingFlowEntry.outputPort = out_port; /* punt non-IP packets up to ORC's RX func */
+    }
+    return 1;
+}
+
+/******
  * add_flow_vlan: Add a VLAN flow.
  * @param in_port the ingress port
  * @param vlan_id the ingress VLAN
@@ -1942,6 +1633,203 @@ uint32_t add_flow_vlan(uint32_t in_port, uint32_t vlan_id, uint32_t vlan_id_or, 
                      flow.flowData.vlanFlowEntry.match_criteria.inPort,
                      flow.flowData.vlanFlowEntry.newVlanId);
         }
+    }
+    return 1;
+}
+
+/******
+ * add_flow_termination_mac: Add a termination MAC flow.
+ * @param in_port the ingress port
+ * @param dst_mac the destination MAC address
+ * @param ether_type the ethertype of the frame
+ * @return 0 for error; 1 for success
+ */
+uint32_t add_flow_termination_mac(uint32_t in_port, u8 dst_mac[OFDPA_MAC_ADDR_LEN], uint16_t ether_type)
+{
+    OFDPA_ERROR_t rc;
+    ofdpaFlowEntry_t flow;
+    char str_mac[(OFDPA_MAC_ADDR_LEN - 1) + (2 * OFDPA_MAC_ADDR_LEN) + 1];
+    
+    if (init_flow_termination_mac(&flow, in_port, dst_mac, ether_type) == 0)
+    {
+        return 0;
+    }
+    
+    mac_to_str(str_mac, dst_mac);
+    
+    rc = ofdpaFlowAdd(&flow);
+    if (rc == OFDPA_E_EXISTS)
+    {
+        orc_warn("Termination MAC flow already exists for port %d with MAC %s. Continuing\r\n", in_port, str_mac);
+    }
+    else if (rc != OFDPA_E_NONE)
+    {
+        orc_err("Failed to push termination MAC flow. rc=%d\r\n", rc);
+        return 0;
+    }
+    else
+    {
+        orc_warn("Pushed Termination MAC flow for port %d with MAC %s\r\n", in_port, str_mac);
+    }
+    return 1;
+}
+
+/******
+ * add_flow_unicast_routing: Add a unicast routing flow.
+ * @param ipv4_addr_dst destination IPv4 address
+ * @param ipv4_mask_dst the destination IPv4 address mask
+ * @param goto_group_id the L3 unicast group
+ * @return 0 for error; 1 for success
+ */
+uint32_t add_flow_unicast_routing(uint32_t ipv4_addr_dst, uint32_t ipv4_mask_dst, uint32_t goto_group_id)
+{
+    OFDPA_ERROR_t rc;
+    ofdpaFlowEntry_t flow;
+    
+    if (init_flow_unicast_routing(&flow, ipv4_addr_dst, ipv4_mask_dst, goto_group_id) == 0)
+    {
+        return 0;
+    }
+    
+    rc = ofdpaFlowAdd(&flow);
+    if (rc == OFDPA_E_EXISTS)
+    {
+        orc_warn("Unicast routing flow already exists. Continuing\r\n");
+    }
+    else if (rc != OFDPA_E_NONE)
+    {
+        orc_err("Failed to push unicast routing flow. rc=%d\r\n", rc);
+        return 0;
+    }
+    else
+    {
+        orc_warn("Pushed unicast routing flow\r\n");
+    }
+    return 1;
+}
+
+/******
+ * add_flow_policy_acl: Add a policy ACL flow.
+ * @param dst_mac the destination MAC address. May be omitted via NULL.
+ * @param dst_mac_mask the destination MAC address mask. May be omitted via NULL.
+ * @param ether_type the ethertype of the frame
+ * @param ether_type the ethertype mask
+ * @param ipv4_dst the destination IPv4 address of the packet. May be omitted via 0.
+ * @param ipv4_dst_mask the destination IPv4 address mask. May be omitted via 0.
+ * @param out_port the output port (only CONTROLLER permitted)
+ * @param goto_group_id the group to send the packet to for output
+ * @return 0 for error; 1 for success
+ */
+uint32_t add_flow_policy_acl(uint32_t priority,
+                             u8 dst_mac[OFDPA_MAC_ADDR_LEN], u8 dst_mac_mask[OFDPA_MAC_ADDR_LEN],
+                             uint16_t ether_type, uint16_t ether_type_mask,
+                             uint32_t ipv4_dst, uint32_t ipv4_dst_mask,
+                             uint32_t out_port,
+                             uint32_t goto_group_id)
+{
+    OFDPA_ERROR_t rc;
+    ofdpaFlowEntry_t flow;
+    char str_ip[3 + (3 * 4) + 1];
+    char str_mac[5 + (2 * 6) + 1];
+    
+    if (init_flow_policy_acl(&flow,
+                             priority,
+                             dst_mac, dst_mac_mask,
+                             ether_type, ether_type_mask,
+                             ipv4_dst, ipv4_dst_mask,
+                             out_port,
+                             goto_group_id) == 0)
+    {
+        return 0;
+    }
+    
+    ipv4_to_str(str_ip, ipv4_dst);
+    if (dst_mac != NULL)
+    {
+        mac_to_str(str_mac, dst_mac);
+    }
+    
+    rc = ofdpaFlowAdd(&flow);
+    if (rc == OFDPA_E_EXISTS)
+    {
+        if (dst_mac != NULL)
+        {
+            orc_warn("Policy ACL flow already exists for MAC %s, IP %s, Priority %d. Continuing\r\n", str_mac, str_ip, priority);
+        }
+        else
+        {
+            orc_warn("Policy ACL flow already exists for IP %s, Priority %d. Continuing\r\n", str_ip, priority);
+        }
+    }
+    else if (rc != OFDPA_E_NONE)
+    {
+        if (dst_mac != NULL)
+        {
+            orc_err("Failed to push policy ACL flow for MAC %s, IP %s, Priority %d. rc=%d\r\n", str_mac, str_ip, priority, rc);
+        }
+        else
+        {
+            orc_err("Failed to push policy ACL flow for IP %s, Priority %d. rc=%d\r\n", str_ip, priority, rc);
+        }
+        return 0;
+    }
+    else
+    {
+        if (dst_mac != NULL)
+        {
+            orc_warn("Pushed policy ACL flow for MAC %s, IP %s, Priority %d\r\n", str_mac, str_ip, priority);
+        }
+        else
+        {
+            orc_warn("Pushed policy ACL flow for IP %s, Priority %d\r\n", str_ip, priority);
+        }
+    }
+    return 1;
+}
+
+/******
+ * add_flow_bridging: Add a bridging flow. All parameters required and non-NULL.
+ * @param dst_mac the destination MAC address
+ * @param dst_mac_mask the destination MAC address mask
+ * @param vlan_id the VLAN ID
+ * @param vlan_id_mask the VLAN ID mask
+ * @param out_port the output port (only CONTROLLER permitted)
+ * @param goto_group_id the group to send the packet to for output
+ * @return 0 for error; 1 for success
+ */
+uint32_t add_flow_bridging(u8 dst_mac[OFDPA_MAC_ADDR_LEN], u8 dst_mac_mask[OFDPA_MAC_ADDR_LEN],
+                           uint16_t vlan_id, uint16_t vlan_id_mask,
+                           uint32_t out_port,
+                           uint32_t goto_group_id)
+{
+    OFDPA_ERROR_t rc;
+    ofdpaFlowEntry_t flow;
+    char str_mac[(OFDPA_MAC_ADDR_LEN - 1) + (2 * OFDPA_MAC_ADDR_LEN) + 1];
+    
+    if (init_flow_bridging(&flow,
+                           dst_mac, dst_mac_mask,
+                           vlan_id, vlan_id_mask,
+                           out_port,
+                           goto_group_id) == 0)
+    {
+        return 0;
+    }
+    
+    mac_to_str(str_mac, dst_mac);
+    
+    rc = ofdpaFlowAdd(&flow);
+    if (rc == OFDPA_E_EXISTS)
+    {
+        orc_warn("Bridging flow already exists for MAC %s, VLAN %d. Continuing\r\n", str_mac, vlan_id);
+    }
+    else if (rc != OFDPA_E_NONE)
+    {
+        orc_err("Failed to push bridging flow for MAC %s, VLAN %d. rc=%d\r\n", str_mac, vlan_id, rc);
+        return 0;
+    }
+    else
+    {
+        orc_warn("Pushed bridging flow for for MAC %s, VLAN %d\r\n", str_mac, vlan_id);
     }
     return 1;
 }
@@ -2029,6 +1917,204 @@ uint32_t del_flow_vlan(uint32_t in_port, uint32_t vlan_id_match, uint32_t vlan_i
         {
             orc_warn("VLAN %d flow on port %d deleted\r\n", vlan_id_match, flow.flowData.vlanFlowEntry.match_criteria.inPort);
         }
+    }
+    return 1;
+}
+
+/******
+ * del_flow_termination_mac: Delete a termination MAC flow.
+ * @param in_port the ingress port
+ * @param dst_mac the destination MAC address
+ * @param ether_type the ethertype of the frame
+ * @return 0 for error; 1 for success
+ */
+uint32_t del_flow_termination_mac(uint32_t in_port, u8 dst_mac[OFDPA_MAC_ADDR_LEN], uint16_t ether_type)
+{
+    OFDPA_ERROR_t rc;
+    ofdpaFlowEntry_t flow;
+    char str_mac[(OFDPA_MAC_ADDR_LEN - 1) + (2 * OFDPA_MAC_ADDR_LEN) + 1];
+    
+    if (init_flow_termination_mac(&flow, in_port, dst_mac, ether_type) == 0)
+    {
+        return 0;
+    }
+    
+    mac_to_str(str_mac, dst_mac);
+    
+    rc = ofdpaFlowDelete(&flow);
+    if (rc == OFDPA_E_NOT_FOUND || rc == OFDPA_E_EMPTY)
+    {
+        orc_warn("Termination MAC %s flow not found\r\n", str_mac);
+    }
+    else if (rc != OFDPA_E_NONE)
+    {
+        orc_err("Failed to delete termination MAC %s flow. rc=%d\r\n", str_mac, rc);
+        return 0;
+    }
+    else
+    {
+        orc_warn("Termination MAC %s flow deleted\r\n", str_mac);
+    }
+    return 1;
+}
+
+/******
+ * del_flow_unicast_routing: Delete a unicast routing flow.
+ * @param ipv4_addr_dst destination IPv4 address
+ * @param ipv4_mask_dst the destination IPv4 address mask
+ * @param goto_group_id the L3 unicast group
+ * @return 0 for error; 1 for success
+ */
+uint32_t del_flow_unicast_routing(uint32_t ipv4_addr_dst, uint32_t ipv4_mask_dst, uint32_t goto_group_id)
+{
+    OFDPA_ERROR_t rc;
+    ofdpaFlowEntry_t flow;
+    
+    if (init_flow_unicast_routing(&flow, ipv4_addr_dst, ipv4_mask_dst, goto_group_id) == 0)
+    {
+        return 0;
+    }
+    
+    rc = ofdpaFlowDelete(&flow);
+    if (rc == OFDPA_E_NOT_FOUND || rc == OFDPA_E_EMPTY)
+    {
+        orc_warn("Unicast routing flow not found\r\n");
+    }
+    else if (rc != OFDPA_E_NONE)
+    {
+        orc_err("Failed to delete unicast routing flow. rc=%d\r\n", rc);
+        return 0;
+    }
+    else
+    {
+        orc_warn("Unicast routing flow deleted\r\n");
+    }
+    return 1;
+}
+
+/******
+ * del_flow_policy_acl: Delete a policy ACL flow.
+ * @param dst_mac the destination MAC address. May be omitted via NULL.
+ * @param dst_mac_mask the destination MAC address mask. May be omitted via NULL.
+ * @param ether_type the ethertype of the frame
+ * @param ether_type the ethertype mask
+ * @param ipv4_dst the destination IPv4 address of the packet. May be omitted via 0.
+ * @param ipv4_dst_mask the destination IPv4 address mask. May be omitted via 0.
+ * @param out_port the output port (only CONTROLLER permitted)
+ * @param goto_group_id the group to send the packet to for output
+ * @return 0 for error; 1 for success
+ */
+uint32_t del_flow_policy_acl(uint32_t priority,
+                             u8 dst_mac[OFDPA_MAC_ADDR_LEN], u8 dst_mac_mask[OFDPA_MAC_ADDR_LEN],
+                             uint16_t ether_type, uint16_t ether_type_mask,
+                             uint32_t ipv4_dst, uint32_t ipv4_dst_mask,
+                             uint32_t out_port,
+                             uint32_t goto_group_id)
+{
+    OFDPA_ERROR_t rc;
+    ofdpaFlowEntry_t flow;
+    char str_ip[3 + (3 * 4) + 1];
+    char str_mac[5 + (2 * 6) + 1];
+    
+    if (init_flow_policy_acl(&flow,
+                             priority,
+                             dst_mac, dst_mac_mask,
+                             ether_type, ether_type_mask,
+                             ipv4_dst, ipv4_dst_mask,
+                             out_port,
+                             goto_group_id) == 0)
+    {
+        return 0;
+    }
+    
+    ipv4_to_str(str_ip, ipv4_dst);
+    if (dst_mac != NULL)
+    {
+        mac_to_str(str_mac, dst_mac);
+    }
+    
+    rc = ofdpaFlowDelete(&flow);
+    if (rc == OFDPA_E_NOT_FOUND || rc == OFDPA_E_EMPTY)
+    {
+        if (dst_mac != NULL)
+        {
+            orc_warn("Policy ACL flow for MAC %s, IP %s, Priority %d not found\r\n", str_mac, str_ip, priority);
+        }
+        else
+        {
+            orc_warn("Policy ACL flow for IP %s, Priority %d not found\r\n", str_ip, priority);
+        }
+    }
+    else if (rc != OFDPA_E_NONE)
+    {
+        if (dst_mac != NULL)
+        {
+            orc_err("Failed to delete policy ACL flow for MAC %s, IP %s, Priority %d. rc=%d\r\n", str_mac, str_ip, priority, rc);
+        }
+        else
+        {
+            orc_err("Failed to delete policy ACL flow for IP %s, Priority %d. rc=%d\r\n", str_ip, priority, rc);
+        }
+        return 0;
+    }
+    {
+        if (dst_mac != NULL)
+        {
+            orc_warn("Deleted policy ACL flow for MAC %s, IP %s, Priority %d\r\n", str_mac, str_ip, priority);
+        }
+        else
+        {
+            orc_warn("Deleted policy ACL flow for IP %s, Priority %d\r\n", str_ip, priority);
+            
+        }
+    }
+    return 1;
+}
+
+/******
+ * del_flow_bridging: Delete a bridging flow. All parameters required and non-NULL.
+ * @param dst_mac the destination MAC address
+ * @param dst_mac_mask the destination MAC address mask
+ * @param vlan_id the VLAN ID
+ * @param vlan_id_mask the VLAN ID mask
+ * @param out_port the output port (only CONTROLLER permitted)
+ * @param goto_group_id the group to send the packet to for output
+ * @return 0 for error; 1 for success
+ */
+uint32_t del_flow_bridging(u8 dst_mac[OFDPA_MAC_ADDR_LEN], u8 dst_mac_mask[OFDPA_MAC_ADDR_LEN],
+                           uint16_t vlan_id, uint16_t vlan_id_mask,
+                           uint32_t out_port,
+                           uint32_t goto_group_id)
+{
+    OFDPA_ERROR_t rc;
+    ofdpaFlowEntry_t flow;
+    char str_mac[(OFDPA_MAC_ADDR_LEN - 1) + (2 * OFDPA_MAC_ADDR_LEN) + 1];
+    
+    if (init_flow_bridging(&flow,
+                           dst_mac, dst_mac_mask,
+                           vlan_id, vlan_id_mask,
+                           out_port,
+                           goto_group_id) == 0)
+    {
+        return 0;
+    }
+    
+    mac_to_str(str_mac, dst_mac);
+    
+    rc = ofdpaFlowDelete(&flow);
+    if (rc == OFDPA_E_NOT_FOUND || rc == OFDPA_E_EMPTY)
+    {
+        
+        orc_warn("Bridging flow not found for MAC %s, VLAN %d. Continuing\r\n", str_mac, vlan_id);
+    }
+    else if (rc != OFDPA_E_NONE)
+    {
+        orc_err("Failed to delete bridging flow for MAC %s, VLAN %d. rc=%d\r\n", str_mac, vlan_id, rc);
+        return 0;
+    }
+    else
+    {
+        orc_warn("Deleted bridging flow for for MAC %s, VLAN %d\r\n", str_mac, vlan_id);
     }
     return 1;
 }
