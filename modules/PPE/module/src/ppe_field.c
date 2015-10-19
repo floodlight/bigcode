@@ -310,7 +310,7 @@ ppe_field_copy(ppe_packet_t* ppep, ppe_field_t dst_field,
 {
     if(ppe_field_exists(ppep, src_field) &&
        ppe_field_exists(ppep, dst_field)) {
-        uint32_t v;
+        uint32_t v = 0;
         ppe_field_get(ppep, src_field, &v);
         ppe_field_set(ppep, dst_field, v);
         return 0;
