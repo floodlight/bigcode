@@ -92,7 +92,10 @@ packet_forwarding_loop(orc_options_t * options,
     int i, nfds;
     int err;
     orc_log("Entering forwarding loop.\n");
-    epoll_fd = epoll_create(num_ports + 1 ); /* +1 for netlink_sock */
+    epoll_fd = epoll_create(num_ports
+			    + 1 /* +1 for netlink_sock */
+			    + (options->els != NULL ? 1 : 0) /* +1 for CLI, if configured */
+			    );
     if (epoll_fd == -1)
     {
         orc_err("epoll_create() : %s\n", strerror(errno));
