@@ -113,8 +113,8 @@ bigring_destroy(bigring_t* br)
     os_sem_destroy(br->lock);
 #endif
 
-    AIM_FREE(br->ring);
-    AIM_FREE(br);
+    aim_free(br->ring);
+    aim_free(br);
 }
 
 void
@@ -228,7 +228,7 @@ bigring_iter_next(bigring_t* br, int* iter)
 void
 bigring_aim_free_entry(void* entry)
 {
-    AIM_FREE(entry);
+    aim_free(entry);
 }
 
 int
