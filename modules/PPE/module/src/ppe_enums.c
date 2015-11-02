@@ -144,6 +144,68 @@ ppe_pim_type_valid(ppe_pim_type_t e)
 }
 
 
+aim_map_si_t ppe_ip4_flags_map[] =
+{
+    { "RESERVED", PPE_IP4_FLAGS_RESERVED },
+    { "DF", PPE_IP4_FLAGS_DF },
+    { "MF", PPE_IP4_FLAGS_MF },
+    { NULL, 0 }
+};
+
+aim_map_si_t ppe_ip4_flags_desc_map[] =
+{
+    { "None", PPE_IP4_FLAGS_RESERVED },
+    { "None", PPE_IP4_FLAGS_DF },
+    { "None", PPE_IP4_FLAGS_MF },
+    { NULL, 0 }
+};
+
+const char*
+ppe_ip4_flags_name(ppe_ip4_flags_t e)
+{
+    const char* name;
+    if(aim_map_si_i(&name, e, ppe_ip4_flags_map, 0)) {
+        return name;
+    }
+    else {
+        return "-invalid value for enum type 'ppe_ip4_flags'";
+    }
+}
+
+int
+ppe_ip4_flags_value(const char* str, ppe_ip4_flags_t* e, int substr)
+{
+    int i;
+    AIM_REFERENCE(substr);
+    if(aim_map_si_s(&i, str, ppe_ip4_flags_map, 0)) {
+        /* Enum Found */
+        *e = i;
+        return 0;
+    }
+    else {
+        return -1;
+    }
+}
+
+const char*
+ppe_ip4_flags_desc(ppe_ip4_flags_t e)
+{
+    const char* name;
+    if(aim_map_si_i(&name, e, ppe_ip4_flags_desc_map, 0)) {
+        return name;
+    }
+    else {
+        return "-invalid value for enum type 'ppe_ip4_flags'";
+    }
+}
+
+int
+ppe_ip4_flags_valid(ppe_ip4_flags_t e)
+{
+    return aim_map_si_i(NULL, e, ppe_ip4_flags_map, 0) ? 1 : 0;
+}
+
+
 aim_map_si_t ppe_field_map[] =
 {
     { "META_INGRESS_PORT", PPE_FIELD_META_INGRESS_PORT },
@@ -216,6 +278,8 @@ aim_map_si_t ppe_field_map[] =
     { "IP4_HEADER_SIZE", PPE_FIELD_IP4_HEADER_SIZE },
     { "IP4_TOS", PPE_FIELD_IP4_TOS },
     { "IP4_TOTAL_LENGTH", PPE_FIELD_IP4_TOTAL_LENGTH },
+    { "IP4_FLAGS", PPE_FIELD_IP4_FLAGS },
+    { "IP4_FRAG_OFFSET", PPE_FIELD_IP4_FRAG_OFFSET },
     { "IP4_TTL", PPE_FIELD_IP4_TTL },
     { "IP4_PROTOCOL", PPE_FIELD_IP4_PROTOCOL },
     { "IP4_CHECKSUM", PPE_FIELD_IP4_CHECKSUM },
@@ -374,6 +438,8 @@ aim_map_si_t ppe_field_desc_map[] =
     { "None", PPE_FIELD_IP4_HEADER_SIZE },
     { "None", PPE_FIELD_IP4_TOS },
     { "None", PPE_FIELD_IP4_TOTAL_LENGTH },
+    { "None", PPE_FIELD_IP4_FLAGS },
+    { "None", PPE_FIELD_IP4_FRAG_OFFSET },
     { "None", PPE_FIELD_IP4_TTL },
     { "None", PPE_FIELD_IP4_PROTOCOL },
     { "None", PPE_FIELD_IP4_CHECKSUM },

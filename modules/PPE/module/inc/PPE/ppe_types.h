@@ -83,6 +83,34 @@ extern aim_map_si_t ppe_pim_type_map[];
 /** ppe_pim_type_desc_map table. */
 extern aim_map_si_t ppe_pim_type_desc_map[];
 
+/** ppe_ip4_flags */
+typedef enum ppe_ip4_flags_e {
+    PPE_IP4_FLAGS_RESERVED = 4,
+    PPE_IP4_FLAGS_DF = 2,
+    PPE_IP4_FLAGS_MF = 1,
+} ppe_ip4_flags_t;
+
+/** Enum names. */
+const char* ppe_ip4_flags_name(ppe_ip4_flags_t e);
+
+/** Enum values. */
+int ppe_ip4_flags_value(const char* str, ppe_ip4_flags_t* e, int substr);
+
+/** Enum descriptions. */
+const char* ppe_ip4_flags_desc(ppe_ip4_flags_t e);
+
+/** Enum validator. */
+int ppe_ip4_flags_valid(ppe_ip4_flags_t e);
+
+/** validator */
+#define PPE_IP4_FLAGS_VALID(_e) \
+    (ppe_ip4_flags_valid((_e)))
+
+/** ppe_ip4_flags_map table. */
+extern aim_map_si_t ppe_ip4_flags_map[];
+/** ppe_ip4_flags_desc_map table. */
+extern aim_map_si_t ppe_ip4_flags_desc_map[];
+
 /** ppe_field */
 typedef enum ppe_field_e {
     PPE_FIELD_META_INGRESS_PORT,
@@ -155,6 +183,8 @@ typedef enum ppe_field_e {
     PPE_FIELD_IP4_HEADER_SIZE,
     PPE_FIELD_IP4_TOS,
     PPE_FIELD_IP4_TOTAL_LENGTH,
+    PPE_FIELD_IP4_FLAGS,
+    PPE_FIELD_IP4_FRAG_OFFSET,
     PPE_FIELD_IP4_TTL,
     PPE_FIELD_IP4_PROTOCOL,
     PPE_FIELD_IP4_CHECKSUM,
