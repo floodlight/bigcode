@@ -196,6 +196,17 @@ pim_types: &pim_types
 
 ###############################################################################
 #
+# IP4 flags
+#
+###############################################################################
+ip4_flags: &ip4_flags
+- RESERVED : 0x4
+- DF : 0x2
+- MF : 0x1
+
+
+###############################################################################
+#
 # Packet Headers
 #
 ###############################################################################
@@ -312,6 +323,8 @@ fields: &fields
 - [ IP4,                HEADER_SIZE,     4, 0,  0 ]
 - [ IP4,                TOS,             8, 1,  0 ]
 - [ IP4,                TOTAL_LENGTH,   16, 2,  0 ]
+- [ IP4,                FLAGS,           3, 6,  5 ]
+- [ IP4,                FRAG_OFFSET,    13, 6,  0 ]
 - [ IP4,                TTL,             8, 8,  0 ]
 - [ IP4,                PROTOCOL,        8, 9,  0 ]
 - [ IP4,                CHECKSUM,       16, 10, 0 ]
@@ -479,6 +492,9 @@ definitions:
     ppe_pim_type:
       members: *pim_types
       desc: "PPE PIM Type."
+    ppe_ip4_flags:
+      members: *ip4_flags
+      desc: "PPE IP4 Flags."
 
   aim_custom_log_macro:
     ppe:
