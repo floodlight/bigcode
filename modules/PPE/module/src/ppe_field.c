@@ -400,7 +400,7 @@ ppe_dfk_show(ppe_dfk_t* dfk, aim_pvs_t* pvs)
                 unsigned int i;
                 uint8_t data[256];
                 rv = ppe_wide_field_info_get_header(dfk->data, &fi, data);
-                AIM_ASSERT(rv == 0, "Failed to get field after checking for existence");
+                AIM_ASSERT(rv >= 0, "Failed to get field after checking for existence");
                 iof_uprintf(&iof, "%s={ ", ppe_field_name(field));
                 for(i = 0; i < fi.size_bits / 8; i++) {
                     iof_uprintf(&iof, "%.2x", data[i]);
@@ -539,8 +539,3 @@ ppe_packet_dfk(ppe_packet_t* ppep, ppe_dfk_t* dfk)
     }
     return offset_bytes;
 }
-
-
-
-
-
