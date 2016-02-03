@@ -117,9 +117,7 @@ check_and_process(int block, int evtfd)
         numfds = evtfd + 1;
     }
 
-    AIM_LOG_INFO("before select, evtfd %d", evtfd);
     count = select(numfds, &fdset, 0, 0, tvp);
-    AIM_LOG_INFO("after select");
 
     if (count > 0) {
         /* check evtfd, abort if necessary */
@@ -166,7 +164,6 @@ snmp_subagent_worker__(void* p)
     volatile snmp_subagent_thread_ctrl_t* ctrl = (volatile snmp_subagent_thread_ctrl_t*) p;
     char buffer[128];
 
-    AIM_LOG_INFO("snmp subagent thread starting (%s)", ctrl->name);
     aim_snprintf(buffer, sizeof(buffer), "snmp.subagent.%s", ctrl->name);
     os_thread_name_set(buffer);
 
@@ -194,13 +191,11 @@ snmp_subagent_worker__(void* p)
      * Agent process.
      */
     init_snmp(ctrl->name);
-    AIM_LOG_INFO("snmp subagent thread processing (%s)", ctrl->name);
     while(ctrl->run) {
         check_and_process(1, ctrl->eventfd);
     }
     snmp_shutdown(ctrl->name);
     SOCK_CLEANUP;
-    AIM_LOG_INFO("snmp subagent thread finished (%s)", ctrl->name);
 
     return (void*)ctrl;
 }
