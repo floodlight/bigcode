@@ -228,6 +228,7 @@ headers: &headers
 - TCP
 - UDP
 - ICMP
+- ICMP6
 - SLOW_PROTOCOLS
 - LACP
 - DHCP
@@ -313,6 +314,12 @@ fields: &fields
 - [ ICMP,               CHECKSUM,       16, 2,  0 ]
 - [ ICMP,               HEADER_DATA,    32, 4,  0 ]
 - [ ICMP,               PAYLOAD,         8, 8,  0 ]
+
+- [ ICMP6,              TYPE,           8,  0,  0 ]
+- [ ICMP6,              CODE,           8,  1,  0 ]
+- [ ICMP6,              CHECKSUM,       16, 2,  0 ]
+- [ ICMP6,              HEADER_DATA,    32, 4,  0 ]
+- [ ICMP6,              PAYLOAD,         8, 8,  0 ]
 
 - [ IGMP,               TYPE,           8,  0,  0 ]
 - [ IGMP,               MAX_RESP_TIME,  8,  1,  0 ]
@@ -425,11 +432,12 @@ fields: &fields
 #
 ###############################################################################
 ip_protocols: &ip_protocols
-- ICMP :  1
-- IGMP :  2
-- TCP  :  6
-- UDP  : 17
-- PIM  : 103
+- ICMP  :  1
+- IGMP  :  2
+- TCP   :  6
+- UDP   : 17
+- ICMP6 : 58
+- PIM   : 103
 
 
 ###############################################################################

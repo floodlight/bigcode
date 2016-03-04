@@ -69,6 +69,8 @@ ppe_packet_update(ppe_packet_t* ppep)
     ppe_tcp_header_checksum_update(ppep);
     ppe_udp_header_checksum_update(ppep);
     ppe_icmp_header_checksum_update(ppep);
+
+    /* FIXME: handle v6 packets */
     return 0;
 }
 

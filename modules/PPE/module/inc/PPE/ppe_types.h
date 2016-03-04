@@ -175,6 +175,11 @@ typedef enum ppe_field_e {
     PPE_FIELD_ICMP_CHECKSUM,
     PPE_FIELD_ICMP_HEADER_DATA,
     PPE_FIELD_ICMP_PAYLOAD,
+    PPE_FIELD_ICMP6_TYPE,
+    PPE_FIELD_ICMP6_CODE,
+    PPE_FIELD_ICMP6_CHECKSUM,
+    PPE_FIELD_ICMP6_HEADER_DATA,
+    PPE_FIELD_ICMP6_PAYLOAD,
     PPE_FIELD_IGMP_TYPE,
     PPE_FIELD_IGMP_MAX_RESP_TIME,
     PPE_FIELD_IGMP_CHECKSUM,
@@ -310,6 +315,7 @@ typedef enum ppe_header_e {
     PPE_HEADER_TCP,
     PPE_HEADER_UDP,
     PPE_HEADER_ICMP,
+    PPE_HEADER_ICMP6,
     PPE_HEADER_SLOW_PROTOCOLS,
     PPE_HEADER_LACP,
     PPE_HEADER_DHCP,
@@ -342,6 +348,7 @@ typedef enum ppe_header_e {
     "TCP", \
     "UDP", \
     "ICMP", \
+    "ICMP6", \
     "SLOW_PROTOCOLS", \
     "LACP", \
     "DHCP", \
@@ -374,6 +381,7 @@ typedef enum ppe_ip_protocol_e {
     PPE_IP_PROTOCOL_IGMP = 2,
     PPE_IP_PROTOCOL_TCP = 6,
     PPE_IP_PROTOCOL_UDP = 17,
+    PPE_IP_PROTOCOL_ICMP6 = 58,
     PPE_IP_PROTOCOL_PIM = 103,
 } ppe_ip_protocol_t;
 
