@@ -77,6 +77,9 @@ ppe_packet_update(ppe_packet_t* ppep)
 int
 ppe_packet_format_get(ppe_packet_t* ppep, ppe_header_t* rv)
 {
+    if(PPE_PACKET_HEADERBIT_GET(ppep, PPE_HEADER_INNER_8021Q)) {
+        *rv = PPE_HEADER_INNER_8021Q;
+    }
     if(PPE_PACKET_HEADERBIT_GET(ppep, PPE_HEADER_8021Q)) {
         *rv = PPE_HEADER_8021Q;
     }
@@ -96,6 +99,7 @@ ppe_packet_format_set(ppe_packet_t* ppep, ppe_header_t type)
 {
     int rv = 0;
     ppe_header_t current;
+    uint8_t header_data[2];
 
     ppe_packet_format_get(ppep, &current);
 
@@ -107,76 +111,99 @@ ppe_packet_format_set(ppe_packet_t* ppep, ppe_header_t type)
         /* Already in the requested format. */
         return 0;
     }
-    else {
-        switch(current)
+
+    /* convert to base (PPE_HEADER_ETHERII) first */
+    switch(current)
+        {
+        case PPE_HEADER_ETHERII:
             {
-            case PPE_HEADER_8021Q:
-                {
-                    switch(type)
-                        {
-                        case PPE_HEADER_ETHERII:
-                            {
-                                PPE_MEMMOVE(ppep->data + 12,
-                                            ppep->data + 16,
-                                            ppep->size - 16);
-                                ppep->size -= 4;
-                                break;
-                            }
-                        default:
-                            {
-                                AIM_LOG_ERROR("invalid format set (%s)",
-                                              ppe_header_name(type));
-                                return -1;
-                            }
-                        }
-                    break;
-                }
-            case PPE_HEADER_ETHERII:
-                {
-                    switch(type)
-                        {
-                        case PPE_HEADER_8021Q:
-                            {
-                                /* @fixme architecture */
-                                ppep->size += 4;
-                                ppep->_data = ppep->data;
-                                ppep->data = aim_zmalloc(ppep->size);
-
-                                PPE_MEMCPY(ppep->data, ppep->_data, 12);
-                                PPE_MEMCPY(ppep->data+16, ppep->_data+12, ppep->size-16);
-
-                                ppep->data[12] = 0x81;
-                                ppep->data[13] = 0;
-                                ppep->data[14] = 0;
-                                ppep->data[15] = 0;
-                                ppep->realloc = 1;
-
-                                rv = 1;
-                                break;
-                            }
-                        default:
-                            {
-                                AIM_LOG_ERROR("invalid format set(%s)",
-                                              ppe_header_name(type));
-                                return -1;
-                            }
-                        }
-                    break;
-                }
-            default:
-                {
-                    AIM_LOG_ERROR("cannot convert from current format (%s)",
-                              ppe_header_name(type));
-                    return -1;
-                }
+                header_data[0] = 0x00;
+                header_data[1] = 0x00;
+                break;
             }
+        case PPE_HEADER_8021Q:          /* fall-through */
+        case PPE_HEADER_INNER_8021Q:
+            {
+                int offset;
 
-        /**
-         * Need to reparse
-         */
-        ppe_parse(ppep);
-        return rv;
-    }
+                offset = (current == PPE_HEADER_8021Q) ? 4 : 8;
+                /* save the outer pcp/tag */
+                header_data[0] = ppep->data[14];
+                header_data[1] = ppep->data[15];
+                PPE_MEMMOVE(ppep->data + 12,
+                            ppep->data + (12 + offset),
+                            ppep->size - (12 + offset));
+                ppep->size -= offset;
+                break;
+            }
+        default:
+            {
+                AIM_LOG_ERROR("cannot convert from current format (%s)",
+                              ppe_header_name(type));
+                return -1;
+            }
+        }
+
+    /* convert to requested type */
+    switch(type)
+        {
+        case PPE_HEADER_ETHERII:
+            {
+                /* no-op */
+                break;
+            }
+        case PPE_HEADER_8021Q:          /* fall-through */
+        case PPE_HEADER_INNER_8021Q:
+            {
+                int offset;
+                uint8_t* old_data;
+
+                offset = (type == PPE_HEADER_8021Q) ? 4 : 8;
+                ppep->size += offset;
+                old_data = ppep->data;
+                if(!ppep->realloc) {
+                    /* save original */
+                    ppep->_data = ppep->data;
+                }
+                ppep->data = aim_zmalloc(ppep->size);
+
+                PPE_MEMCPY(ppep->data, old_data, 12);
+                PPE_MEMCPY(ppep->data + (12 + offset),
+                           old_data + 12,
+                           ppep->size - (12 + offset));
+                /* restore outer pcp/tag */
+                ppep->data[12] = 0x81;
+                ppep->data[13] = 0x00;
+                ppep->data[14] = header_data[0];
+                ppep->data[15] = header_data[1];
+                if(type == PPE_HEADER_INNER_8021Q) {
+                    /* zero-out inner pcp/tag */
+                    ppep->data[16] = 0x81;
+                    ppep->data[17] = 0x00;
+                    ppep->data[18] = 0x00;
+                    ppep->data[19] = 0x00;
+                }
+
+                if(ppep->realloc) {
+                    /* free only if not original */
+                    aim_free(old_data);
+                }
+                ppep->realloc = 1;
+                rv = 1;
+                break;
+            }
+        default:
+            {
+                /* FIXME: no roll-back */
+                AIM_LOG_ERROR("invalid format set (%s)",
+                              ppe_header_name(type));
+                return -1;
+            }
+        }
+
+    /* Need to reparse */
+    ppe_parse(ppep);
+    return rv;
 }
 
 int

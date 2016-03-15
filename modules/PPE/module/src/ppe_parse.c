@@ -398,10 +398,23 @@ ppe_parse(ppe_packet_t* ppep)
     data16 = data16__(12, 0, &data, &size);
 
     if(data16 == 0x8100) {
-        PPE_PACKET_HEADER_SET(ppep, PPE_HEADER_8021Q, data);
-        /* Skip the tag and get the ethertype/len field */
+        uint8_t* outer_header;
+        uint8_t* inner_header;
+
+        /* Check if there's another tag */
+        outer_header = data;
         data16 = data16__(4, 0, &data, &size);
-        ppe_field_set(ppep, PPE_FIELD_META_PACKET_FORMAT, PPE_HEADER_8021Q);
+        if(data16 == 0x8100) {
+            /* Handle double-tag (q-in-q) */
+            inner_header = data;
+            data16 = data16__(4, 0, &data, &size);
+            PPE_PACKET_HEADER_SET(ppep, PPE_HEADER_INNER_8021Q, inner_header);
+            ppe_field_set(ppep, PPE_FIELD_META_PACKET_FORMAT,
+                          PPE_HEADER_INNER_8021Q);
+        } else {
+            ppe_field_set(ppep, PPE_FIELD_META_PACKET_FORMAT, PPE_HEADER_8021Q);
+        }
+        PPE_PACKET_HEADER_SET(ppep, PPE_HEADER_8021Q, outer_header);
     }
     else {
         /* @fixme */
