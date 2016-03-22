@@ -80,7 +80,7 @@ ppe_packet_format_get(ppe_packet_t* ppep, ppe_header_t* rv)
     if(PPE_PACKET_HEADERBIT_GET(ppep, PPE_HEADER_INNER_8021Q)) {
         *rv = PPE_HEADER_INNER_8021Q;
     }
-    if(PPE_PACKET_HEADERBIT_GET(ppep, PPE_HEADER_8021Q)) {
+    else if(PPE_PACKET_HEADERBIT_GET(ppep, PPE_HEADER_8021Q)) {
         *rv = PPE_HEADER_8021Q;
     }
     else {
