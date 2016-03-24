@@ -142,13 +142,64 @@ sendto__(vpi_interface_veth_t* vi, char* data, int len)
 static int
 read__(vpi_interface_veth_t* vi, char* data, int len)
 {
+    /* kernel strips vlan tag from packet, we need to "read it back" from the
+       control message and aux data */
+
     int rv;
-    if((rv = read(vi->fd, data, len)) < 0) {
-        VPI_ERROR(vi, "read() failed: %s", strerror(errno));
+    uint8_t cbuf[sizeof(struct cmsghdr) + sizeof(struct tpacket_auxdata) +
+                 sizeof(size_t)];
+    struct iovec iov;
+    struct msghdr msg;
+
+    VPI_MEMSET(cbuf, 0, sizeof(cbuf));
+
+    iov.iov_base = data;
+    iov.iov_len = len;
+
+    msg.msg_name = NULL;
+    msg.msg_namelen = 0;
+    msg.msg_iov = &iov;
+    msg.msg_iovlen = 1;
+    msg.msg_control = cbuf;
+    msg.msg_controllen = sizeof(cbuf);
+    msg.msg_flags = 0;
+
+    if((rv = recvmsg(vi->fd, &msg, 0)) < 0) {
+        VPI_ERROR(vi, "recvmsg() failed: rv=%d", rv);
         return -1;
     }
-    else {
-        VPI_INFO(vi, "packet received");
+
+    VPI_INFO(vi, "packet received: %d bytes read", rv);
+
+    /* check control message header */
+    if(msg.msg_controllen >= sizeof(struct cmsghdr)) {
+        VPI_INFO(vi, "control message found");
+
+        struct cmsghdr* cmsg = (struct cmsghdr*)cbuf;
+
+        if((cmsg->cmsg_level == SOL_PACKET) &&
+           (cmsg->cmsg_type == PACKET_AUXDATA)) {
+            VPI_INFO(vi, "aux data found");
+
+            struct tpacket_auxdata* aux =
+                (struct tpacket_auxdata*)CMSG_DATA(cmsg);
+
+            if((aux->tp_vlan_tci != 0) ||
+               (aux->tp_status & TP_STATUS_VLAN_VALID)) {
+                VPI_INFO(vi, "tag found: 0x%x", aux->tp_vlan_tci);
+
+                /* convert to network byte order first */
+                uint16_t vlan = htons(aux->tp_vlan_tci);
+                uint16_t tpid = htons(0x8100);
+
+                /* inject tag into data */
+                VPI_MEMMOVE(data + 16, data + 12, rv - 12);
+                VPI_MEMCPY(data + 12, &tpid, sizeof(tpid));
+                VPI_MEMCPY(data + 14, &vlan, sizeof(vlan));
+                rv += 4;
+            }
+        }
+
     }
     return rv;
 }
@@ -168,6 +219,7 @@ vpi_veth_interface_create(vpi_interface_t** vi, char* args[], int flags,
     struct ifreq ifreq;
     vpi_interface_veth_t* nvi = aim_zmalloc(sizeof(*nvi));
     char** arg = args;
+    int val;
 
     AIM_REFERENCE(flags);
 
@@ -196,6 +248,13 @@ vpi_veth_interface_create(vpi_interface_t** vi, char* args[], int flags,
         VPI_ERROR(nvi, "socket() failed: %s\n", strerror(errno));
         aim_free(nvi);
         return -1;
+    }
+
+    /* Enable Aux Data */
+    val = 1;
+    if(setsockopt(nvi->fd, SOL_PACKET, PACKET_AUXDATA,
+                  &val, sizeof(val)) < 0) {
+        VPI_WARN(nvi, "setsockopt() failed: %s\n", strerror(errno));
     }
 
     /*
