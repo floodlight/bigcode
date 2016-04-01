@@ -24,8 +24,6 @@
 #define VPI_LOG_PREFIX1 ".pcap"
 #include "vpi_log.h"
 
-#define PCAP_TIMEOUT_MS 5000
-
 #include "vpi_interface_pcap.h"
 #include <pcap/pcap.h>
 
@@ -110,10 +108,8 @@ read__(vpi_interface_pcap_t* vi, char* data, unsigned int len)
     struct pcap_pkthdr *pkt_header;
     const uint8_t *pkt_data;
 
-    rv = pcap_next_ex(vi->pcap, &pkt_header, &pkt_data);
-    if (rv != 1) {
-        VPI_ERROR(vi, "pcap_next_ex() failed: rv=%d err=%s",
-                  rv, pcap_geterr(vi->pcap));
+    if (pcap_next_ex(vi->pcap, &pkt_header, &pkt_data) != 1) {
+        VPI_ERROR(vi, "pcap_next_ex() failed: %s", pcap_geterr(vi->pcap));
         return -1;
     }
 
@@ -175,10 +171,6 @@ vpi_pcap_interface_create(vpi_interface_t** vi, char* args[], int flags,
 
     if(pcap_set_promisc(nvi->pcap, 1) != 0) {
         VPI_WARN(nvi, "pcap_set_promisc() failed.");
-    }
-
-    if(pcap_set_timeout(nvi->pcap, PCAP_TIMEOUT_MS) != 0) {
-        VPI_WARN(nvi, "pcap_set_timeout() failed.");
     }
 
     if (pcap_activate(nvi->pcap) != 0) {
