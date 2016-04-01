@@ -149,51 +149,51 @@ vpi_blocking_testcase_run__(vpi_testcase_t* testcase, vpi_t* client, vpi_t* serv
     send_data[0] = 0x42;
     if((rv=vpi_send(vpi_client, send_data, size)) < 0) {
         VPI_MERROR("send() returned %d: %s", rv, strerror(errno));
-        return -1;
+        goto err;
     }
 
     do {
         if((rv = vpi_recv(vpi_client, recv_data, sizeof(recv_data),1)) < 0) {
             VPI_MERROR("recv() returned %d: %s", rv, strerror(errno));
-            return -1;
+            goto err;
         }
     } while(rv == 0);
 
     if(rv != size) {
         VPI_MERROR("received %d bytes but expected %d\n",
                  rv, size);
-        return -1;
+        goto err;
     }
     if(recv_data[0] != 0x43) {
         VPI_MERROR("received packet is not incremented.");
-        return -1;
+        goto err;
     }
     if(memcmp(recv_data+1, send_data+1, sizeof(send_data)-1) != 0) {
         VPI_MERROR("data mistmach.");
-        return -1;
+        goto err;
     }
 
     send_data[0] = 0x65;
     if((rv=vpi_send(vpi_client, send_data, sizeof(send_data))) < 0) {
         VPI_MERROR("send() returned %d: %s", rv, strerror(errno));
-        return -1;
+        goto err;
     }
 
     if((rv = vpi_recv(vpi_client, recv_data, sizeof(recv_data),1)) < 0) {
         VPI_MERROR("recv() returned %d: %s", rv, strerror(errno));
-        return -1;
+        goto err;
     }
     if(rv != sizeof(send_data)) {
         VPI_MERROR("received %d bytes but expected %d\n", rv, size);
-        return -1;
+        goto err;
     }
     if(recv_data[0] != 0x66) {
         VPI_MERROR("received packet is not incremented.");
-        return -1;
+        goto err;
     }
     if(memcmp(recv_data+1, send_data+1, sizeof(send_data)-1) != 0) {
         VPI_MERROR("data mistmach.");
-        return -1;
+        goto err;
     }
 
     VPI_MINFO("joining server thread.");
@@ -207,6 +207,11 @@ vpi_blocking_testcase_run__(vpi_testcase_t* testcase, vpi_t* client, vpi_t* serv
         VPI_MINFO("server thread reported success.");
         return 0;
     }
+
+err:
+    sctrl.loop = 0;
+    pthread_join(pth, &thread_rv);
+    return -1;
 }
 
 int
