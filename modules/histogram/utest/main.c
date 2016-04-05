@@ -20,6 +20,17 @@
 #include <histogram/histogram.h>
 #include <AIM/aim.h>
 
+static void
+check(struct histogram *hist, uint32_t k, uint32_t v)
+{
+    uint32_t i = histogram_bucket(k);
+    AIM_ASSERT(i < HISTOGRAM_BUCKETS);
+    uint32_t v2 = hist->counts[i];
+    if (v != v2) {
+        AIM_DIE("Expected %u at key %u (index %u), found %u", v, k, i, v2);
+    }
+}
+
 void
 test_bucket(void)
 {
@@ -59,8 +70,67 @@ test_bucket(void)
     }
 }
 
+void
+test_basic(void)
+{
+    struct histogram *hist = histogram_create("basic");
+
+    check(hist, 0, 0);
+
+    histogram_inc(hist, 0);
+    check(hist, 0, 1);
+
+    histogram_inc(hist, 0);
+    check(hist, 0, 2);
+
+    /* 1 is a different bucket */
+    histogram_inc(hist, 1);
+    check(hist, 1, 1);
+
+    /* 32 and 33 are the same bucket */
+    histogram_inc(hist, 32);
+    histogram_inc(hist, 33);
+    check(hist, 32, 2);
+    check(hist, 33, 2);
+
+    histogram_inc(hist, UINT32_MAX);
+    check(hist, UINT32_MAX, 1);
+
+    histogram_destroy(hist);
+}
+
+void
+test_all(void)
+{
+    struct histogram *hist = histogram_create("all");
+    uint32_t k;
+
+    for (k = 0; k < UINT32_MAX; k++) {
+        check(hist, k, 0);
+    }
+    check(hist, k, 0);
+
+    for (k = 0; k < UINT32_MAX; k++) {
+        histogram_inc(hist, k);
+    }
+    histogram_inc(hist, k);
+
+    int i;
+    for (i = 4; i < 32; i++) {
+        uint32_t c = (1u << i) / 16;
+        for (k = 1<<i; k < (2<<i) - 1; k++) {
+            check(hist, k, c);
+        }
+        check(hist, k, c);
+    }
+
+    histogram_destroy(hist);
+}
+
 int aim_main(int argc, char* argv[])
 {
     test_bucket();
+    test_basic();
+    test_all();
     return 0;
 }

@@ -29,3 +29,16 @@ __histogram_module_init__(void)
 {
     AIM_LOG_STRUCT_REGISTER();
 }
+
+struct histogram *
+histogram_create(const char *name)
+{
+    struct histogram *hist = aim_zmalloc(sizeof(*hist));
+    return hist;
+}
+
+void
+histogram_destroy(struct histogram *hist)
+{
+    aim_free(hist);
+}

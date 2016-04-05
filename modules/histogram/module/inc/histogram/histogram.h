@@ -21,8 +21,27 @@
 #define HISTOGRAM_H
 
 #include <stdint.h>
+#include <AIM/aim.h>
 
+/* histogram_bucket(UINT32_MAX) == 463 */
+#define HISTOGRAM_BUCKETS 464
 #define HISTOGRAM_SHIFT 4
+
+struct histogram {
+    uint32_t counts[HISTOGRAM_BUCKETS];
+};
+
+/*
+ * Create a histogram
+ *
+ * 'name' will be copied.
+ */
+struct histogram *histogram_create(const char *name);
+
+/*
+ * Destroy a histogram
+ */
+void histogram_destroy(struct histogram *hist);
 
 /*
  * Map 32-bit key to bucket index
@@ -40,6 +59,12 @@ histogram_bucket(uint32_t k)
 
     uint32_t log2 = 31 - __builtin_clz(k >> HISTOGRAM_SHIFT);
     return (log2 << HISTOGRAM_SHIFT) + (k >> log2);
+}
+
+static inline void
+histogram_inc(struct histogram *hist, uint32_t k)
+{
+    hist->counts[histogram_bucket(k)]++;
 }
 
 #endif
