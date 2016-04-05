@@ -20,4 +20,26 @@
 #ifndef HISTOGRAM_H
 #define HISTOGRAM_H
 
+#include <stdint.h>
+
+#define HISTOGRAM_SHIFT 4
+
+/*
+ * Map 32-bit key to bucket index
+ *
+ * Each power of two is divided into 16 buckets. We first calculate
+ * the log base 2 and multiply by 16 to get the first bucket for that
+ * power. We then add the next 4 bits after the MSB to get the final bucket.
+ */
+static inline uint32_t
+histogram_bucket(uint32_t k)
+{
+    if ((k >> HISTOGRAM_SHIFT) == 0) {
+        return k;
+    }
+
+    uint32_t log2 = 31 - __builtin_clz(k >> HISTOGRAM_SHIFT);
+    return (log2 << HISTOGRAM_SHIFT) + (k >> log2);
+}
+
 #endif
