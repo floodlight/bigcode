@@ -127,10 +127,42 @@ test_all(void)
     histogram_destroy(hist);
 }
 
+void
+test_list(void)
+{
+    struct histogram *hist1 = histogram_create("hist1");
+    struct histogram *hist2 = histogram_create("hist2");
+    struct histogram *hist3 = aim_zmalloc(sizeof(*hist3));
+    histogram_register(hist3, "hist3");
+
+    AIM_ASSERT(!strcmp(hist1->name, "hist1"));
+    AIM_ASSERT(!strcmp(hist2->name, "hist2"));
+    AIM_ASSERT(!strcmp(hist3->name, "hist3"));
+
+    struct list_head *head = histogram_list();
+
+    struct list_links *cur = list_first(head);
+    AIM_ASSERT(container_of(cur, links, struct histogram) == hist1);
+
+    cur = cur->next;
+    AIM_ASSERT(container_of(cur, links, struct histogram) == hist2);
+
+    cur = cur->next;
+    AIM_ASSERT(container_of(cur, links, struct histogram) == hist3);
+
+    AIM_ASSERT(cur->next == &head->links);
+
+    histogram_destroy(hist1);
+    histogram_destroy(hist2);
+    histogram_unregister(hist3);
+    aim_free(hist3);
+}
+
 int aim_main(int argc, char* argv[])
 {
     test_bucket();
     test_basic();
     test_all();
+    test_list();
     return 0;
 }

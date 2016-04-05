@@ -24,6 +24,8 @@
 
 AIM_LOG_STRUCT_DEFINE(AIM_LOG_OPTIONS_DEFAULT, AIM_LOG_BITS_DEFAULT, NULL, 0);
 
+LIST_DEFINE(histogram_head);
+
 void
 __histogram_module_init__(void)
 {
@@ -34,11 +36,33 @@ struct histogram *
 histogram_create(const char *name)
 {
     struct histogram *hist = aim_zmalloc(sizeof(*hist));
+    histogram_register(hist, name);
     return hist;
+}
+
+void
+histogram_register(struct histogram *hist, const char *name)
+{
+    hist->name = aim_strdup(name);
+    list_push(&histogram_head, &hist->links);
 }
 
 void
 histogram_destroy(struct histogram *hist)
 {
+    histogram_unregister(hist);
     aim_free(hist);
+}
+
+void
+histogram_unregister(struct histogram *hist)
+{
+    list_remove(&hist->links);
+    aim_free((char *)hist->name);
+}
+
+struct list_head *
+histogram_list(void)
+{
+    return &histogram_head;
 }

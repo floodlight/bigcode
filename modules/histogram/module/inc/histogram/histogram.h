@@ -29,19 +29,46 @@
 
 struct histogram {
     uint32_t counts[HISTOGRAM_BUCKETS];
+    const char *name;
+    struct list_links links;
 };
 
 /*
  * Create a histogram
+ *
+ * Automatically registers the histogram.
  *
  * 'name' will be copied.
  */
 struct histogram *histogram_create(const char *name);
 
 /*
+ * Register a histogram
+ *
+ * Provided for applications that want to manage the memory
+ * themselves. The memory must be zeroed.
+ */
+void histogram_register(struct histogram *hist, const char *name);
+
+/*
  * Destroy a histogram
+ *
+ * Automatically unregisters the histogram.
  */
 void histogram_destroy(struct histogram *hist);
+
+/*
+ * Unregister a histogram
+ *
+ * Provided for applications that want to manage the memory
+ * themselves.
+ */
+void histogram_unregister(struct histogram *hist);
+
+/*
+ * Return the histogram list head
+ */
+struct list_head *histogram_list(void);
 
 /*
  * Map 32-bit key to bucket index
