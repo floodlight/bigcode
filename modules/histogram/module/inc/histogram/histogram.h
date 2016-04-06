@@ -71,6 +71,11 @@ void histogram_unregister(struct histogram *hist);
 struct list_head *histogram_list(void);
 
 /*
+ * Find a histogram by name
+ */
+struct histogram *histogram_find(const char *name);
+
+/*
  * Map 32-bit key to bucket index
  *
  * Each power of two is divided into 16 buckets. We first calculate

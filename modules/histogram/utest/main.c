@@ -158,11 +158,35 @@ test_list(void)
     aim_free(hist3);
 }
 
+void
+test_find(void)
+{
+    AIM_ASSERT(histogram_find("hist1") == NULL);
+    AIM_ASSERT(histogram_find("hist2") == NULL);
+
+    struct histogram *hist1 = histogram_create("hist1");
+    AIM_ASSERT(histogram_find("hist1") == hist1);
+    AIM_ASSERT(histogram_find("hist2") == NULL);
+
+    struct histogram *hist2 = histogram_create("hist2");
+    AIM_ASSERT(histogram_find("hist1") == hist1);
+    AIM_ASSERT(histogram_find("hist2") == hist2);
+
+    histogram_destroy(hist1);
+    AIM_ASSERT(histogram_find("hist1") == NULL);
+    AIM_ASSERT(histogram_find("hist2") == hist2);
+
+    histogram_destroy(hist2);
+    AIM_ASSERT(histogram_find("hist1") == NULL);
+    AIM_ASSERT(histogram_find("hist2") == NULL);
+}
+
 int aim_main(int argc, char* argv[])
 {
     test_bucket();
     test_basic();
     test_all();
     test_list();
+    test_find();
     return 0;
 }

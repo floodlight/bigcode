@@ -66,3 +66,16 @@ histogram_list(void)
 {
     return &histogram_head;
 }
+
+struct histogram *
+histogram_find(const char *name)
+{
+    struct list_links *cur;
+    LIST_FOREACH(&histogram_head, cur) {
+        struct histogram *hist = container_of(cur, links, struct histogram);
+        if (!strcmp(name, hist->name)) {
+            return hist;
+        }
+    }
+    return NULL;
+}
