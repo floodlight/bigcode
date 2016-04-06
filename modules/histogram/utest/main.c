@@ -115,6 +115,10 @@ test_all(void)
     }
     histogram_inc(hist, k);
 
+    for (k = 0; k < 16; k++) {
+        check(hist, k, 1);
+    }
+
     int i;
     for (i = 4; i < 32; i++) {
         uint32_t c = (1u << i) / 16;
