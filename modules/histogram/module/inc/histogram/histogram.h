@@ -17,6 +17,28 @@
  *
  ***************************************************************/
 
+/*
+ * Histogram module
+ *
+ * This module provides histograms with uint32_t keys. Each key is
+ * mapped into a bucket (counter). Multiple keys can share a bucket,
+ * in which case they will be indistinguishable in the resulting
+ * histogram.
+ *
+ * Only a few of the most significant bits of the key, plus its logarithm,
+ * are used to choose a bucket. This means that the number of keys per
+ * bucket increases for larger keys. For example, keys 0-31 each have their
+ * own buckets, but 128-135 all share one bucket. This is how we are able
+ * to support a wide range of keys in a small amount of memory. The important
+ * property is that a key differs from the other keys in its bucket by less
+ * than 10%.
+ *
+ * These histograms will be used in datapath code and so must be efficient.
+ * The size and shift are not configurable to avoid extra instructions in
+ * histogram_inc. For most applications the higher buckets won't be used
+ * and so won't be brought into cache, making them basically free.
+ */
+
 #ifndef HISTOGRAM_H
 #define HISTOGRAM_H
 
@@ -25,6 +47,8 @@
 
 /* histogram_bucket(UINT32_MAX) == 463 */
 #define HISTOGRAM_BUCKETS 464
+
+/* Each power of 2 is divided into 16 buckets */
 #define HISTOGRAM_SHIFT 4
 
 struct histogram {
@@ -89,8 +113,13 @@ histogram_bucket(uint32_t k)
         return k;
     }
 
-    uint32_t log2 = 31 - __builtin_clz(k >> HISTOGRAM_SHIFT);
-    return (log2 << HISTOGRAM_SHIFT) + (k >> log2);
+    /*
+     * Exponent of the key. Biased by HISTOGRAM_SHIFT because
+     * we don't support non-integer keys.
+     */
+    uint32_t e = 31 - HISTOGRAM_SHIFT - __builtin_clz(k);
+
+    return (e << HISTOGRAM_SHIFT) + (k >> e);
 }
 
 static inline void
