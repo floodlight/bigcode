@@ -107,7 +107,7 @@ snmp_subagent_main(int argc, char* argv[])
         aim_daemon_config_t config;
 
         memset(&config, 0, sizeof(config));
-        aim_daemon_restart_config_init(&rconfig, 1, 1);
+        aim_daemon_restart_config_init(&rconfig, 1, 1, argv);
         AIM_BITMAP_CLR(&rconfig.signal_restarts, SIGTERM);
         AIM_BITMAP_CLR(&rconfig.exit_restarts, 0);
         rconfig.maximum_restarts=50;
