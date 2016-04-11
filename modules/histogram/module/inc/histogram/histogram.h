@@ -122,6 +122,26 @@ histogram_bucket(uint32_t k)
     return (e << HISTOGRAM_SHIFT) + (k >> e);
 }
 
+/*
+ * Map bucket index to first key in bucket
+ */
+static inline uint32_t
+histogram_key(uint32_t i)
+{
+    if ((i >> HISTOGRAM_SHIFT) == 0) {
+        return i;
+    }
+
+    /* Upper index bits encode power of two */
+    uint32_t x = 1 << ((i >> HISTOGRAM_SHIFT) + HISTOGRAM_SHIFT - 1);
+
+    /* Lower index bits encode fraction */
+    uint32_t mask = (1 << HISTOGRAM_SHIFT) - 1;
+    uint32_t y = (i & mask) * (x >> HISTOGRAM_SHIFT);
+
+    return x + y;
+}
+
 static inline void
 histogram_inc(struct histogram *hist, uint32_t k)
 {
