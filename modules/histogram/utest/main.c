@@ -36,36 +36,45 @@ test_bucket(void)
 {
     struct {
         uint32_t k;
-        uint32_t expect;
+        uint32_t bucket;
+        uint32_t reverse;
     } tests[] = {
-        { 0, 0 },
-        { 1, 1 },
-        { 2, 2 },
-        { 14, 14 },
-        { 15, 15 },
-        { 16, 16 },
-        { 17, 17 },
-        { 30, 30 },
-        { 31, 31 },
-        { 32, 32 },
-        { 33, 32 },
-        { 34, 33 },
-        { 62, 47 },
-        { 63, 47 },
-        { 64, 48 },
-        { 65, 48 },
-        { 66, 48 },
-        { 67, 48 },
-        { 68, 49 },
-        { UINT32_MAX, 463 },
+        { 0, 0, 0 },
+        { 1, 1, 1 },
+        { 2, 2, 2 },
+        { 14, 14, 14 },
+        { 15, 15, 15 },
+        { 16, 16, 16 },
+        { 17, 17, 17 },
+        { 30, 30, 30 },
+        { 31, 31, 31 },
+        { 32, 32, 32 },
+        { 33, 32, 32 },
+        { 34, 33, 34 },
+        { 62, 47, 62 },
+        { 63, 47, 62 },
+        { 64, 48, 64 },
+        { 65, 48, 64 },
+        { 66, 48, 64 },
+        { 67, 48, 64 },
+        { 68, 49, 68 },
+        { UINT32_MAX, 463, 4160749568 },
     };
 
     int i;
     for (i = 0; i < AIM_ARRAYSIZE(tests); i++) {
         uint32_t actual = histogram_bucket(tests[i].k);
-        if (tests[i].expect != actual) {
+        if (tests[i].bucket != actual) {
             AIM_DIE("histogram_bucket test failed: k=%u expect=%u actual=%u",
-                    tests[i].k, tests[i].expect, actual);
+                    tests[i].k, tests[i].bucket, actual);
+        }
+
+        AIM_ASSERT(tests[i].bucket == histogram_bucket(tests[i].reverse));
+
+        actual = histogram_key(tests[i].bucket);
+        if (tests[i].reverse != actual) {
+            AIM_DIE("histogram_key test failed: bucket=%u expect=%u actual=%u",
+                    tests[i].bucket, tests[i].reverse, actual);
         }
     }
 }
