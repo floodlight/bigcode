@@ -279,6 +279,16 @@
 #endif
 
 /**
+ * VPI_CONFIG_INCLUDE_PYTHON_DEBUG_LOGGING
+ *
+ * Include debug logging support. */
+
+
+#ifndef VPI_CONFIG_INCLUDE_PYTHON_DEBUG_LOGGING
+#define VPI_CONFIG_INCLUDE_PYTHON_DEBUG_LOGGING 0
+#endif
+
+/**
  * VPI_CONFIG_INCLUDE_UCLI
  *
  * Include UCLI support. */
@@ -286,6 +296,16 @@
 
 #ifndef VPI_CONFIG_INCLUDE_UCLI
 #define VPI_CONFIG_INCLUDE_UCLI 0
+#endif
+
+/**
+ * VPI_CONFIG_INCLUDE_PCAP_IMMEDIATE_MODE
+ *
+ * Create PCAP interface with immediate mode. */
+
+
+#ifndef VPI_CONFIG_INCLUDE_PCAP_IMMEDIATE_MODE
+#define VPI_CONFIG_INCLUDE_PCAP_IMMEDIATE_MODE 0
 #endif
 
 
