@@ -187,6 +187,13 @@ ppe_parse_ip_protocol_UDP__(ppe_packet_t* ppep, uint8_t* data, int size)
     return ppe_parse_service_ports(ppep, data+8, size-8);
 }
 static inline int
+ppe_parse_ip_protocol_GRE__(ppe_packet_t* ppep, uint8_t* data, int size)
+{
+    AIM_REFERENCE(size);
+    PPE_PACKET_HEADER_SET(ppep, PPE_HEADER_GRE, data);
+    return 0;
+}
+static inline int
 ppe_parse_ip_protocol_ICMP__(ppe_packet_t* ppep, uint8_t* data, int size)
 {
     AIM_REFERENCE(size);

@@ -95,8 +95,9 @@ cdefs: &cdefs
     doc: "Include UCLI support."
     default: 0
 
-
-
+- VPI_CONFIG_INCLUDE_PCAP_IMMEDIATE_MODE:
+    doc: "Create PCAP interface with immediate mode."
+    default: 0
 
 vpiProtocolOpcodes: &vpiProtocolOpcodes
 - packet
