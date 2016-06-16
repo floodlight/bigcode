@@ -220,6 +220,10 @@ typedef enum ppe_field_e {
     PPE_FIELD_UDP_CHECKSUM,
     PPE_FIELD_L4_SRC_PORT,
     PPE_FIELD_L4_DST_PORT,
+    PPE_FIELD_GRE_FLAGS,
+    PPE_FIELD_GRE_VERSION,
+    PPE_FIELD_GRE_PROTOCOL,
+    PPE_FIELD_GRE_KEY,
     PPE_FIELD_SLOW_PROTOCOLS_SUBTYPE,
     PPE_FIELD_LACP_VERSION,
     PPE_FIELD_LACP_ACTOR_INFO,
@@ -314,6 +318,7 @@ typedef enum ppe_header_e {
     PPE_HEADER_L4,
     PPE_HEADER_TCP,
     PPE_HEADER_UDP,
+    PPE_HEADER_GRE,
     PPE_HEADER_ICMP,
     PPE_HEADER_ICMP6,
     PPE_HEADER_SLOW_PROTOCOLS,
@@ -347,6 +352,7 @@ typedef enum ppe_header_e {
     "L4", \
     "TCP", \
     "UDP", \
+    "GRE", \
     "ICMP", \
     "ICMP6", \
     "SLOW_PROTOCOLS", \
@@ -381,6 +387,7 @@ typedef enum ppe_ip_protocol_e {
     PPE_IP_PROTOCOL_IGMP = 2,
     PPE_IP_PROTOCOL_TCP = 6,
     PPE_IP_PROTOCOL_UDP = 17,
+    PPE_IP_PROTOCOL_GRE = 47,
     PPE_IP_PROTOCOL_ICMP6 = 58,
     PPE_IP_PROTOCOL_PIM = 103,
 } ppe_ip_protocol_t;
