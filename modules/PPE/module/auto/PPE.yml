@@ -142,6 +142,18 @@ icmp_typecodes: &icmp_typecodes
 - PHOTURIS :                 ( (40 << 8) |  0 )
 - EXPERIMENTAL :             ( (41 << 8) |  0 )
 
+###############################################################################
+#
+# ICMPV6 Typecode values.
+#
+###############################################################################
+icmpv6_typecodes: &icmpv6_typecodes
+- ROUTER_SOLICITATION : 133
+- ROUTER_ADVERTISEMENT : 134
+- NEIGHBOR_SOLICITATION : 135
+- NEIGHBOR_ADVERTISEMENT : 136
+- ECHO_REQUEST : 128
+- ECHO_REPLY : 129
 
 dhcp_ops: &dhcp_ops
 - REQUEST : 1
@@ -228,6 +240,7 @@ headers: &headers
 - TCP
 - UDP
 - ICMP
+- ICMPV6
 - SLOW_PROTOCOLS
 - LACP
 - DHCP
@@ -313,6 +326,11 @@ fields: &fields
 - [ ICMP,               CHECKSUM,       16, 2,  0 ]
 - [ ICMP,               HEADER_DATA,    32, 4,  0 ]
 - [ ICMP,               PAYLOAD,         8, 8,  0 ]
+
+- [ ICMPV6,             TYPE,           8,  0,  0 ]
+- [ ICMPV6,             CODE,           8,  1,  0 ]
+- [ ICMPV6,             CHECKSUM,       16, 2,  0 ]
+- [ ICMPV6,             MESSAGE_BODY,   8,  4,  0 ]
 
 - [ IGMP,               TYPE,           8,  0,  0 ]
 - [ IGMP,               MAX_RESP_TIME,  8,  1,  0 ]
@@ -430,7 +448,7 @@ ip_protocols: &ip_protocols
 - TCP  :  6
 - UDP  : 17
 - PIM  : 103
-
+- ICMPV6 :  58
 
 ###############################################################################
 #
@@ -483,6 +501,9 @@ definitions:
     ppe_icmp_typecode:
       members: *icmp_typecodes
       desc: "PPE Icmp Typecode."
+    ppe_icmpv6_typecode:
+      members: *icmpv6_typecodes
+      desc: "PPE Icmpv6 Typecode."
     ppe_pservice_port:
       members: *pservice_ports
       desc: "PPE Parsable Service Port."
@@ -516,6 +537,8 @@ definitions:
       members: *slow_protocols
     PPE_ICMP_TYPECODE_ENTRY:
       members: *icmp_typecodes
+    PPE_ICMPV6_TYPECODE_ENTRY:
+      members: *icmpv6_typecodes
     PPE_PSERVICE_PORT_ENTRY:
       members: *pservice_ports
 
