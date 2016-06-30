@@ -239,6 +239,7 @@ headers: &headers
 - L4
 - TCP
 - UDP
+- GRE
 - ICMP
 - ICMPV6
 - SLOW_PROTOCOLS
@@ -377,6 +378,11 @@ fields: &fields
 
 - [ L4,                 SRC_PORT,       16,  0, 0 ]
 - [ L4,                 DST_PORT,       16,  2, 0 ]
+
+- [ GRE,                FLAGS,         13,  0,  3 ]
+- [ GRE,                VERSION,        3,  1,  0 ]
+- [ GRE,                PROTOCOL,      16,  2,  0 ]
+- [ GRE,                KEY,           32,  4,  0 ]
 
 - [ SLOW_PROTOCOLS,      SUBTYPE,        8,   0, 0 ]
 

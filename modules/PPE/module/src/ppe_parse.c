@@ -187,10 +187,24 @@ ppe_parse_ip_protocol_UDP__(ppe_packet_t* ppep, uint8_t* data, int size)
     return ppe_parse_service_ports(ppep, data+8, size-8);
 }
 static inline int
+ppe_parse_ip_protocol_GRE__(ppe_packet_t* ppep, uint8_t* data, int size)
+{
+    AIM_REFERENCE(size);
+    PPE_PACKET_HEADER_SET(ppep, PPE_HEADER_GRE, data);
+    return 0;
+}
+static inline int
 ppe_parse_ip_protocol_ICMP__(ppe_packet_t* ppep, uint8_t* data, int size)
 {
     AIM_REFERENCE(size);
     PPE_PACKET_HEADER_SET(ppep, PPE_HEADER_ICMP, data);
+    return 0;
+}
+static inline int
+ppe_parse_ip_protocol_ICMP6__(ppe_packet_t* ppep, uint8_t* data, int size)
+{
+    AIM_REFERENCE(size);
+    PPE_PACKET_HEADER_SET(ppep, PPE_HEADER_ICMP6, data);
     return 0;
 }
 static inline int
@@ -399,10 +413,23 @@ ppe_parse(ppe_packet_t* ppep)
     data16 = data16__(12, 0, &data, &size);
 
     if(data16 == 0x8100) {
-        PPE_PACKET_HEADER_SET(ppep, PPE_HEADER_8021Q, data);
-        /* Skip the tag and get the ethertype/len field */
+        uint8_t* outer_header;
+        uint8_t* inner_header;
+
+        /* Check if there's another tag */
+        outer_header = data;
         data16 = data16__(4, 0, &data, &size);
-        ppe_field_set(ppep, PPE_FIELD_META_PACKET_FORMAT, PPE_HEADER_8021Q);
+        if(data16 == 0x8100) {
+            /* Handle double-tag (q-in-q) */
+            inner_header = data;
+            data16 = data16__(4, 0, &data, &size);
+            PPE_PACKET_HEADER_SET(ppep, PPE_HEADER_INNER_8021Q, inner_header);
+            ppe_field_set(ppep, PPE_FIELD_META_PACKET_FORMAT,
+                          PPE_HEADER_INNER_8021Q);
+        } else {
+            ppe_field_set(ppep, PPE_FIELD_META_PACKET_FORMAT, PPE_HEADER_8021Q);
+        }
+        PPE_PACKET_HEADER_SET(ppep, PPE_HEADER_8021Q, outer_header);
     }
     else {
         /* @fixme */

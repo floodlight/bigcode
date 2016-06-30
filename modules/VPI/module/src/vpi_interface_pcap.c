@@ -173,6 +173,12 @@ vpi_pcap_interface_create(vpi_interface_t** vi, char* args[], int flags,
         VPI_WARN(nvi, "pcap_set_promisc() failed.");
     }
 
+#if VPI_CONFIG_INCLUDE_PCAP_IMMEDIATE_MODE == 1
+    if(pcap_set_immediate_mode(nvi->pcap, 1) != 0) {
+        VPI_WARN(nvi, "pcap_set_immediate_mode() failed.");
+    }
+#endif
+
     if (pcap_activate(nvi->pcap) != 0) {
         VPI_ERROR(nvi, "pcap_activate() failed: %s", pcap_geterr(nvi->pcap));
         pcap_close(nvi->pcap);

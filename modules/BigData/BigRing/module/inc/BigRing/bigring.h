@@ -42,10 +42,10 @@ typedef struct bigring_s bigring_t;
 typedef void (*bigring_free_entry_f)(void* entry);
 
 /**
- * @brief Builtin deallocator -- calls AIM_FREE() on the entry.
+ * @brief Builtin deallocator -- calls aim_free() on the entry.
  * @param entry The entry
  * @note Pass this as the deallocator if your objects should
- * just be freed using AIM_FREE().
+ * just be freed using aim_free().
  */
 void bigring_aim_free_entry(void* entry);
 
@@ -55,7 +55,7 @@ void bigring_aim_free_entry(void* entry);
  * @param free_entry The entry deallocator.
  * @note If free_entry is NULL, the entries will not be freed.
  * @note pass bigring_aim_free_entry() if you want normal deallocation.
- * using AIM_FREE()
+ * using aim_free()
  */
 bigring_t* bigring_create(int size, bigring_free_entry_f free_entry);
 

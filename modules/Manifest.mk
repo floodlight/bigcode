@@ -20,6 +20,7 @@ bloom_filter_BASEDIR := $(BASEDIR)bloom_filter
 cjson_BASEDIR := $(BASEDIR)cjson
 cjson_util_BASEDIR := $(BASEDIR)cjson_util
 debug_counter_BASEDIR := $(BASEDIR)debug_counter
+histogram_BASEDIR := $(BASEDIR)/histogram
 murmur_BASEDIR := $(BASEDIR)murmur
 nwac_BASEDIR := $(BASEDIR)BigData/nwac
 orc_BASEDIR := $(BASEDIR)orc
