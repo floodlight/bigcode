@@ -175,11 +175,10 @@ typedef enum ppe_field_e {
     PPE_FIELD_ICMP_CHECKSUM,
     PPE_FIELD_ICMP_HEADER_DATA,
     PPE_FIELD_ICMP_PAYLOAD,
-    PPE_FIELD_ICMP6_TYPE,
-    PPE_FIELD_ICMP6_CODE,
-    PPE_FIELD_ICMP6_CHECKSUM,
-    PPE_FIELD_ICMP6_HEADER_DATA,
-    PPE_FIELD_ICMP6_PAYLOAD,
+    PPE_FIELD_ICMPV6_TYPE,
+    PPE_FIELD_ICMPV6_CODE,
+    PPE_FIELD_ICMPV6_CHECKSUM,
+    PPE_FIELD_ICMPV6_MESSAGE_BODY,
     PPE_FIELD_IGMP_TYPE,
     PPE_FIELD_IGMP_MAX_RESP_TIME,
     PPE_FIELD_IGMP_CHECKSUM,
@@ -320,7 +319,7 @@ typedef enum ppe_header_e {
     PPE_HEADER_UDP,
     PPE_HEADER_GRE,
     PPE_HEADER_ICMP,
-    PPE_HEADER_ICMP6,
+    PPE_HEADER_ICMPV6,
     PPE_HEADER_SLOW_PROTOCOLS,
     PPE_HEADER_LACP,
     PPE_HEADER_DHCP,
@@ -354,7 +353,7 @@ typedef enum ppe_header_e {
     "UDP", \
     "GRE", \
     "ICMP", \
-    "ICMP6", \
+    "ICMPV6", \
     "SLOW_PROTOCOLS", \
     "LACP", \
     "DHCP", \
@@ -388,7 +387,7 @@ typedef enum ppe_ip_protocol_e {
     PPE_IP_PROTOCOL_TCP = 6,
     PPE_IP_PROTOCOL_UDP = 17,
     PPE_IP_PROTOCOL_GRE = 47,
-    PPE_IP_PROTOCOL_ICMP6 = 58,
+    PPE_IP_PROTOCOL_ICMPV6 = 58,
     PPE_IP_PROTOCOL_PIM = 103,
 } ppe_ip_protocol_t;
 
@@ -412,6 +411,37 @@ int ppe_ip_protocol_valid(ppe_ip_protocol_t e);
 extern aim_map_si_t ppe_ip_protocol_map[];
 /** ppe_ip_protocol_desc_map table. */
 extern aim_map_si_t ppe_ip_protocol_desc_map[];
+
+/** ppe_icmpv6_typecode */
+typedef enum ppe_icmpv6_typecode_e {
+    PPE_ICMPV6_TYPECODE_ROUTER_SOLICITATION = 133,
+    PPE_ICMPV6_TYPECODE_ROUTER_ADVERTISEMENT = 134,
+    PPE_ICMPV6_TYPECODE_NEIGHBOR_SOLICITATION = 135,
+    PPE_ICMPV6_TYPECODE_NEIGHBOR_ADVERTISEMENT = 136,
+    PPE_ICMPV6_TYPECODE_ECHO_REQUEST = 128,
+    PPE_ICMPV6_TYPECODE_ECHO_REPLY = 129,
+} ppe_icmpv6_typecode_t;
+
+/** Enum names. */
+const char* ppe_icmpv6_typecode_name(ppe_icmpv6_typecode_t e);
+
+/** Enum values. */
+int ppe_icmpv6_typecode_value(const char* str, ppe_icmpv6_typecode_t* e, int substr);
+
+/** Enum descriptions. */
+const char* ppe_icmpv6_typecode_desc(ppe_icmpv6_typecode_t e);
+
+/** Enum validator. */
+int ppe_icmpv6_typecode_valid(ppe_icmpv6_typecode_t e);
+
+/** validator */
+#define PPE_ICMPV6_TYPECODE_VALID(_e) \
+    (ppe_icmpv6_typecode_valid((_e)))
+
+/** ppe_icmpv6_typecode_map table. */
+extern aim_map_si_t ppe_icmpv6_typecode_map[];
+/** ppe_icmpv6_typecode_desc_map table. */
+extern aim_map_si_t ppe_icmpv6_typecode_desc_map[];
 
 /** ppe_igmp_type */
 typedef enum ppe_igmp_type_e {

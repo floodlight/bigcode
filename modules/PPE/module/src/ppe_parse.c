@@ -201,13 +201,6 @@ ppe_parse_ip_protocol_ICMP__(ppe_packet_t* ppep, uint8_t* data, int size)
     return 0;
 }
 static inline int
-ppe_parse_ip_protocol_ICMP6__(ppe_packet_t* ppep, uint8_t* data, int size)
-{
-    AIM_REFERENCE(size);
-    PPE_PACKET_HEADER_SET(ppep, PPE_HEADER_ICMP6, data);
-    return 0;
-}
-static inline int
 ppe_parse_ip_protocol_IGMP__(ppe_packet_t* ppep, uint8_t* data, int size)
 {
     AIM_REFERENCE(size);
@@ -221,6 +214,14 @@ ppe_parse_ip_protocol_PIM__(ppe_packet_t* ppep, uint8_t* data, int size)
     PPE_PACKET_HEADER_SET(ppep, PPE_HEADER_PIM, data);
     return 0;
 }
+static inline int
+ppe_parse_ip_protocol_ICMPV6__(ppe_packet_t* ppep, uint8_t* data, int size)
+{
+    AIM_REFERENCE(size);
+    PPE_PACKET_HEADER_SET(ppep, PPE_HEADER_ICMPV6, data);
+    return 0;
+}
+
 
 static inline int
 ppe_parse_ip_protocol(ppe_packet_t* ppep, uint8_t protocol,

@@ -255,6 +255,103 @@ ppe_build_icmp_packet(ppe_packet_t* ppep, uint32_t type, uint32_t code,
     return 0;
 }
 
+uint32_t
+ppe_icmpv6_header_checksum_update(ppe_packet_t* ppep)
+{
+    uint8_t* icmpv6_header = ppep->headers[PPE_HEADER_ICMPV6].start;
+    uint8_t pseudo_header[40] = {0};
+    int csum = 0;
+    uint32_t ipv6_total_len;
+    uint32_t size = 0;
+    uint16_t plen;
+    uint8_t nxt_hdr;
+
+    /* Only for ICMPV6 Packets */
+    if(icmpv6_header) {
+        
+        /* Get the length of ICMPV6 Data */
+        ppe_field_get(ppep, PPE_FIELD_IP6_PAYLOAD_LENGTH, &ipv6_total_len);
+        size = ipv6_total_len;
+
+        /* Pseudoheader in network order */
+        PPE_MEMCPY(pseudo_header+0,
+                   ppe_fieldp_get(ppep, PPE_FIELD_IP6_SRC_ADDR), 16);
+        PPE_MEMCPY(pseudo_header+16,
+                   ppe_fieldp_get(ppep, PPE_FIELD_IP6_DST_ADDR), 16);
+        ppe_wide_field_get(ppep, PPE_FIELD_IP6_PAYLOAD_LENGTH, (uint8_t *)&plen);
+        ppe_wide_field_get(ppep, PPE_FIELD_IP6_NEXT_HEADER, &nxt_hdr);
+        
+        *(uint32_t *)(pseudo_header+32) = htonl(ntohs(plen));
+        pseudo_header[39] = nxt_hdr;
+        ppe_field_set(ppep, PPE_FIELD_ICMPV6_CHECKSUM, 0);
+        
+        csum = ip_checksum__((uint8_t *)pseudo_header, sizeof(pseudo_header),
+                             icmpv6_header, size, NULL, 0);
+                
+        ppe_field_set(ppep, PPE_FIELD_ICMPV6_CHECKSUM, csum);
+    }
+    return csum;
+}
+
+int
+ppe_build_ipv6_header(ppe_packet_t* ppep, uint8_t *src_ip, uint8_t *dest_ip,
+                      uint32_t total_len, uint32_t hop_limit, uint8_t next_header,
+                      uint8_t traffic_class, uint32_t flow_label)
+{
+    uint8_t traffic_class_u, traffic_class_l, flow_label_u;
+    uint16_t flow_label_l;
+
+    if (!ppep) return -1;
+
+    if (!ppe_header_get(ppep, PPE_HEADER_IP6)) return -1;
+
+    traffic_class_u = traffic_class >> 4;
+    traffic_class_l = traffic_class & 0xF;
+    flow_label_l = flow_label & 0xFFFF; 
+    flow_label_u = flow_label >> 16;  
+    
+    /* Version = 6 */
+    ppe_field_set(ppep, PPE_FIELD_IP6_VERSION, 6);
+    ppe_field_set(ppep, PPE_FIELD_IP6_TRAFFIC_CLASS_U, traffic_class_u);
+    ppe_field_set(ppep, PPE_FIELD_IP6_TRAFFIC_CLASS_L, traffic_class_l);
+    ppe_field_set(ppep, PPE_FIELD_IP6_FLOW_LABEL_U, flow_label_u);
+    ppe_field_set(ppep, PPE_FIELD_IP6_FLOW_LABEL_L, flow_label_l);
+
+    ppe_field_set(ppep, PPE_FIELD_IP6_PAYLOAD_LENGTH, total_len);
+    ppe_field_set(ppep, PPE_FIELD_IP6_NEXT_HEADER, next_header);
+    ppe_field_set(ppep, PPE_FIELD_IP6_HOP_LIMIT, hop_limit);
+    ppe_wide_field_set(ppep, PPE_FIELD_IP6_SRC_ADDR, src_ip);
+    ppe_wide_field_set(ppep, PPE_FIELD_IP6_DST_ADDR, dest_ip);
+
+    /* Update the checksum */
+    ppe_icmpv6_header_checksum_update(ppep);
+
+    /* Need to reparse to recognize proto */
+    ppe_parse(ppep);
+
+    return 0;
+}
+
+int
+ppe_build_icmpv6_packet(ppe_packet_t* ppep, uint32_t type, uint32_t code,
+                      uint8_t *icmpv6_msg, uint32_t icmpv6_msg_len)
+{
+    if (!ppep || !icmpv6_msg) return -1;
+
+    if (!ppe_header_get(ppep, PPE_HEADER_ICMPV6)) return -1;
+
+    ppe_field_set(ppep, PPE_FIELD_ICMPV6_TYPE, type);
+    ppe_field_set(ppep, PPE_FIELD_ICMPV6_CODE, code);
+
+    PPE_MEMCPY(ppe_fieldp_get(ppep, PPE_FIELD_ICMPV6_MESSAGE_BODY), icmpv6_msg,
+               icmpv6_msg_len);
+
+    /* Update the checksum */
+    ppe_icmpv6_header_checksum_update(ppep);
+    
+    return 0;
+}
+
 int
 ppe_build_udp_header(ppe_packet_t* ppep, uint32_t sport, uint32_t dport,
                      uint32_t length)

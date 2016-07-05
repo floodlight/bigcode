@@ -270,11 +270,10 @@ aim_map_si_t ppe_field_map[] =
     { "ICMP_CHECKSUM", PPE_FIELD_ICMP_CHECKSUM },
     { "ICMP_HEADER_DATA", PPE_FIELD_ICMP_HEADER_DATA },
     { "ICMP_PAYLOAD", PPE_FIELD_ICMP_PAYLOAD },
-    { "ICMP6_TYPE", PPE_FIELD_ICMP6_TYPE },
-    { "ICMP6_CODE", PPE_FIELD_ICMP6_CODE },
-    { "ICMP6_CHECKSUM", PPE_FIELD_ICMP6_CHECKSUM },
-    { "ICMP6_HEADER_DATA", PPE_FIELD_ICMP6_HEADER_DATA },
-    { "ICMP6_PAYLOAD", PPE_FIELD_ICMP6_PAYLOAD },
+    { "ICMPV6_TYPE", PPE_FIELD_ICMPV6_TYPE },
+    { "ICMPV6_CODE", PPE_FIELD_ICMPV6_CODE },
+    { "ICMPV6_CHECKSUM", PPE_FIELD_ICMPV6_CHECKSUM },
+    { "ICMPV6_MESSAGE_BODY", PPE_FIELD_ICMPV6_MESSAGE_BODY },
     { "IGMP_TYPE", PPE_FIELD_IGMP_TYPE },
     { "IGMP_MAX_RESP_TIME", PPE_FIELD_IGMP_MAX_RESP_TIME },
     { "IGMP_CHECKSUM", PPE_FIELD_IGMP_CHECKSUM },
@@ -439,11 +438,10 @@ aim_map_si_t ppe_field_desc_map[] =
     { "None", PPE_FIELD_ICMP_CHECKSUM },
     { "None", PPE_FIELD_ICMP_HEADER_DATA },
     { "None", PPE_FIELD_ICMP_PAYLOAD },
-    { "None", PPE_FIELD_ICMP6_TYPE },
-    { "None", PPE_FIELD_ICMP6_CODE },
-    { "None", PPE_FIELD_ICMP6_CHECKSUM },
-    { "None", PPE_FIELD_ICMP6_HEADER_DATA },
-    { "None", PPE_FIELD_ICMP6_PAYLOAD },
+    { "None", PPE_FIELD_ICMPV6_TYPE },
+    { "None", PPE_FIELD_ICMPV6_CODE },
+    { "None", PPE_FIELD_ICMPV6_CHECKSUM },
+    { "None", PPE_FIELD_ICMPV6_MESSAGE_BODY },
     { "None", PPE_FIELD_IGMP_TYPE },
     { "None", PPE_FIELD_IGMP_MAX_RESP_TIME },
     { "None", PPE_FIELD_IGMP_CHECKSUM },
@@ -604,7 +602,7 @@ aim_map_si_t ppe_header_map[] =
     { "UDP", PPE_HEADER_UDP },
     { "GRE", PPE_HEADER_GRE },
     { "ICMP", PPE_HEADER_ICMP },
-    { "ICMP6", PPE_HEADER_ICMP6 },
+    { "ICMPV6", PPE_HEADER_ICMPV6 },
     { "SLOW_PROTOCOLS", PPE_HEADER_SLOW_PROTOCOLS },
     { "LACP", PPE_HEADER_LACP },
     { "DHCP", PPE_HEADER_DHCP },
@@ -635,7 +633,7 @@ aim_map_si_t ppe_header_desc_map[] =
     { "None", PPE_HEADER_UDP },
     { "None", PPE_HEADER_GRE },
     { "None", PPE_HEADER_ICMP },
-    { "None", PPE_HEADER_ICMP6 },
+    { "None", PPE_HEADER_ICMPV6 },
     { "None", PPE_HEADER_SLOW_PROTOCOLS },
     { "None", PPE_HEADER_LACP },
     { "None", PPE_HEADER_DHCP },
@@ -693,7 +691,7 @@ aim_map_si_t ppe_ip_protocol_map[] =
     { "TCP", PPE_IP_PROTOCOL_TCP },
     { "UDP", PPE_IP_PROTOCOL_UDP },
     { "GRE", PPE_IP_PROTOCOL_GRE },
-    { "ICMP6", PPE_IP_PROTOCOL_ICMP6 },
+    { "ICMPV6", PPE_IP_PROTOCOL_ICMPV6 },
     { "PIM", PPE_IP_PROTOCOL_PIM },
     { NULL, 0 }
 };
@@ -705,7 +703,7 @@ aim_map_si_t ppe_ip_protocol_desc_map[] =
     { "None", PPE_IP_PROTOCOL_TCP },
     { "None", PPE_IP_PROTOCOL_UDP },
     { "None", PPE_IP_PROTOCOL_GRE },
-    { "None", PPE_IP_PROTOCOL_ICMP6 },
+    { "None", PPE_IP_PROTOCOL_ICMPV6 },
     { "None", PPE_IP_PROTOCOL_PIM },
     { NULL, 0 }
 };
@@ -753,6 +751,74 @@ int
 ppe_ip_protocol_valid(ppe_ip_protocol_t e)
 {
     return aim_map_si_i(NULL, e, ppe_ip_protocol_map, 0) ? 1 : 0;
+}
+
+
+aim_map_si_t ppe_icmpv6_typecode_map[] =
+{
+    { "ROUTER_SOLICITATION", PPE_ICMPV6_TYPECODE_ROUTER_SOLICITATION },
+    { "ROUTER_ADVERTISEMENT", PPE_ICMPV6_TYPECODE_ROUTER_ADVERTISEMENT },
+    { "NEIGHBOR_SOLICITATION", PPE_ICMPV6_TYPECODE_NEIGHBOR_SOLICITATION },
+    { "NEIGHBOR_ADVERTISEMENT", PPE_ICMPV6_TYPECODE_NEIGHBOR_ADVERTISEMENT },
+    { "ECHO_REQUEST", PPE_ICMPV6_TYPECODE_ECHO_REQUEST },
+    { "ECHO_REPLY", PPE_ICMPV6_TYPECODE_ECHO_REPLY },
+    { NULL, 0 }
+};
+
+aim_map_si_t ppe_icmpv6_typecode_desc_map[] =
+{
+    { "None", PPE_ICMPV6_TYPECODE_ROUTER_SOLICITATION },
+    { "None", PPE_ICMPV6_TYPECODE_ROUTER_ADVERTISEMENT },
+    { "None", PPE_ICMPV6_TYPECODE_NEIGHBOR_SOLICITATION },
+    { "None", PPE_ICMPV6_TYPECODE_NEIGHBOR_ADVERTISEMENT },
+    { "None", PPE_ICMPV6_TYPECODE_ECHO_REQUEST },
+    { "None", PPE_ICMPV6_TYPECODE_ECHO_REPLY },
+    { NULL, 0 }
+};
+
+const char*
+ppe_icmpv6_typecode_name(ppe_icmpv6_typecode_t e)
+{
+    const char* name;
+    if(aim_map_si_i(&name, e, ppe_icmpv6_typecode_map, 0)) {
+        return name;
+    }
+    else {
+        return "-invalid value for enum type 'ppe_icmpv6_typecode'";
+    }
+}
+
+int
+ppe_icmpv6_typecode_value(const char* str, ppe_icmpv6_typecode_t* e, int substr)
+{
+    int i;
+    AIM_REFERENCE(substr);
+    if(aim_map_si_s(&i, str, ppe_icmpv6_typecode_map, 0)) {
+        /* Enum Found */
+        *e = i;
+        return 0;
+    }
+    else {
+        return -1;
+    }
+}
+
+const char*
+ppe_icmpv6_typecode_desc(ppe_icmpv6_typecode_t e)
+{
+    const char* name;
+    if(aim_map_si_i(&name, e, ppe_icmpv6_typecode_desc_map, 0)) {
+        return name;
+    }
+    else {
+        return "-invalid value for enum type 'ppe_icmpv6_typecode'";
+    }
+}
+
+int
+ppe_icmpv6_typecode_valid(ppe_icmpv6_typecode_t e)
+{
+    return aim_map_si_i(NULL, e, ppe_icmpv6_typecode_map, 0) ? 1 : 0;
 }
 
 

@@ -444,6 +444,32 @@ int ppe_build_icmp_packet(ppe_packet_t* ppep, uint32_t type, uint32_t code,
                           uint32_t hdr_data, uint8_t *icmp_data,
                           uint32_t icmp_data_len);
 
+/*
+ * @brief Build IPV6 header and fill all fields in the packet.
+ * @param src_ip Source IPV6 Address.
+ * @param dest_ip Destination IPV6 Address. 
+ * @param total_len Total length of IPV6 payload.
+ * @hop_limit Hop Limit.
+ * @next_header Higher level Protocol.
+ * @traffic_class Differentiated Services.
+ * @flow_label Flow label.
+ */
+int
+ppe_build_ipv6_header(ppe_packet_t* ppep, uint8_t *src_ip, uint8_t *dest_ip,
+                      uint32_t total_len, uint32_t hop_limit, uint8_t next_header,
+                      uint8_t traffic_class, uint32_t flow_label);
+
+/*
+ * @brief Build ICMPV6 packet.
+ * @param ppep The PPE packet structure.
+ * @param type ICMPV6 type.
+ * @param code ICMPV6 code.
+ * @param icmpv6_msg Pointer to the ICMPV6 message.
+ * @param icmpv6_msg_len length of ICMPV6 message in bytes. 
+ */
+int
+ppe_build_icmpv6_packet(ppe_packet_t* ppep, uint32_t type, uint32_t code,
+                        uint8_t *icmpv6_msg, uint32_t icmpv6_msg_len);
 
 /**
  * @brief Build UDP header and fill all fields in the packet.
