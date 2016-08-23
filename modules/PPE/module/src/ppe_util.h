@@ -26,6 +26,7 @@ uint32_t ppe_ip_header_checksum_update(ppe_packet_t* ppep);
 uint32_t ppe_tcp_header_checksum_update(ppe_packet_t* ppep);
 uint32_t ppe_udp_header_checksum_update(ppe_packet_t* ppep);
 uint32_t ppe_icmp_header_checksum_update(ppe_packet_t* ppep);
+uint32_t ppe_icmpv6_header_checksum_update(ppe_packet_t* ppep);
 
 
 #endif /* __PPE_UTIL_H__ */

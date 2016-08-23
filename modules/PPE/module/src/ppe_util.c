@@ -118,13 +118,15 @@ ppe_pseudoheader_checksum_update(ppe_packet_t* ppep,
                                  uint8_t* header,
                                  uint8_t protocol)
 {
-    if(header) {
+    if (header) {
         int csum = 0;
-        uint32_t size;
-        uint8_t pseudo_header[12];
+        uint32_t size, pseudo_header_length;
+        uint8_t pseudo_header[40] = {0};
         ppe_field_t checksum_field;
+        uint8_t* ip_header = ppep->headers[PPE_HEADER_IP4].start;
+        uint8_t* ipv6_header = ppep->headers[PPE_HEADER_IP6].start;
 
-        if(protocol == PPE_IP_PROTOCOL_TCP) {
+        if (protocol == PPE_IP_PROTOCOL_TCP) {
             /* Calculate Header+Payload Size */
             size = ppep->size;
             size -= (header-ppep->data);
@@ -135,19 +137,39 @@ ppe_pseudoheader_checksum_update(ppe_packet_t* ppep,
             checksum_field = PPE_FIELD_UDP_CHECKSUM;
         }
 
-        /* Pseudoheader in network order */
-        PPE_MEMCPY(pseudo_header+0,
-                   ppe_fieldp_get(ppep, PPE_FIELD_IP4_SRC_ADDR), 4);
-        PPE_MEMCPY(pseudo_header+4,
-                   ppe_fieldp_get(ppep, PPE_FIELD_IP4_DST_ADDR), 4);
-        pseudo_header[8] = 0x00;
-        pseudo_header[9] = protocol;
-        pseudo_header[10] = (size >> 8);
-        pseudo_header[11] = (size);
+        /* Only for IPv4 Packets */
+        if (ip_header) {
+            /* Pseudoheader in network order */
+            PPE_MEMCPY(pseudo_header+0,
+                       ppe_fieldp_get(ppep, PPE_FIELD_IP4_SRC_ADDR), 4);
+            PPE_MEMCPY(pseudo_header+4,
+                       ppe_fieldp_get(ppep, PPE_FIELD_IP4_DST_ADDR), 4);
+            pseudo_header[8] = 0x00;
+            pseudo_header[9] = protocol;
+            pseudo_header[10] = (size >> 8);
+            pseudo_header[11] = (size);
+            pseudo_header_length = 12;
+        }
+
+        /* Only for IPv6 Packets */
+        if (ipv6_header) {
+            uint16_t plen;
+
+            /* Pseudoheader in network order */
+            PPE_MEMCPY(pseudo_header+0,
+                       ppe_fieldp_get(ppep, PPE_FIELD_IP6_SRC_ADDR), 16);
+            PPE_MEMCPY(pseudo_header+16,
+                       ppe_fieldp_get(ppep, PPE_FIELD_IP6_DST_ADDR), 16);
+            ppe_wide_field_get(ppep, PPE_FIELD_IP6_PAYLOAD_LENGTH, (uint8_t *)&plen);
+
+            *(uint32_t *)(pseudo_header+32) = htonl(ntohs(plen));
+            pseudo_header[39] = protocol;
+            pseudo_header_length = 40;
+        }
 
         /* Clear existing checksum and compute */
         ppe_field_set(ppep, checksum_field, 0);
-        csum = ip_checksum__((uint8_t*)pseudo_header, sizeof(pseudo_header),
+        csum = ip_checksum__((uint8_t*)pseudo_header, pseudo_header_length,
                              header, size,
                              NULL, 0);
         ppe_field_set(ppep,
@@ -268,7 +290,7 @@ ppe_icmpv6_header_checksum_update(ppe_packet_t* ppep)
 
     /* Only for ICMPV6 Packets */
     if(icmpv6_header) {
-        
+
         /* Get the length of ICMPV6 Data */
         ppe_field_get(ppep, PPE_FIELD_IP6_PAYLOAD_LENGTH, &ipv6_total_len);
         size = ipv6_total_len;
@@ -280,14 +302,14 @@ ppe_icmpv6_header_checksum_update(ppe_packet_t* ppep)
                    ppe_fieldp_get(ppep, PPE_FIELD_IP6_DST_ADDR), 16);
         ppe_wide_field_get(ppep, PPE_FIELD_IP6_PAYLOAD_LENGTH, (uint8_t *)&plen);
         ppe_wide_field_get(ppep, PPE_FIELD_IP6_NEXT_HEADER, &nxt_hdr);
-        
+
         *(uint32_t *)(pseudo_header+32) = htonl(ntohs(plen));
         pseudo_header[39] = nxt_hdr;
         ppe_field_set(ppep, PPE_FIELD_ICMPV6_CHECKSUM, 0);
-        
+
         csum = ip_checksum__((uint8_t *)pseudo_header, sizeof(pseudo_header),
                              icmpv6_header, size, NULL, 0);
-                
+
         ppe_field_set(ppep, PPE_FIELD_ICMPV6_CHECKSUM, csum);
     }
     return csum;
@@ -307,9 +329,9 @@ ppe_build_ipv6_header(ppe_packet_t* ppep, uint8_t *src_ip, uint8_t *dest_ip,
 
     traffic_class_u = traffic_class >> 4;
     traffic_class_l = traffic_class & 0xF;
-    flow_label_l = flow_label & 0xFFFF; 
-    flow_label_u = flow_label >> 16;  
-    
+    flow_label_l = flow_label & 0xFFFF;
+    flow_label_u = flow_label >> 16;
+
     /* Version = 6 */
     ppe_field_set(ppep, PPE_FIELD_IP6_VERSION, 6);
     ppe_field_set(ppep, PPE_FIELD_IP6_TRAFFIC_CLASS_U, traffic_class_u);
@@ -323,8 +345,7 @@ ppe_build_ipv6_header(ppe_packet_t* ppep, uint8_t *src_ip, uint8_t *dest_ip,
     ppe_wide_field_set(ppep, PPE_FIELD_IP6_SRC_ADDR, src_ip);
     ppe_wide_field_set(ppep, PPE_FIELD_IP6_DST_ADDR, dest_ip);
 
-    /* Update the checksum */
-    ppe_icmpv6_header_checksum_update(ppep);
+    /* IPv6 header has no checksum */
 
     /* Need to reparse to recognize proto */
     ppe_parse(ppep);
@@ -347,8 +368,8 @@ ppe_build_icmpv6_packet(ppe_packet_t* ppep, uint32_t type, uint32_t code,
                icmpv6_msg_len);
 
     /* Update the checksum */
-    ppe_icmpv6_header_checksum_update(ppep);
-    
+    ppe_packet_update(ppep);
+
     return 0;
 }
 
