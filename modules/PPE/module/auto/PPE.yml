@@ -227,8 +227,8 @@ headers: &headers
 - ETHERNET
 - ETHER
 - '8021Q'
-- 'OUTER_8021Q'
-- 'INNER_8021Q'
+- '8021Q1'
+- '8021Q2'
 - LLC
 - ETHERII
 - SNAP
@@ -277,15 +277,15 @@ fields: &fields
 - [ '8021Q',           CFI,             1,  2, 4 ]
 - [ '8021Q',           VLAN,           12,  2, 0 ]
 
-- [ OUTER_8021Q,       TPID,           16,  0, 0 ]
-- [ OUTER_8021Q,       PRI,             3,  2, 5 ]
-- [ OUTER_8021Q,       CFI,             1,  2, 4 ]
-- [ OUTER_8021Q,       VLAN,           12,  2, 0 ]
+- [ '8021Q1',          TPID,           16,  0, 0 ]
+- [ '8021Q1',          PRI,             3,  2, 5 ]
+- [ '8021Q1',          CFI,             1,  2, 4 ]
+- [ '8021Q1',          VLAN,           12,  2, 0 ]
 
-- [ INNER_8021Q,       TPID,           16,  0, 0 ]
-- [ INNER_8021Q,       PRI,             3,  2, 5 ]
-- [ INNER_8021Q,       CFI,             1,  2, 4 ]
-- [ INNER_8021Q,       VLAN,           12,  2, 0 ]
+- [ '8021Q2',          TPID,           16,  0, 0 ]
+- [ '8021Q2',          PRI,             3,  2, 5 ]
+- [ '8021Q2',          CFI,             1,  2, 4 ]
+- [ '8021Q2',          VLAN,           12,  2, 0 ]
 
 - [ LLC,                LENGTH,         16,  0, 0 ]
 - [ LLC,                DSAP,            8,  2, 0 ]

@@ -78,8 +78,11 @@ ppe_packet_update(ppe_packet_t* ppep)
 int
 ppe_packet_format_get(ppe_packet_t* ppep, ppe_header_t* rv)
 {
-    if(PPE_PACKET_HEADERBIT_GET(ppep, PPE_HEADER_INNER_8021Q)) {
-        *rv = PPE_HEADER_INNER_8021Q;
+    if(PPE_PACKET_HEADERBIT_GET(ppep, PPE_HEADER_8021Q2)) {
+        *rv = PPE_HEADER_8021Q2;
+    }
+    else if(PPE_PACKET_HEADERBIT_GET(ppep, PPE_HEADER_8021Q1)) {
+        *rv = PPE_HEADER_8021Q1;
     }
     else if(PPE_PACKET_HEADERBIT_GET(ppep, PPE_HEADER_8021Q)) {
         *rv = PPE_HEADER_8021Q;
@@ -100,7 +103,7 @@ ppe_packet_format_set(ppe_packet_t* ppep, ppe_header_t type)
 {
     int rv = 0;
     ppe_header_t current;
-    uint8_t header_data[2];
+    uint8_t header_data[4];
 
     ppe_packet_format_get(ppep, &current);
 
@@ -120,17 +123,29 @@ ppe_packet_format_set(ppe_packet_t* ppep, ppe_header_t type)
             {
                 header_data[0] = 0x00;
                 header_data[1] = 0x00;
+                header_data[2] = 0x00;
+                header_data[3] = 0x00;
                 break;
             }
-        case PPE_HEADER_8021Q:          /* fall-through */
-        case PPE_HEADER_INNER_8021Q:
+        case PPE_HEADER_8021Q:  /* fall-through */
+        case PPE_HEADER_8021Q1: /* fall-through */
+        case PPE_HEADER_8021Q2:
             {
                 int offset;
 
-                offset = (current == PPE_HEADER_8021Q) ? 4 : 8;
+                offset = (current == PPE_HEADER_8021Q) ? 4 :
+                         (current == PPE_HEADER_8021Q1) ? 8 : 12;
                 /* save the outer pcp/tag */
                 header_data[0] = ppep->data[14];
                 header_data[1] = ppep->data[15];
+                if(current == PPE_HEADER_8021Q) {
+                    header_data[2] = 0x00;
+                    header_data[3] = 0x00;
+                } else {
+                    /* save the 2nd pcp/tag */
+                    header_data[2] = ppep->data[18];
+                    header_data[3] = ppep->data[19];
+                }
                 PPE_MEMMOVE(ppep->data + 12,
                             ppep->data + (12 + offset),
                             ppep->size - (12 + offset));
@@ -153,13 +168,15 @@ ppe_packet_format_set(ppe_packet_t* ppep, ppe_header_t type)
                 /* no-op */
                 break;
             }
-        case PPE_HEADER_8021Q:          /* fall-through */
-        case PPE_HEADER_INNER_8021Q:
+        case PPE_HEADER_8021Q:  /* fall-through */
+        case PPE_HEADER_8021Q1: /* fall-through */
+        case PPE_HEADER_8021Q2:
             {
                 int offset;
                 uint8_t* old_data;
 
-                offset = (type == PPE_HEADER_8021Q) ? 4 : 8;
+                offset = (type == PPE_HEADER_8021Q) ? 4 :
+                         (type == PPE_HEADER_8021Q1) ? 8 : 12;
                 ppep->size += offset;
                 old_data = ppep->data;
                 if(!ppep->realloc) {
@@ -177,12 +194,21 @@ ppe_packet_format_set(ppe_packet_t* ppep, ppe_header_t type)
                 ppep->data[13] = 0x00;
                 ppep->data[14] = header_data[0];
                 ppep->data[15] = header_data[1];
-                if(type == PPE_HEADER_INNER_8021Q) {
-                    /* zero-out inner pcp/tag */
+                if((type == PPE_HEADER_8021Q1) ||
+                   (type == PPE_HEADER_8021Q2)) {
+                    /* restore 2nd pcp/tag */
                     ppep->data[16] = 0x81;
                     ppep->data[17] = 0x00;
-                    ppep->data[18] = 0x00;
-                    ppep->data[19] = 0x00;
+                    ppep->data[18] = header_data[2];
+                    ppep->data[19] = header_data[3];
+
+                    if(type == PPE_HEADER_8021Q2) {
+                        /* zero-out 3rd pcp/tag */
+                        ppep->data[20] = 0x81;
+                        ppep->data[21] = 0x00;
+                        ppep->data[22] = 0x00;
+                        ppep->data[23] = 0x00;
+                    }
                 }
 
                 if(ppep->realloc) {

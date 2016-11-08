@@ -408,6 +408,7 @@ ppe_parse(ppe_packet_t* ppep)
     if(data16 == 0x8100) {
         uint8_t* outer_header;
         uint8_t* inner_header;
+        uint8_t* third_header;
 
         /* Check if there's another tag */
         outer_header = data;
@@ -416,12 +417,24 @@ ppe_parse(ppe_packet_t* ppep)
             /* Handle double-tag (q-in-q) */
             inner_header = data;
             data16 = data16__(4, 0, &data, &size);
-            PPE_PACKET_HEADER_SET(ppep, PPE_HEADER_INNER_8021Q, inner_header);
-            ppe_field_set(ppep, PPE_FIELD_META_PACKET_FORMAT,
-                          PPE_HEADER_INNER_8021Q);
+            if(data16 == 0x8100) {
+                /* Handle triple-tag */
+                third_header = data;
+                data16 = data16__(4, 0, &data, &size);
+
+                PPE_PACKET_HEADER_SET(ppep, PPE_HEADER_8021Q2, third_header);
+                ppe_field_set(ppep, PPE_FIELD_META_PACKET_FORMAT,
+                              PPE_HEADER_8021Q2);
+            } else {
+                ppe_field_set(ppep, PPE_FIELD_META_PACKET_FORMAT,
+                              PPE_HEADER_8021Q1);
+            }
+
+            PPE_PACKET_HEADER_SET(ppep, PPE_HEADER_8021Q1, inner_header);
         } else {
             ppe_field_set(ppep, PPE_FIELD_META_PACKET_FORMAT, PPE_HEADER_8021Q);
         }
+
         PPE_PACKET_HEADER_SET(ppep, PPE_HEADER_8021Q, outer_header);
     }
     else {
