@@ -65,6 +65,7 @@ static int reload__(cjson_util_file_t* jfs)
 
     if(jfs->root) {
         cJSON_Delete(jfs->root);
+        jfs->root = NULL;
     }
 
     if(jfs->filename) {
