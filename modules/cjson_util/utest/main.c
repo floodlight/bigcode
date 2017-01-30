@@ -116,24 +116,59 @@ int aim_main(int argc, char* argv[])
 
     TRY(cjson_util_lookup_int(root, &iv, "data.int.i1"));
     AIM_ASSERT(iv == 1);
+    TRY(cjson_util_lookup_svalue(root, &sv, "data.int.i1"));
+    AIM_ASSERT(!strcmp(sv, "1")); aim_free(sv);
+
     TRY(cjson_util_lookup_int(root, &iv, "data.%s.i%c", "int", '1'));
     AIM_ASSERT(iv == 1);
+    TRY(cjson_util_lookup_svalue(root, &sv, "data.%s.i%c", "int", '1'));
+    AIM_ASSERT(!strcmp(sv, "1")); aim_free(sv);
+
+
     TRY(cjson_util_lookup_int(root, &iv, "%s.int.i2", "data"));
     AIM_ASSERT(iv == 2);
+    TRY(cjson_util_lookup_svalue(root, &sv, "%s.int.i2", "data"));
+    AIM_ASSERT(!strcmp(sv, "2")); aim_free(sv);
+
     AIM_ASSERT(cjson_util_lookup_int(root, &iv, "data.int.bad") == AIM_ERROR_PARAM);
+    TRY(cjson_util_lookup_svalue(root, &sv, "data.int.bad"));
+    AIM_ASSERT(!strcmp(sv, "notanint")); aim_free(sv);
+
     TRY(cjson_util_lookup_int(root, &iv, "data.int.more.i%d", 4));
     AIM_ASSERT(iv == 4);
+    TRY(cjson_util_lookup_svalue(root, &sv, "data.int.more.i%d", 4));
+    AIM_ASSERT(!strcmp(sv, "4")); aim_free(sv);
+
     TRY(cjson_util_lookup_bool(root, &bv, "data.bools.%c", 't'));
     AIM_ASSERT(bv == 1);
+    TRY(cjson_util_lookup_svalue(root, &sv, "data.bools.%c", 't'));
+    AIM_ASSERT(!strcmp(sv, "true")); aim_free(sv);
+
+    TRY(cjson_util_lookup_svalue(root, &sv, "data.bools.%c", 't'));
+    AIM_ASSERT(!strcmp(sv, "true")); aim_free(sv);
+
     TRY(cjson_util_lookup_bool(root, &bv, "data.bools.%c", 'f'));
     AIM_ASSERT(bv == 0);
+    TRY(cjson_util_lookup_svalue(root, &sv, "data.bools.%c", 'f'));
+    AIM_ASSERT(!strcmp(sv, "false")); aim_free(sv);
+
     AIM_ASSERT(cjson_util_lookup_bool(root, &iv, "data.int.bad") == AIM_ERROR_PARAM);
+
     TRY(cjson_util_lookup_double(root, &dv, "data.doubles.pi"));
     AIM_ASSERT(dv >= 3.141 && dv <= 3.15);
+    TRY(cjson_util_lookup_svalue(root, &sv, "data.doubles.pi"));
+    AIM_ASSERT(!strcmp(sv, "3.141590")); aim_free(sv);
+
     TRY(cjson_util_lookup_string(root, &sv, "data.strings.alpha.bravo.charlie.delta"));
     AIM_ASSERT(!strcmp(sv, "foxtrot"));
+    TRY(cjson_util_lookup_svalue(root, &sv, "data.strings.alpha.bravo.charlie.delta"));
+    AIM_ASSERT(!strcmp(sv, "foxtrot")); aim_free(sv);
+
     TRY(cjson_util_lookup_string(root, &sv, "data.int.more.hex"));
     AIM_ASSERT(!strcmp(sv, "0xDEADf00d"));
+    TRY(cjson_util_lookup_svalue(root, &sv, "data.int.more.hex"));
+    AIM_ASSERT(!strcmp(sv, "0xDEADf00d")); aim_free(sv);
+
     TRY(cjson_util_lookup_int(root, &iv, "data.int.more.hex"));
     AIM_ASSERT(iv == 0xdeadf00d);
     TRY(cjson_util_lookup_string(root, &sv, "data.int.more.hexbad"));
@@ -141,4 +176,3 @@ int aim_main(int argc, char* argv[])
     cJSON_Delete(root);
     return 0;
 }
-

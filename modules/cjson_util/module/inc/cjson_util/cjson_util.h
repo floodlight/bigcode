@@ -140,4 +140,31 @@ int cjson_util_lookup_bool(cJSON *root, int *result, const char *fmt, ...);
 int cjson_util_vlookup_bool(cJSON *root, int *result, const char *fmt,
                             va_list vargs);
 
+/**
+ * @brief Lookup a value as a string.
+ * @param root The root of the tree.
+ * @param result The result.
+ * @param fmt The path format string.
+ * @param vargs The path format args.
+ * @notes
+ * Key values are converted to strings as follows:
+ *     string -- the string is returned.
+ *     bool   -- the string "true" or "false" is returned.
+ *     number -- a best effort string representation of the integer or double.
+ *
+ * The result must be freed.
+ */
+int cjson_util_vlookup_svalue(cJSON *root, char** result, const char* fmt, va_list vargs);
+
+/**
+ * @brief Lookup a value as a string.
+ * @param root The root of the tree.
+ * @param result The result.
+ * @param fmt The path format string.
+ * @param ... The path format args.
+ * @notes See cjson_util_vlookup_svalue()
+ */
+int cjson_util_lookup_svalue(cJSON *root, char** result, const char *fmt, ...);
+
+
 #endif /* __CJSON_UTIL_H__ */

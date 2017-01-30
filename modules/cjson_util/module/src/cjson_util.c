@@ -28,7 +28,9 @@
 #include <AIM/aim_error.h>
 #include <AIM/aim_memory.h>
 #include "cjson_util_log.h"
-
+#include <limits.h>
+#include <math.h>
+#include <float.h>
 /*
  * Given the start of a string containing newlines and another pointer
  * inside that string, return the line and column number of that position.
@@ -327,3 +329,61 @@ cjson_util_lookup_bool(cJSON *root, int* result, const char* fmt, ...)
 
 }
 
+int
+cjson_util_vlookup_svalue(cJSON *root, char** result, const char* fmt, va_list vargs)
+{
+    cJSON* node;
+    int rv;
+
+    rv = cjson_util_vlookup(root, &node, fmt, vargs);
+
+    if(rv < 0) {
+        return rv;
+    }
+    switch(node->type)
+        {
+        case cJSON_String:
+            *result = aim_strdup(node->valuestring);
+            break;
+        case cJSON_True:
+            *result = aim_strdup("true");
+            break;
+        case cJSON_False:
+            *result = aim_strdup("false");
+            break;
+        case cJSON_Number:
+            {
+                /** Same handling as https://github.com/floodlight/bigcode/blob/master/modules/cjson/module/src/cJSON.c#L119 */
+                double d = node->valuedouble;
+                if (fabs(((double)node->valueint)-d)<=DBL_EPSILON && d<=INT_MAX && d>=INT_MIN) {
+                    *result = aim_fstrdup("%d", node->valueint);
+                }
+                else {
+                    if (fabs(floor(d)-d)<=DBL_EPSILON && fabs(d)<1.0e60) {
+                        *result = aim_fstrdup("%.0f", d);
+                    }
+                    else if (fabs(d)<1.0e-6 || fabs(d)>1.0e9) {
+                        *result = aim_fstrdup("%e", d);
+                    } else {
+                        *result = aim_fstrdup("%f", d);
+                    }
+                }
+                break;
+            }
+        default:
+            return AIM_ERROR_PARAM;
+        }
+
+    return 0;
+}
+
+int
+cjson_util_lookup_svalue(cJSON *root, char** result, const char *fmt, ...)
+{
+    int rv;
+    va_list vargs;
+    va_start(vargs, fmt);
+    rv = cjson_util_vlookup_svalue(root, result, fmt, vargs);
+    va_end(vargs);
+    return rv;
+}
