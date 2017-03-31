@@ -30,12 +30,13 @@
 #include "cjson_util_log.h"
 #include <cjson_util/cjson_util.h>
 
-static time_t
+static uint64_t
 mtime__(const char* fname)
 {
     struct stat st;
     if(stat(fname, &st) == 0) {
-        return st.st_mtime;
+        return (uint64_t) st.st_mtim.tv_sec * 1000*1000*1000
+            + st.st_mtim.tv_nsec;
     }
     else {
         return 0;
@@ -136,7 +137,7 @@ cjson_util_file_open(const char* fname, cjson_util_file_t* jfs,
 int
 cjson_util_file_reload(cjson_util_file_t* jfs, int force)
 {
-    time_t mtime = mtime__(jfs->filename);
+    uint64_t mtime = mtime__(jfs->filename);
     if( (mtime != jfs->mtime) || force ) {
         int rv = reload__(jfs);
         return (rv < 0) ? rv : 1;
