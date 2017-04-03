@@ -43,7 +43,7 @@ typedef struct cjson_util_file_s {
     char* filename;
 
     /** private */
-    time_t mtime;
+    uint64_t mtime;
     char* defaultj;
 } cjson_util_file_t;
 
@@ -67,7 +67,7 @@ void cjson_util_file_close(cjson_util_file_t* jfs);
  * @param force Force reload.
  * @returns 1 if reloaded, 0 if not reloaded.
  * @note The file will be reloaded if it has changed since the last time
- * it was loaderd, or if the reload is forced.
+ * it was loaded, or if the reload is forced.
  */
 int cjson_util_file_reload(cjson_util_file_t* jfs, int force);
 
