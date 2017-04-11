@@ -1,2 +1,2 @@
 name: cjson_util
-depends: cjson
+depends: [ cjson, IOF ]
