@@ -64,6 +64,11 @@ char* cjson_util_json_str(cJSON* root);
 cJSON* cjson_util_flags(uint32_t flags, aim_map_si_t* map);
 
 /**
+ * @brief Create a string array containing true flags.
+ */
+cJSON* cjson_util_flag_array(uint32_t flags, aim_map_si_t* map);
+
+/**
  * @brief Add a string with formatting to an object.
  * @param item The object.
  * @param name The name.

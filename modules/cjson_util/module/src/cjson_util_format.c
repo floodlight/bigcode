@@ -204,6 +204,18 @@ cjson_util_flags(uint32_t flags, aim_map_si_t* map)
     return rv;
 }
 
+cJSON*
+cjson_util_flag_array(uint32_t flags, aim_map_si_t* map)
+{
+    aim_map_si_t* p;
+    cJSON* rv = cJSON_CreateArray();
+    for(p = map; p->s; p++) {
+        if(flags & (p->i)) {
+            cJSON_AddItemToArray(rv, cJSON_CreateString(p->s));
+        }
+    }
+    return rv;
+}
 int
 cjson_util_add_string_to_object(cJSON* item, const char* name,
                                 const char* fmt, ...)
