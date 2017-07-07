@@ -137,8 +137,25 @@ ucli_vargparse(ucli_context_t* uc, const char* fmt, aim_va_list_t* vargs)
                 type = src;
             }
 
-            rv = ucli_vargparse_type__(uc, 0, typeName, uc->pargs->args[i],
+            /**
+             * Simple argument default values can be specified
+             * with a type:default-value notation in the type specifier itself.
+             *
+             * For example a boolean with a default of False
+             * can be specified as {bool:False}
+             *
+             */
+            aim_tokens_t* tokens = aim_strsplit(typeName, ":");
+            const char* tname =  tokens->tokens[0];
+            const char* tvalue = uc->pargs->args[i];
+            if( (tokens->count == 2) && (tvalue == NULL)) {
+                tvalue = tokens->tokens[1];
+            }
+
+            rv = ucli_vargparse_type__(uc, 0, (char*)tname, (char*)tvalue,
                                        vargs);
+            aim_tokens_free(tokens);
+
             if(rv < 0) {
                 return rv;
             }
