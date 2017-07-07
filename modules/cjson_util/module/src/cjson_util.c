@@ -210,6 +210,27 @@ cjson_util_vlookup_int(cJSON *root, int* result, const char* fmt,
     return rv;
 }
 
+int
+cjson_util_vlookup_int_default(cJSON *root, int def, const char* fmt,
+                               va_list vargs)
+{
+    int rv;
+    if(cjson_util_vlookup_int(root, &rv, fmt, vargs) < 0) {
+        rv = def;
+    }
+    return rv;
+}
+
+int
+cjson_util_lookup_int_default(cJSON *root, int def, const char* fmt, ...)
+{
+    int rv;
+    va_list vargs;
+    va_start(vargs, fmt);
+    rv = cjson_util_vlookup_int_default(root, def, fmt, vargs);
+    va_end(vargs);
+    return rv;
+}
 
 int
 cjson_util_lookup_int(cJSON *root, int* result, const char* fmt, ...)
@@ -230,6 +251,7 @@ cjson_util_vlookup_string(cJSON* root, char** result, const char* fmt,
     cJSON *node;
     int rv;
 
+
     rv = cjson_util_vlookup(root, &node, fmt, vargs);
     if(rv < 0) {
         return rv;
@@ -243,6 +265,27 @@ cjson_util_vlookup_string(cJSON* root, char** result, const char* fmt,
     return 0;
 }
 
+char*
+cjson_util_vlookup_string_default(cJSON* root, char* def, const char* fmt,
+                                  va_list vargs)
+{
+    char* rv;
+    if(cjson_util_vlookup_string(root, &rv, fmt, vargs) < 0) {
+        rv = def;
+    }
+    return rv;
+}
+
+char*
+cjson_util_lookup_string_default(cJSON* root, char* def, const char* fmt, ...)
+{
+    char* rv;
+    va_list vargs;
+    va_start(vargs, fmt);
+    rv = cjson_util_vlookup_string_default(root, def, fmt, vargs);
+    va_end(vargs);
+    return rv;
+}
 
 int
 cjson_util_lookup_string(cJSON* root, char** result, const char* fmt, ...)
@@ -277,7 +320,27 @@ cjson_util_vlookup_double(cJSON *root, double* result, const char* fmt,
     return 0;
 }
 
+double
+cjson_util_vlookup_double_default(cJSON* root, double def, const char* fmt,
+                                  va_list vargs)
+{
+    double rv;
+    if(cjson_util_vlookup_double(root, &rv, fmt, vargs) < 0) {
+        rv = def;
+    }
+    return rv;
+}
 
+double
+cjson_util_lookup_double_default(cJSON* root, double def, const char* fmt, ...)
+{
+    double rv;
+    va_list vargs;
+    va_start(vargs, fmt);
+    rv = cjson_util_vlookup_double_default(root, def, fmt, vargs);
+    va_end(vargs);
+    return rv;
+}
 
 int
 cjson_util_lookup_double(cJSON *root, double* result, const char* fmt, ...)
@@ -314,6 +377,28 @@ cjson_util_vlookup_bool(cJSON *root, int* result, const char* fmt,
     }
 
     return 0;
+}
+
+int
+cjson_util_vlookup_bool_default(cJSON* root, int def, const char* fmt,
+                                va_list vargs)
+{
+    int rv;
+    if(cjson_util_vlookup_bool(root, &rv, fmt, vargs) < 0) {
+        rv = def;
+    }
+    return rv;
+}
+
+int
+cjson_util_lookup_bool_default(cJSON* root, int def, const char* fmt, ...)
+{
+    int rv;
+    va_list vargs;
+    va_start(vargs, fmt);
+    rv = cjson_util_vlookup_bool_default(root, def, fmt, vargs);
+    va_end(vargs);
+    return rv;
 }
 
 

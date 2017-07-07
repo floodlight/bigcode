@@ -116,6 +116,9 @@ int aim_main(int argc, char* argv[])
 
     TRY(cjson_util_lookup_int(root, &iv, "data.int.i1"));
     AIM_ASSERT(iv == 1);
+    AIM_ASSERT(cjson_util_lookup_int_default(root, 0, "data.int.i1") == 1);
+    AIM_ASSERT(cjson_util_lookup_int_default(root, 10, "data.int.missing") == 10);
+
     TRY(cjson_util_lookup_svalue(root, &sv, "data.int.i1"));
     AIM_ASSERT(!strcmp(sv, "1")); aim_free(sv);
 
@@ -153,14 +156,22 @@ int aim_main(int argc, char* argv[])
     AIM_ASSERT(!strcmp(sv, "false")); aim_free(sv);
 
     AIM_ASSERT(cjson_util_lookup_bool(root, &iv, "data.int.bad") == AIM_ERROR_PARAM);
+    AIM_ASSERT(cjson_util_lookup_bool_default(root, 1, "data.int.bad") == 1);
 
     TRY(cjson_util_lookup_double(root, &dv, "data.doubles.pi"));
     AIM_ASSERT(dv >= 3.141 && dv <= 3.15);
+    dv = cjson_util_lookup_double_default(root, 2.0, "data.doubles.pi");
+    AIM_ASSERT(dv >= 3.141 && dv <= 3.15);
+    dv = cjson_util_lookup_double_default(root, 2.0, "data.doubles.missing");
+    AIM_ASSERT(dv == 2.0);
+
     TRY(cjson_util_lookup_svalue(root, &sv, "data.doubles.pi"));
     AIM_ASSERT(!strcmp(sv, "3.141590")); aim_free(sv);
 
     TRY(cjson_util_lookup_string(root, &sv, "data.strings.alpha.bravo.charlie.delta"));
     AIM_ASSERT(!strcmp(sv, "foxtrot"));
+    AIM_ASSERT(!strcmp(cjson_util_lookup_string_default(root, "foobar", "data.strings.alpha.bravo.charlie.delta"), "foxtrot"));
+    AIM_ASSERT(!strcmp(cjson_util_lookup_string_default(root, "foobar", "data.strings.alpha.bravo.charlie.missing"), "foobar"));
     TRY(cjson_util_lookup_svalue(root, &sv, "data.strings.alpha.bravo.charlie.delta"));
     AIM_ASSERT(!strcmp(sv, "foxtrot")); aim_free(sv);
 
