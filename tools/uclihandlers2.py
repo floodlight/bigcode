@@ -75,6 +75,8 @@ import os
 import sys
 import re
 import pprint
+import infra
+import wod
 
 class UcliGenerator(object):
     def __init__(self):
@@ -168,7 +170,7 @@ class UcliGenerator(object):
                 name = key
             else:
                 name = "%s__%s" % (parent, key)
-            s += '    if(%s__node__ == NULL) %s__node__ = ucli_node_create("%s", NULL, NULL);\n' % (name, name, key)
+            s += '    if(%s__node__ == NULL) %s__node__ = ucli_node_create("%s", NULL, NULL);\n' % (name, name, key.replace("_ucli", ""))
             for(k, v) in value.iteritems():
                 s += self.__emit_inits(k, v, name)
 
@@ -209,8 +211,8 @@ class UcliGenerator(object):
         return s
 
 
-    def update(self, fname):
-        source = open(fname).read()
+    def update(self, src, stdout=False):
+        source = open(src).read()
         start = "/* <auto.ucli.handlers.start> */"
         end   = "/* <auto.ucli.handlers.end> */"
 
@@ -233,9 +235,17 @@ class UcliGenerator(object):
         expr = rstart + ".*" + rend
         source = re.sub(expr, s, source, flags=re.DOTALL)
 
-        with open(fname, "w") as f:
-            f.write(source)
+        if stdout:
+            print source
+        else:
+            wod.write_on_diff(src, source, msg=False)
 
-u = UcliGenerator()
-u.add_file(sys.argv[1])
-u.update(sys.argv[1])
+if __name__ == '__main__':
+    import argparse
+    ap = argparse.ArgumentParser("uclihandlers2")
+    ap.add_argument("source", help="uCli Source file.")
+    ap.add_argument("--stdout", help="Send output to stdout instead of updating the source file.", action='store_true')
+    ops = ap.parse_args()
+    u = UcliGenerator()
+    u.add_file(ops.source)
+    u.update(ops.source, ops.stdout)
