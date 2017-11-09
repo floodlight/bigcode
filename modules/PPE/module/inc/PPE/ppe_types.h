@@ -742,7 +742,7 @@ typedef struct ppe_dfk_s {
     /** Header for this key */
     ppe_dfk_header_t header;
     /** Mask of valid fields in this key data */
-    uint32_t mask;
+    uint64_t mask;
     /** Key data */
     uint8_t* data;
     /** Key data size */
