@@ -23,16 +23,20 @@
 #
 ############################################################
 
-THIS_DIR := $(dir $(lastword $(MAKEFILE_LIST)))
-orc_INCLUDES := -I $(THIS_DIR)inc
-orc_INTERNAL_INCLUDES := -I $(THIS_DIR)src
-orc_DEPENDMODULE_ENTRIES := init:orc ucli:orc
+LIBRARY := ofdpa_drv
+$(LIBRARY)_SUBDIR := $(dir $(lastword $(MAKEFILE_LIST)))
+include $(BUILDER)/lib.mk
 
-OFDPA_HEADERS := $(dir $(shell $(ONL_PKG_INSTALL) ofdpa-2.0-closed:powerpc --find-file ofdpa_api.h))
-OFDPA_CLIENT_LIB := $(shell $(ONL_PKG_INSTALL) ofdpa-2.0-closed:powerpc --find-file libofdpa_rpc_client.so.1)
+# SHAREDLIB := ofdpa.so
 
-GLOBAL_CFLAGS += -I$(OFDPA_HEADERS)
-GLOBAL_CFLAGS += -g
+# # Build a shared lib from all object files
+# #$(SHAREDLIB)_TARGETS := $(ALL_TARGETS)
+# $(SHAREDLIB)_TARGETS := ofdpa.so
+# include $(BUILDER)/so.mk
+#
+# include $(BUILDER)/targets.mk
+#
+# #LDFLAGS += -lpthread -lrt
 
-GLOBAL_LINK_LIBS += -lpthread -lm
-GLOBAL_LINK_LIBS += $(OFDPA_CLIENT_LIB)
+# GLOBAL_CFLAGS += -fPIC
+#GLOBAL_LINK_LIBS += -lpcap -lrt
