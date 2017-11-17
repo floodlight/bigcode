@@ -182,7 +182,7 @@ int
 cjson_util_json_pvs(aim_pvs_t* pvs, cJSON* root)
 {
     char* str = cjson_util_json_str(root);
-    aim_printf(pvs, "%s", str);
+    aim_printf(pvs, "%s\n", str);
     aim_free(str);
     return 0;
 }
@@ -216,6 +216,36 @@ cjson_util_flag_array(uint32_t flags, aim_map_si_t* map)
     }
     return rv;
 }
+
+int
+cjson_util_array_to_flags(cJSON* cj, uint32_t* flagsp, aim_map_si_t* map)
+{
+    if(flagsp == NULL || cj == NULL) {
+        return -1;
+    }
+    *flagsp = 0;
+
+    int s = cJSON_GetArraySize(cj);
+    if(s < 0) {
+        return -1;
+    }
+
+    int i;
+    for(i = 0; i < s; i++) {
+        cJSON* item = cJSON_GetArrayItem(cj, i);
+        if(item->type != cJSON_String) {
+            return -1;
+        }
+        int v;
+        if(aim_map_si_s(&v, item->valuestring, map, 0) < 0) {
+            return -1;
+        }
+        *flagsp |= v;
+    }
+
+    return 0;
+}
+
 int
 cjson_util_add_string_to_object(cJSON* item, const char* name,
                                 const char* fmt, ...)
