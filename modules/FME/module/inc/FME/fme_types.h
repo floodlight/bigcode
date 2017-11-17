@@ -72,7 +72,7 @@ typedef int (*fme_entry_cookie_dump_f)(void* cookie, aim_pvs_t* pvs);
 typedef struct fme_key_s {
 
     /** Mask of key bits for this entry. */
-    uint32_t keymask;
+    uint64_t keymask;
 
     /** The length of this key (in bytes) */
     int size;

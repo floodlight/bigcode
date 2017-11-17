@@ -101,7 +101,7 @@ static int reload__(cjson_util_file_t* jfs)
                     }
                 case AIM_ERROR_PARAM:
                     {
-                        AIM_LOG_ERROR("'%s' coudl not be parsed.", jfs->filename);
+                        AIM_LOG_ERROR("'%s' could not be parsed.", jfs->filename);
                         break;
                     }
                 default:
@@ -122,16 +122,12 @@ int
 cjson_util_file_open(const char* fname, cjson_util_file_t* jfs,
                      const char* defaultj)
 {
-    int rv;
     cjson_util_file_close(jfs);
     jfs->filename = aim_strdup(fname);
     if(defaultj) {
         jfs->defaultj = aim_strdup(defaultj);
     }
-    if( (rv = reload__(jfs)) < 0 ) {
-        cjson_util_file_close(jfs);
-    }
-    return rv;
+    return reload__(jfs);
 }
 
 int
