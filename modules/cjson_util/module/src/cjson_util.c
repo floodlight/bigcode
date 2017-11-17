@@ -31,6 +31,7 @@
 #include <limits.h>
 #include <math.h>
 #include <float.h>
+#include <errno.h>
 /*
  * Given the start of a string containing newlines and another pointer
  * inside that string, return the line and column number of that position.
@@ -77,6 +78,12 @@ cjson_util_parse_file(const char* filename, cJSON** result)
     data = aim_zmalloc(len + 1);
     if (fread(data, 1, len, f) == 0) {
         aim_free(data);
+        if (feof(f)) {
+            AIM_LOG_ERROR("%s: end of file", filename);
+        }
+        if (ferror(f)) {
+            AIM_LOG_ERROR("%s: %{errno}", filename, errno);
+        }
         fclose(f);
         AIM_LOG_ERROR("failed to read %s", filename);
         return AIM_ERROR_INTERNAL;
