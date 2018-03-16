@@ -223,6 +223,10 @@ typedef enum ppe_field_e {
     PPE_FIELD_GRE_VERSION,
     PPE_FIELD_GRE_PROTOCOL,
     PPE_FIELD_GRE_KEY,
+    PPE_FIELD_VXLAN_FLAGS,
+    PPE_FIELD_VXLAN_RESERVED1,
+    PPE_FIELD_VXLAN_VNID,
+    PPE_FIELD_VXLAN_RESERVED2,
     PPE_FIELD_SLOW_PROTOCOLS_SUBTYPE,
     PPE_FIELD_LACP_VERSION,
     PPE_FIELD_LACP_ACTOR_INFO,
@@ -318,6 +322,7 @@ typedef enum ppe_header_e {
     PPE_HEADER_TCP,
     PPE_HEADER_UDP,
     PPE_HEADER_GRE,
+    PPE_HEADER_VXLAN,
     PPE_HEADER_ICMP,
     PPE_HEADER_ICMPV6,
     PPE_HEADER_SLOW_PROTOCOLS,
@@ -352,6 +357,7 @@ typedef enum ppe_header_e {
     "TCP", \
     "UDP", \
     "GRE", \
+    "VXLAN", \
     "ICMP", \
     "ICMPV6", \
     "SLOW_PROTOCOLS", \
@@ -477,6 +483,7 @@ extern aim_map_si_t ppe_igmp_type_desc_map[];
 typedef enum ppe_pservice_port_e {
     PPE_PSERVICE_PORT_DHCP_CLIENT = 68,
     PPE_PSERVICE_PORT_DHCP_SERVER = 67,
+    PPE_PSERVICE_PORT_VXLAN = 4789,
 } ppe_pservice_port_t;
 
 /** Enum names. */

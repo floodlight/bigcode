@@ -16,7 +16,6 @@
  * License.
  *
  ***************************************************************/
-
 #include <PPE/ppe_config.h>
 #include <PPE/ppe.h>
 
@@ -147,6 +146,17 @@ ppe_parse_service_port_DHCP_SERVER(ppe_packet_t* ppep,
     return ppe_parse_dhcp(ppep, sport, dport, data, size);
 }
 
+static inline int
+ppe_parse_service_port_VXLAN(ppe_packet_t* ppep,
+                             uint16_t sport, uint16_t dport,
+                             uint8_t* data, int size)
+{
+    AIM_REFERENCE(sport);
+    AIM_REFERENCE(dport);
+    AIM_REFERENCE(size);
+    PPE_PACKET_HEADER_SET(ppep, PPE_HEADER_VXLAN, data);
+    return 0;
+}
 
 static inline int
 ppe_parse_service_ports(ppe_packet_t* ppep, uint8_t* data, int size)
@@ -157,7 +167,7 @@ ppe_parse_service_ports(ppe_packet_t* ppep, uint8_t* data, int size)
     ppe_field_get(ppep, PPE_FIELD_L4_SRC_PORT, &sport);
     ppe_field_get(ppep, PPE_FIELD_L4_DST_PORT, &dport);
 
-    switch(sport)
+    switch(dport)
         {
 #define PPE_PSERVICE_PORT_ENTRY(_name, _value)                          \
             case PPE_PSERVICE_PORT_##_name:                             \

@@ -318,6 +318,10 @@ aim_map_si_t ppe_field_map[] =
     { "GRE_VERSION", PPE_FIELD_GRE_VERSION },
     { "GRE_PROTOCOL", PPE_FIELD_GRE_PROTOCOL },
     { "GRE_KEY", PPE_FIELD_GRE_KEY },
+    { "VXLAN_FLAGS", PPE_FIELD_VXLAN_FLAGS },
+    { "VXLAN_RESERVED1", PPE_FIELD_VXLAN_RESERVED1 },
+    { "VXLAN_VNID", PPE_FIELD_VXLAN_VNID },
+    { "VXLAN_RESERVED2", PPE_FIELD_VXLAN_RESERVED2 },
     { "SLOW_PROTOCOLS_SUBTYPE", PPE_FIELD_SLOW_PROTOCOLS_SUBTYPE },
     { "LACP_VERSION", PPE_FIELD_LACP_VERSION },
     { "LACP_ACTOR_INFO", PPE_FIELD_LACP_ACTOR_INFO },
@@ -486,6 +490,10 @@ aim_map_si_t ppe_field_desc_map[] =
     { "None", PPE_FIELD_GRE_VERSION },
     { "None", PPE_FIELD_GRE_PROTOCOL },
     { "None", PPE_FIELD_GRE_KEY },
+    { "None", PPE_FIELD_VXLAN_FLAGS },
+    { "None", PPE_FIELD_VXLAN_RESERVED1 },
+    { "None", PPE_FIELD_VXLAN_VNID },
+    { "None", PPE_FIELD_VXLAN_RESERVED2 },
     { "None", PPE_FIELD_SLOW_PROTOCOLS_SUBTYPE },
     { "None", PPE_FIELD_LACP_VERSION },
     { "None", PPE_FIELD_LACP_ACTOR_INFO },
@@ -601,6 +609,7 @@ aim_map_si_t ppe_header_map[] =
     { "TCP", PPE_HEADER_TCP },
     { "UDP", PPE_HEADER_UDP },
     { "GRE", PPE_HEADER_GRE },
+    { "VXLAN", PPE_HEADER_VXLAN },
     { "ICMP", PPE_HEADER_ICMP },
     { "ICMPV6", PPE_HEADER_ICMPV6 },
     { "SLOW_PROTOCOLS", PPE_HEADER_SLOW_PROTOCOLS },
@@ -632,6 +641,7 @@ aim_map_si_t ppe_header_desc_map[] =
     { "None", PPE_HEADER_TCP },
     { "None", PPE_HEADER_UDP },
     { "None", PPE_HEADER_GRE },
+    { "None", PPE_HEADER_VXLAN },
     { "None", PPE_HEADER_ICMP },
     { "None", PPE_HEADER_ICMPV6 },
     { "None", PPE_HEADER_SLOW_PROTOCOLS },
@@ -892,6 +902,7 @@ aim_map_si_t ppe_pservice_port_map[] =
 {
     { "DHCP_CLIENT", PPE_PSERVICE_PORT_DHCP_CLIENT },
     { "DHCP_SERVER", PPE_PSERVICE_PORT_DHCP_SERVER },
+    { "VXLAN", PPE_PSERVICE_PORT_VXLAN },
     { NULL, 0 }
 };
 
@@ -899,6 +910,7 @@ aim_map_si_t ppe_pservice_port_desc_map[] =
 {
     { "None", PPE_PSERVICE_PORT_DHCP_CLIENT },
     { "None", PPE_PSERVICE_PORT_DHCP_SERVER },
+    { "None", PPE_PSERVICE_PORT_VXLAN },
     { NULL, 0 }
 };
 
