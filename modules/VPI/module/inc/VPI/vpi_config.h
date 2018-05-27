@@ -129,6 +129,16 @@
 #endif
 
 /**
+ * VPI_CONFIG_INCLUDE_INTERFACE_MMAP
+ *
+ * Include Transport over MMAP Devices */
+
+
+#ifndef VPI_CONFIG_INCLUDE_INTERFACE_MMAP
+#define VPI_CONFIG_INCLUDE_INTERFACE_MMAP VPI_CONFIG_INCLUDE_INTERFACE_DEFAULT
+#endif
+
+/**
  * VPI_CONFIG_INCLUDE_INTERFACE_PCAP
  *
  * Include Transport through PCAP */

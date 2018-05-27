@@ -42,6 +42,9 @@ cdefs: &cdefs
 - VPI_CONFIG_INCLUDE_INTERFACE_VETH:
     doc: "Include Transport over Eth/Veth Devices"
     default: VPI_CONFIG_INCLUDE_INTERFACE_DEFAULT
+- VPI_CONFIG_INCLUDE_INTERFACE_MMAP:
+    doc: "Include Transport over MMAP Devices"
+    default: VPI_CONFIG_INCLUDE_INTERFACE_DEFAULT
 - VPI_CONFIG_INCLUDE_INTERFACE_PCAP:
     doc: "Include Transport through PCAP"
     default: VPI_CONFIG_INCLUDE_INTERFACE_DEFAULT
