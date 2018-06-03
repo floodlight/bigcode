@@ -486,7 +486,26 @@ ppe_dfk_wide_field_set(ppe_dfk_t* dfk, ppe_field_t field, uint8_t* data)
 int
 ppe_dfk_wide_field_get(ppe_dfk_t* dfk, ppe_field_t field, uint8_t* data)
 {
-    /* FIXME */
+    unsigned int i;
+    int offset_bytes = 0;
+    for(i = 0; i < dfk->header.fcount; i++) {
+        ppe_field_info_t* fi = ppe_field_info_table+dfk->header.fields[i];
+        if(field == fi->field) {
+            ppe_field_info_t nfi;
+            if(dfk->mask & (1ull<<i)) {
+                PPE_MEMCPY(&nfi, fi, sizeof(nfi));
+                nfi.offset_bytes = offset_bytes;
+                ppe_wide_field_info_get_header(dfk->data, &nfi, data);
+                return 0;
+            }
+            else {
+                /* Field is not set */
+                return -1;
+            }
+        }
+        offset_bytes += DFK_FIELD_SIZE(fi->size_bits);
+    }
+    AIM_LOG_ERROR("field %s is not in the fields array.", field);
     return -1;
 }
 
