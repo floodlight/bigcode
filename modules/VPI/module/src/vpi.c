@@ -1,6 +1,6 @@
 /****************************************************************
  *
- *        Copyright 2013, Big Switch Networks, Inc.
+ *        Copyright 2018, Big Switch Networks, Inc.
  *
  * Licensed under the Eclipse Public License, Version 1.0 (the
  * "License"); you may not use this file except in compliance
@@ -28,6 +28,7 @@
 #include "vpi_interface_udp.h"
 #include "vpi_interface_tcp.h"
 #include "vpi_interface_veth.h"
+#include "vpi_interface_mmap.h"
 #include "vpi_interface_bpp.h"
 #include "vpi_interface_loopback.h"
 #include "vpi_interface_pcap.h"
@@ -71,6 +72,10 @@ vpi_init(void)
 
 #if VPI_CONFIG_INCLUDE_INTERFACE_VETH == 1
     vpi_veth_interface_register();
+#endif
+
+#if VPI_CONFIG_INCLUDE_INTERFACE_MMAP == 1
+    vpi_mmap_interface_register();
 #endif
 
 #if VPI_CONFIG_INCLUDE_INTERFACE_BIGPATCHPANEL == 1
