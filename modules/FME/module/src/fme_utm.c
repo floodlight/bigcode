@@ -218,7 +218,7 @@ fme_ucli_utm__match__(ucli_context_t* uc)
     FME_MEMSET(key.masks, 0, sizeof(key.masks));
     aim_free(value);
 
-    rv = fme_match(fmec->fme, &key, now, size, &fe);
+    rv = fme_match(fmec->fme, &key, now, size, NULL, NULL, &fe);
 
     if(rv == 1) {
         if(fmec->expects[fe->prio] == 0) {
@@ -369,7 +369,7 @@ fme_ucli_utm__perf__(ucli_context_t* uc)
 
     start = os_time_thread();
     for(i = 0; i < iterations; i++) {
-        int rv = fme_match(fme, &mkey, 0, 0, &match);
+        int rv = fme_match(fme, &mkey, 0, 0, NULL, NULL, &match);
         /* The lowest priority entry will always match */
         if(rv != 1 || match->index != table_size-1){
             return ucli_printf(uc, "i=%d error: rv=%d, index=%d\n", i, rv,

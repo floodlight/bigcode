@@ -61,7 +61,8 @@ typedef struct fme_counters_s {
 struct fme_key_s;
 
 /** Key dumper signature. */
-typedef int (*fme_key_dump_f)(struct fme_key_s* key, aim_pvs_t* pvs);
+typedef int (*fme_key_dump_f)(struct fme_key_s* key, aim_pvs_t* pvs,
+                              void* cookie);
 
 /** Client entry dumper signature. */
 typedef int (*fme_entry_cookie_dump_f)(void* cookie, aim_pvs_t* pvs);
@@ -84,6 +85,9 @@ typedef struct fme_key_s {
 
     /** The function to use for dumping this key data */
     fme_key_dump_f dumper;
+
+    /** The cookie provided to the dumper */
+    void* cookie;
 
 } fme_key_t;
 
@@ -147,6 +151,12 @@ typedef struct fme_s {
 
 } fme_t;
 
+/**
+ *  Custom entry match signature.
+ *
+ *  Custom match callback should return 1 on match and 0 otherwise.
+ */
+typedef int (*fme_custom_match_f)(fme_entry_t* entry, void* cookie);
 
 #endif /* __FME_TYPES_H__ */
 /*@}*/

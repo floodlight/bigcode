@@ -117,15 +117,14 @@ int fme_remove_entry(fme_t* fme, fme_entry_t* entry);
  */
 int fme_entry_timeouts_get(fme_t* fme, fme_timeval_t now, biglist_t** list);
 
-
-
-
 /**
- * @brief Get the highest priority match.
+ * @brief Get the highest priority match, support custom match.
  * @param fme The FME.
  * @param key The incoming match key.
  * @param now The current time (for entry timeout processing).
  * @param size The size of the incoming data (for entry counter updates).
+ * @param custom The custom match callback.
+ * @param cookie The user data provided to custom match callback.
  * @param [out] matched Receives the FME entry that matches the key.
  *
  * @returns 1 if a match is found.
@@ -133,21 +132,24 @@ int fme_entry_timeouts_get(fme_t* fme, fme_timeval_t now, biglist_t** list);
  *          < 0 on error conditions.
  */
 int fme_match(fme_t* fme, fme_key_t* key, fme_timeval_t now, int size,
+              fme_custom_match_f custom, void* cookie,
               fme_entry_t** matched);
 
 /**
- * @brief Get all matching entries, in priority order.
+ * @brief Get all matching entries, in priority order, support custom match.
  * @param fme The FME.
  * @param key The incoming match key.
  * @param now The current time (for entry timeout processing).
  * @param size The size of the incoming data (for entry counter updates).
+ * @param custom The custom match callback.
+ * @param cookie The user data provided to custom match callback.
  * @param [out] rv Receives a biglist_t* with all matched entries.
  *
  * @returns The number of matches, or negative on error conditions.
  */
 int fme_matches(fme_t* fme, fme_key_t* key,  fme_timeval_t now, int size,
+                fme_custom_match_f custom, void* cookie,
                 biglist_t** rv);
-
 
 /**
  * @brief Dump an FME object.

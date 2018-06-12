@@ -24,7 +24,7 @@
 #include <IOF/iof.h>
 #include "fme_log.h"
 
-static int fme_key_dump_default__(fme_key_t* key, aim_pvs_t* ap);
+static int fme_key_dump_default__(fme_key_t* key, aim_pvs_t* ap, void* cookie);
 
 int
 fme_create(fme_t** rv, const char* name, int max_entries)
@@ -237,9 +237,10 @@ fme_key_match__(fme_key_t* value, fme_key_t* matchkey)
     return 1;
 }
 
-static
-int fme_entry_match__(fme_entry_t* entry, fme_key_t* key, fme_timeval_t now,
-                      int size)
+static int
+fme_entry_match__(fme_entry_t* entry, fme_key_t* key, fme_timeval_t now,
+                  fme_custom_match_f custom, void* cookie,
+                  int size)
 {
     if(entry->enabled == 0) {
         /* entry is disabled */
@@ -254,6 +255,12 @@ int fme_entry_match__(fme_entry_t* entry, fme_key_t* key, fme_timeval_t now,
         /* no match */
         return 0;
     }
+    if(custom != NULL) {
+        /* run custom match callback */
+        if(custom(entry, cookie) == 0) {
+            return 0;
+        }
+    }
 
     /* entry has matched */
     ++entry->counters.matches;
@@ -264,6 +271,7 @@ int fme_entry_match__(fme_entry_t* entry, fme_key_t* key, fme_timeval_t now,
 
 int
 fme_match(fme_t* fme, fme_key_t* key, fme_timeval_t now, int size,
+          fme_custom_match_f custom, void* cookie,
           fme_entry_t** matched)
 {
     int i;
@@ -290,7 +298,7 @@ fme_match(fme_t* fme, fme_key_t* key, fme_timeval_t now, int size,
             AIM_LOG_INTERNAL("entry is null");
             continue;
         }
-        if(fme_entry_match__(fe, key, now, size)) {
+        if(fme_entry_match__(fe, key, now, custom, cookie, size)) {
             *matched = fe;
             AIM_LOG_VERBOSE("matched index %d", fe->index);
             rv = 1;
@@ -312,6 +320,7 @@ fme_match(fme_t* fme, fme_key_t* key, fme_timeval_t now, int size,
 
 int
 fme_matches(fme_t* fme, fme_key_t* key, fme_timeval_t now, int size,
+            fme_custom_match_f custom, void* cookie,
             biglist_t** matches)
 {
     int i;
@@ -327,7 +336,7 @@ fme_matches(fme_t* fme, fme_key_t* key, fme_timeval_t now, int size,
             AIM_LOG_INTERNAL("entry is null");
             continue;
         }
-        if(fme_entry_match__(fe, key, now, size)) {
+        if(fme_entry_match__(fe, key, now, custom, cookie, size)) {
             rv = biglist_prepend(rv, fe);
             count++;
         }
@@ -359,7 +368,7 @@ fme_dump(fme_t* fme, aim_pvs_t* ap)
 }
 
 static int
-fme_key_dump_default__(fme_key_t* key, aim_pvs_t* ap)
+fme_key_dump_default__(fme_key_t* key, aim_pvs_t* ap, void* cookie)
 {
     int i;
     iof_t iof;
@@ -419,5 +428,5 @@ fme_key_dump(fme_key_t* key, aim_pvs_t* ap)
     if(key->dumper == NULL) {
         key->dumper = fme_key_dump_default__;
     }
-    key->dumper(key, ap);
+    key->dumper(key, ap, key->cookie);
 }
