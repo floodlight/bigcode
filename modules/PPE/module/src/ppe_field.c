@@ -342,29 +342,39 @@ ppe_wide_field_copy(ppe_packet_t* ppep, ppe_field_t dst_field,
 int
 ppe_dfk_init(ppe_dfk_t* dfk, ppe_field_t* fields, int fcount)
 {
-    unsigned int i;
-    int size = 0;
+    int i;
+    int size = 0; /* offset_bytes */
     ppe_field_info_t* fi;
+    ppe_field_info_t* efi;
 
     PPE_MEMSET(dfk, 0, sizeof(*dfk));
-    dfk->header.fields = fields;
+    dfk->header.efis = aim_zmalloc(fcount*sizeof(ppe_field_info_t));
     dfk->header.fcount = fcount;
 
-    for(i = 0; i < dfk->header.fcount; i++) {
-        fi = ppe_field_info_table + dfk->header.fields[i];
+    for(i = 0; i < fcount; i++) {
+        fi = ppe_field_info_table + fields[i];
+        efi = &dfk->header.efis[i];
+
+        PPE_MEMCPY(efi, fi, sizeof(*efi));
+        efi->offset_bytes = size;
         size += DFK_FIELD_SIZE(fi->size_bits);
     }
+
     dfk->data = aim_zmalloc(size);
     dfk->size = size;
-
     return dfk->size;
 }
 
 int
 ppe_dfk_destroy(ppe_dfk_t* dfk)
 {
-    if(dfk && dfk->data) {
-        aim_free(dfk->data);
+    if(dfk) {
+        if(dfk->header.efis) {
+            aim_free(dfk->header.efis);
+        }
+        if(dfk->data) {
+            aim_free(dfk->data);
+        }
     }
     return 0;
 }
@@ -372,8 +382,7 @@ ppe_dfk_destroy(ppe_dfk_t* dfk)
 int
 ppe_dfk_show(ppe_dfk_t* dfk, aim_pvs_t* pvs)
 {
-    unsigned int i;
-    int offset_bytes = 0;
+    int i;
     int rv;
     iof_t iof;
     iof_init(&iof, pvs);
@@ -384,32 +393,27 @@ ppe_dfk_show(ppe_dfk_t* dfk, aim_pvs_t* pvs)
     }
     iof_indent(&iof);
     for(i = 0; i < dfk->header.fcount; i++) {
-        ppe_field_t field = dfk->header.fields[i];
-        ppe_field_info_t fi;
-        PPE_MEMCPY(&fi, ppe_field_info_table+field, sizeof(fi));
-        fi.offset_bytes = offset_bytes;
+        ppe_field_info_t* fi = &dfk->header.efis[i];
         if(dfk->mask & (1ull<<i)) {
-            if(fi.size_bits <= 32) {
+            if(fi->size_bits <= 32) {
                 uint32_t data;
-                ppe_field_info_get_header(dfk->data, &fi, &data);
+                ppe_field_info_get_header(dfk->data, fi, &data);
                 iof_uprintf(&iof, "%s=0x%x (%d) ",
-                            ppe_field_name(field), data, data);
+                            ppe_field_name(fi->field), data, data);
             }
             else {
                 /* fixme */
                 unsigned int i;
                 uint8_t data[256];
-                rv = ppe_wide_field_info_get_header(dfk->data, &fi, data);
+                rv = ppe_wide_field_info_get_header(dfk->data, fi, data);
                 AIM_ASSERT(rv >= 0, "Failed to get field after checking for existence");
-                iof_uprintf(&iof, "%s={ ", ppe_field_name(field));
-                for(i = 0; i < fi.size_bits / 8; i++) {
+                iof_uprintf(&iof, "%s={ ", ppe_field_name(fi->field));
+                for(i = 0; i < fi->size_bits / 8; i++) {
                     iof_uprintf(&iof, "%.2x", data[i]);
                 }
                 iof_uprintf(&iof, " } ");
             }
         }
-
-        offset_bytes += DFK_FIELD_SIZE(fi.size_bits);
     }
     iof_uprintf(&iof, "\n");
     return 0;
@@ -418,37 +422,28 @@ ppe_dfk_show(ppe_dfk_t* dfk, aim_pvs_t* pvs)
 int
 ppe_dfk_field_set(ppe_dfk_t* dfk, ppe_field_t field, uint32_t data)
 {
-    unsigned int i;
-    int offset_bytes = 0;
+    int i;
     for(i = 0; i < dfk->header.fcount; i++) {
-        ppe_field_info_t* fi = ppe_field_info_table + dfk->header.fields[i];
+        ppe_field_info_t* fi = &dfk->header.efis[i];
         if(field == fi->field) {
-            ppe_field_info_t nfi;
-            PPE_MEMCPY(&nfi, fi, sizeof(nfi));
-            nfi.offset_bytes = offset_bytes;
-            ppe_field_info_set_header(dfk->data, &nfi, data);
+            ppe_field_info_set_header(dfk->data, fi, data);
             dfk->mask |= (1ull<<i);
             return 0;
         }
-        offset_bytes += DFK_FIELD_SIZE(fi->size_bits);
     }
-    AIM_LOG_ERROR("field %s is not in the fields array.", field);
+    AIM_LOG_TRACE("field %{ppe_field} is not in the fields array.", field);
     return -1;
 }
 
 int
 ppe_dfk_field_get(ppe_dfk_t* dfk, ppe_field_t field, uint32_t* value)
 {
-    unsigned int i;
-    int offset_bytes = 0;
+    int i;
     for(i = 0; i < dfk->header.fcount; i++) {
-        ppe_field_info_t* fi = ppe_field_info_table + dfk->header.fields[i];
+        ppe_field_info_t* fi = &dfk->header.efis[i];
         if(field == fi->field) {
-            ppe_field_info_t nfi;
             if(dfk->mask & (1ull<<i)) {
-                PPE_MEMCPY(&nfi, fi, sizeof(nfi));
-                nfi.offset_bytes = offset_bytes;
-                ppe_field_info_get_header(dfk->data, &nfi, value);
+                ppe_field_info_get_header(dfk->data, fi, value);
                 return 0;
             }
             else {
@@ -456,46 +451,36 @@ ppe_dfk_field_get(ppe_dfk_t* dfk, ppe_field_t field, uint32_t* value)
                 return -1;
             }
         }
-        offset_bytes += DFK_FIELD_SIZE(fi->size_bits);
     }
-    AIM_LOG_ERROR("field %s is not in the fields array.", field);
+    AIM_LOG_TRACE("field %{ppe_field} is not in the fields array.", field);
     return -1;
 }
 
 int
 ppe_dfk_wide_field_set(ppe_dfk_t* dfk, ppe_field_t field, uint8_t* data)
 {
-    unsigned int i;
-    int offset_bytes = 0;
+    int i;
     for(i = 0; i < dfk->header.fcount; i++) {
-        ppe_field_info_t* fi = ppe_field_info_table+dfk->header.fields[i];
+        ppe_field_info_t* fi = &dfk->header.efis[i];
         if(field == fi->field) {
-            ppe_field_info_t nfi;
-            PPE_MEMCPY(&nfi, fi, sizeof(nfi));
-            nfi.offset_bytes = offset_bytes;
-            ppe_wide_field_info_set_header(dfk->data, &nfi, data);
+            ppe_wide_field_info_set_header(dfk->data, fi, data);
             dfk->mask |= (1ull<<i);
             return 0;
         }
-        offset_bytes += DFK_FIELD_SIZE(fi->size_bits);
     }
-    AIM_LOG_ERROR("field %s is not in the fields array.", field);
+    AIM_LOG_TRACE("field %{ppe_field} is not in the fields array.", field);
     return -1;
 }
 
 int
 ppe_dfk_wide_field_get(ppe_dfk_t* dfk, ppe_field_t field, uint8_t* data)
 {
-    unsigned int i;
-    int offset_bytes = 0;
+    int i;
     for(i = 0; i < dfk->header.fcount; i++) {
-        ppe_field_info_t* fi = ppe_field_info_table+dfk->header.fields[i];
+        ppe_field_info_t* fi = &dfk->header.efis[i];
         if(field == fi->field) {
-            ppe_field_info_t nfi;
             if(dfk->mask & (1ull<<i)) {
-                PPE_MEMCPY(&nfi, fi, sizeof(nfi));
-                nfi.offset_bytes = offset_bytes;
-                ppe_wide_field_info_get_header(dfk->data, &nfi, data);
+                ppe_wide_field_info_get_header(dfk->data, fi, data);
                 return 0;
             }
             else {
@@ -503,44 +488,36 @@ ppe_dfk_wide_field_get(ppe_dfk_t* dfk, ppe_field_t field, uint8_t* data)
                 return -1;
             }
         }
-        offset_bytes += DFK_FIELD_SIZE(fi->size_bits);
     }
-    AIM_LOG_ERROR("field %s is not in the fields array.", field);
+    AIM_LOG_TRACE("field %{ppe_field} is not in the fields array.", field);
     return -1;
 }
 
 int
 ppe_packet_dfk(ppe_packet_t* ppep, ppe_dfk_t* dfk)
 {
-    unsigned int i;
-    int offset_bytes = 0;
+    int i;
     int rv;
 
     PPE_MEMSET(dfk->data, 0, dfk->size);
     dfk->mask = 0;
 
     for(i = 0; i < dfk->header.fcount; i++) {
+        ppe_field_info_t* fi = &dfk->header.efis[i];
 
-        ppe_field_t field = dfk->header.fields[i];
-        ppe_field_info_t* efi = ppe_field_info_table + field;
-
-        if(ppe_field_exists(ppep, field)) {
-            ppe_field_info_t fi;
-            PPE_MEMCPY(&fi, efi, sizeof(fi));
-            fi.offset_bytes = offset_bytes;
-            if(fi.size_bits <= 32) {
+        if(ppe_field_exists(ppep, fi->field)) {
+            if(fi->size_bits <= 32) {
                 uint32_t data;
-                rv = ppe_field_get(ppep, field, &data);
+                rv = ppe_field_get(ppep, fi->field, &data);
                 AIM_ASSERT(rv == 0, "Failed to get field after checking for existence");
-                ppe_field_info_set_header(dfk->data, &fi, data);
+                ppe_field_info_set_header(dfk->data, fi, data);
             }
             else {
-                uint8_t* datap = ppe_fieldp_get(ppep, field);
-                ppe_wide_field_info_set_header(dfk->data, &fi, datap);
+                uint8_t* datap = ppe_fieldp_get(ppep, fi->field);
+                ppe_wide_field_info_set_header(dfk->data, fi, datap);
             }
             dfk->mask |= (1ull<<i);
         }
-        offset_bytes += DFK_FIELD_SIZE(efi->size_bits);
     }
-    return offset_bytes;
+    return dfk->size;
 }

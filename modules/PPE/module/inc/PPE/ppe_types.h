@@ -738,10 +738,10 @@ typedef struct ppe_packet_s {
 
 /** Dynamic Field Key Header */
 typedef struct ppe_dfk_header_s {
-    /** The fields that make up this key. */
-    const ppe_field_t* fields;
+    /** Effective field infos with offsets accounted for */
+    ppe_field_info_t* efis;
     /** Field count */
-    unsigned int fcount;
+    int fcount;
 } ppe_dfk_header_t;
 
 /** Dynamic Field Key instance.  */
