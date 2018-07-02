@@ -60,6 +60,9 @@ extern aim_map_si_t ppe_slow_protocol_desc_map[];
 /** ppe_pim_type */
 typedef enum ppe_pim_type_e {
     PPE_PIM_TYPE_HELLO = 0,
+    PPE_PIM_TYPE_REGISTER = 1,
+    PPE_PIM_TYPE_REGISTER_STOP = 2,
+    PPE_PIM_TYPE_JOIN_PRUNE = 3,
 } ppe_pim_type_t;
 
 /** Enum names. */

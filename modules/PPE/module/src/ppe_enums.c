@@ -89,12 +89,18 @@ ppe_slow_protocol_valid(ppe_slow_protocol_t e)
 aim_map_si_t ppe_pim_type_map[] =
 {
     { "HELLO", PPE_PIM_TYPE_HELLO },
+    { "REGISTER", PPE_PIM_TYPE_REGISTER },
+    { "REGISTER_STOP", PPE_PIM_TYPE_REGISTER_STOP },
+    { "JOIN_PRUNE", PPE_PIM_TYPE_JOIN_PRUNE },
     { NULL, 0 }
 };
 
 aim_map_si_t ppe_pim_type_desc_map[] =
 {
     { "None", PPE_PIM_TYPE_HELLO },
+    { "None", PPE_PIM_TYPE_REGISTER },
+    { "None", PPE_PIM_TYPE_REGISTER_STOP },
+    { "None", PPE_PIM_TYPE_JOIN_PRUNE },
     { NULL, 0 }
 };
 
