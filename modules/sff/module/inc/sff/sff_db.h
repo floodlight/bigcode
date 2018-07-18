@@ -29,7 +29,9 @@
 #include <sff/sff.h>
 #include <AIM/aim_pvs.h>
 
+/** SFF DB Entry. */
 typedef struct {
+    /** eeprom struct. */
     sff_eeprom_t se;
 } sff_db_entry_t;
 

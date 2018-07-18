@@ -110,6 +110,8 @@ SFF_SFP_TYPE_ENTRY(SFP28, SFP28)
 
 /* <auto.start.xenum(ALL).define> */
 #ifdef SFF_ENUMERATION_ENTRY
+SFF_ENUMERATION_ENTRY(sff_dom_field_flag, "")
+SFF_ENUMERATION_ENTRY(sff_dom_spec, "")
 SFF_ENUMERATION_ENTRY(sff_media_type, "")
 SFF_ENUMERATION_ENTRY(sff_module_caps, "")
 SFF_ENUMERATION_ENTRY(sff_module_type, "")

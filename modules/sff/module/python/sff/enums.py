@@ -12,6 +12,22 @@ class Enumeration(object):
         return None
 
 # <auto.start.pyenum(ALL).define>
+class SFF_DOM_FIELD_FLAG(Enumeration):
+    TEMP = (1 << 0)
+    VOLTAGE = (1 << 1)
+    BIAS_CUR = (1 << 2)
+    RX_POWER = (1 << 3)
+    RX_POWER_OMA = (1 << 4)
+    TX_POWER = (1 << 5)
+
+
+class SFF_DOM_SPEC(Enumeration):
+    UNSUPPORTED = 0
+    SFF8436 = 1
+    SFF8472 = 2
+    SFF8636 = 3
+
+
 class SFF_MEDIA_TYPE(Enumeration):
     COPPER = 0
     FIBER = 1

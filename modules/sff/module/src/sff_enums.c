@@ -5,8 +5,135 @@
  *****************************************************************************/
 #include <sff/sff_config.h>
 #include <sff/sff.h>
+#include <sff/dom.h>
 
 /* <auto.start.enum(ALL).source> */
+aim_map_si_t sff_dom_field_flag_map[] =
+{
+    { "TEMP", SFF_DOM_FIELD_FLAG_TEMP },
+    { "VOLTAGE", SFF_DOM_FIELD_FLAG_VOLTAGE },
+    { "BIAS_CUR", SFF_DOM_FIELD_FLAG_BIAS_CUR },
+    { "RX_POWER", SFF_DOM_FIELD_FLAG_RX_POWER },
+    { "RX_POWER_OMA", SFF_DOM_FIELD_FLAG_RX_POWER_OMA },
+    { "TX_POWER", SFF_DOM_FIELD_FLAG_TX_POWER },
+    { NULL, 0 }
+};
+
+aim_map_si_t sff_dom_field_flag_desc_map[] =
+{
+    { "None", SFF_DOM_FIELD_FLAG_TEMP },
+    { "None", SFF_DOM_FIELD_FLAG_VOLTAGE },
+    { "None", SFF_DOM_FIELD_FLAG_BIAS_CUR },
+    { "None", SFF_DOM_FIELD_FLAG_RX_POWER },
+    { "None", SFF_DOM_FIELD_FLAG_RX_POWER_OMA },
+    { "None", SFF_DOM_FIELD_FLAG_TX_POWER },
+    { NULL, 0 }
+};
+
+const char*
+sff_dom_field_flag_name(sff_dom_field_flag_t e)
+{
+    const char* name;
+    if(aim_map_si_i(&name, e, sff_dom_field_flag_map, 0)) {
+        return name;
+    }
+    else {
+        return "-invalid value for enum type 'sff_dom_field_flag'";
+    }
+}
+
+int
+sff_dom_field_flag_value(const char* str, sff_dom_field_flag_t* e, int substr)
+{
+    int i;
+    AIM_REFERENCE(substr);
+    if(aim_map_si_s(&i, str, sff_dom_field_flag_map, 0)) {
+        /* Enum Found */
+        *e = i;
+        return 0;
+    }
+    else {
+        return -1;
+    }
+}
+
+const char*
+sff_dom_field_flag_desc(sff_dom_field_flag_t e)
+{
+    const char* name;
+    if(aim_map_si_i(&name, e, sff_dom_field_flag_desc_map, 0)) {
+        return name;
+    }
+    else {
+        return "-invalid value for enum type 'sff_dom_field_flag'";
+    }
+}
+
+int
+sff_dom_field_flag_valid(sff_dom_field_flag_t e)
+{
+    return aim_map_si_i(NULL, e, sff_dom_field_flag_map, 0) ? 1 : 0;
+}
+
+
+aim_map_si_t sff_dom_spec_map[] =
+{
+    { "UNSUPPORTED", SFF_DOM_SPEC_UNSUPPORTED },
+    { "SFF8436", SFF_DOM_SPEC_SFF8436 },
+    { "SFF8472", SFF_DOM_SPEC_SFF8472 },
+    { "SFF8636", SFF_DOM_SPEC_SFF8636 },
+    { NULL, 0 }
+};
+
+aim_map_si_t sff_dom_spec_desc_map[] =
+{
+    { "None", SFF_DOM_SPEC_UNSUPPORTED },
+    { "None", SFF_DOM_SPEC_SFF8436 },
+    { "None", SFF_DOM_SPEC_SFF8472 },
+    { "None", SFF_DOM_SPEC_SFF8636 },
+    { NULL, 0 }
+};
+
+const char*
+sff_dom_spec_name(sff_dom_spec_t e)
+{
+    const char* name;
+    if(aim_map_si_i(&name, e, sff_dom_spec_map, 0)) {
+        return name;
+    }
+    else {
+        return "-invalid value for enum type 'sff_dom_spec'";
+    }
+}
+
+int
+sff_dom_spec_value(const char* str, sff_dom_spec_t* e, int substr)
+{
+    int i;
+    AIM_REFERENCE(substr);
+    if(aim_map_si_s(&i, str, sff_dom_spec_map, 0)) {
+        /* Enum Found */
+        *e = i;
+        return 0;
+    }
+    else {
+        return -1;
+    }
+}
+
+const char*
+sff_dom_spec_desc(sff_dom_spec_t e)
+{
+    const char* name;
+    if(aim_map_si_i(&name, e, sff_dom_spec_desc_map, 0)) {
+        return name;
+    }
+    else {
+        return "-invalid value for enum type 'sff_dom_spec'";
+    }
+}
+
+
 aim_map_si_t sff_media_type_map[] =
 {
     { "COPPER", SFF_MEDIA_TYPE_COPPER },

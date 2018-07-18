@@ -30,7 +30,7 @@
 
 #include <dependmodules.x>
 
-/* <auto.start.enum(ALL).header> */
+/* <auto.start.enum(tag:sff).header> */
 /** sff_media_type */
 typedef enum sff_media_type_e {
     SFF_MEDIA_TYPE_COPPER,
@@ -236,7 +236,7 @@ const char* sff_sfp_type_desc(sff_sfp_type_t e);
 extern aim_map_si_t sff_sfp_type_map[];
 /** sff_sfp_type_desc_map table. */
 extern aim_map_si_t sff_sfp_type_desc_map[];
-/* <auto.end.enum(ALL).header> */
+/* <auto.end.enum(tag:sff).header> */
 
 /**
  * @brief Determine the SFP type (from the idprom data).
@@ -266,6 +266,9 @@ sff_media_type_t sff_media_type_get(sff_module_type_t mt);
 int sff_module_caps_get(sff_module_type_t mt, uint32_t* caps);
 
 
+/**
+ * @brief SFF Information Structure.
+ */
 typedef struct sff_info_s {
 
     /** Vendor Name */
@@ -300,7 +303,10 @@ typedef struct sff_info_s {
 
     /** Cable length, if available */
     int length;
+
+    /** Cable length description. */
     char length_desc[16];
+
 } sff_info_t;
 
 /**
@@ -312,6 +318,7 @@ typedef struct sff_eeprom_s {
 
     /** computed checksums for eeprom contents */
     uint8_t cc_base;
+    /** computed checksums for eeprom contents */
     uint8_t cc_ext;
 
     /** Whether this EEPROM was successfully parsed and identified. */
@@ -376,12 +383,7 @@ int sff_info_from_module_type(sff_info_t* info, sff_sfp_type_t st,
 
 #include <cjson_util/cjson_util.h>
 
-/**
- * @brief Return a JSON representation of the sff_info_t structure.
- * @param cj Add keys this object. If NULL a new object is created.
- * @param info The info structure.
- */
-cJSON* sff_info_json(cJSON* cj, sff_info_t* info);
+int sff_info_to_json(sff_info_t* info, cJSON** cjp);
 
 #endif /* DEPENDMODULE_CJSON_UTIL */
 

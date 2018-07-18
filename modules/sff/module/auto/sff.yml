@@ -156,13 +156,36 @@ definitions:
 
   enum: &enums
     sff_sfp_type:
+      tag: sff
       members: *sff_sfp_types
     sff_module_type:
+      tag: sff
       members: *sff_module_types
     sff_module_caps:
+      tag: sff
       members: *sff_module_caps
     sff_media_type:
+      tag: sff
       members: *sff_media_types
+
+    sff_dom_spec:
+      tag: dom
+      members:
+        - UNSUPPORTED
+        - SFF8436
+        - SFF8472
+        - SFF8636
+
+    sff_dom_field_flag:
+      tag: dom
+      members:
+        - TEMP
+        - VOLTAGE
+        - BIAS_CUR
+        - RX_POWER
+        - RX_POWER_OMA
+        - TX_POWER
+      flags: True
 
   pyenum: *enums
 

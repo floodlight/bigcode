@@ -841,23 +841,29 @@ sff_info_init(sff_info_t* info, sff_module_type_t mt,
 
 #include <cjson_util/cjson_util_format.h>
 
-cJSON*
-sff_info_json(cJSON* rv, sff_info_t* info)
+int
+sff_info_to_json(sff_info_t* info, cJSON** cjp)
 {
-    if(rv == NULL) {
-        rv = cJSON_CreateObject();
+    if(info == NULL || cjp == NULL) {
+        return -1;
     }
 
-    cjson_util_add_string_to_object(rv, "vendor", "%-16.16s", info->vendor);
-    cjson_util_add_string_to_object(rv, "model", "%-16.16s", info->model);
-    cjson_util_add_string_to_object(rv, "serial", "%-16.16s", info->serial);
-    cJSON_AddStringToObject(rv, "sfp-type", info->sfp_type_name);
-    cJSON_AddStringToObject(rv, "module-type", info->module_type_name);
-    cJSON_AddStringToObject(rv, "media-type", info->media_type_name);
-    cjson_util_add_string_to_object(rv, "caps", "%{sff_module_caps}", info->caps);
-    cjson_util_add_string_to_object(rv, "length", info->length_desc);
-
-    return rv;
+    cJSON* cj = cJSON_CreateObject();
+    cjson_util_add_string_to_object(cj, "vendor", "%-16.16s", info->vendor);
+    cjson_util_add_string_to_object(cj, "model", "%-16.16s", info->model);
+    cjson_util_add_string_to_object(cj, "serial", "%-16.16s", info->serial);
+    cJSON_AddStringToObject(cj, "sfp-type", info->sfp_type_name);
+    cJSON_AddStringToObject(cj, "module-type", info->module_type_name);
+    cJSON_AddStringToObject(cj, "media-type", info->media_type_name);
+    cjson_util_add_string_to_object(cj, "caps", "%{sff_module_caps}", info->caps);
+    cJSON_AddStringToObject(cj, "length", info->length_desc);
+    if(*cjp) {
+        cJSON_AddItemToObject(*cjp, "info", cj);
+    }
+    else {
+        *cjp = cj;
+    }
+    return 0;
 }
 
 #endif /* DEPENDMODULE_CJSON_UTIL */
