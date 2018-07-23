@@ -183,7 +183,7 @@ sff8472_dom_info_get(sff_dom_info_t* dinfo, uint8_t* a0, uint8_t* a2)
 void
 sff8436_dom_info_get(sff_dom_info_t* dinfo, uint8_t* a0)
 {
-    sff8436_dom_t sd;
+    sff8436_dom_t sd = {0};
     int i;
 
     for (i = 0; i < MAX_CHANNEL_NUM; i++) {
@@ -239,7 +239,7 @@ sff8436_dom_info_get(sff_dom_info_t* dinfo, uint8_t* a0)
 void
 sff8636_dom_info_get(sff_dom_info_t* dinfo, uint8_t* a0)
 {
-    sff8636_dom_t sd;
+    sff8636_dom_t sd = {0};
     int i;
 
     for (i = 0; i < MAX_CHANNEL_NUM; i++) {
