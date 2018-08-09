@@ -700,8 +700,12 @@ sff_eeprom_parse_nonstandard__(sff_eeprom_t* se, uint8_t* eeprom)
 
     if (sff_nonstandard_lookup(&se->info) == 0) {
         se->identified = 1;
-        SFF_SNPRINTF(se->info.length_desc, sizeof(se->info.length_desc), "%dm",
+        if(se->info.length == -1) {
+            se->info.length_desc[0] = 0;
+        } else {
+            SFF_SNPRINTF(se->info.length_desc, sizeof(se->info.length_desc), "%dm",
                      se->info.length);
+        }
         return 0;
     }
 
