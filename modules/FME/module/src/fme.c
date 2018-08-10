@@ -373,6 +373,8 @@ fme_key_dump_default__(fme_key_t* key, aim_pvs_t* ap, void* cookie)
     int i;
     iof_t iof;
 
+    AIM_REFERENCE(cookie);
+
     iof_init(&iof, ap);
     iof_push(&iof, "fme_key @ %p", key);
     iof_iprintf(&iof, "keymask = 0x%.8x", key->keymask);

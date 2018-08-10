@@ -90,7 +90,7 @@ os_config_lookup(const char* setting)
 {
     int i;
     for(i = 0; os_config_settings[i].name; i++) {
-        if(strcmp(os_config_settings[i].name, setting)) {
+        if(!strcmp(os_config_settings[i].name, setting)) {
             return os_config_settings[i].value;
         }
     }

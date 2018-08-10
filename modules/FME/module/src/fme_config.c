@@ -85,7 +85,7 @@ fme_config_lookup(const char* setting)
 {
     int i;
     for(i = 0; fme_config_settings[i].name; i++) {
-        if(strcmp(fme_config_settings[i].name, setting)) {
+        if(!strcmp(fme_config_settings[i].name, setting)) {
             return fme_config_settings[i].value;
         }
     }

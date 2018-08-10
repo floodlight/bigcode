@@ -75,7 +75,7 @@ biglist_config_lookup(const char* setting)
 {
     int i;
     for(i = 0; biglist_config_settings[i].name; i++) {
-        if(strcmp(biglist_config_settings[i].name, setting)) {
+        if(!strcmp(biglist_config_settings[i].name, setting)) {
             return biglist_config_settings[i].value;
         }
     }

@@ -115,7 +115,7 @@ ucli_config_lookup(const char* setting)
 {
     int i;
     for(i = 0; ucli_config_settings[i].name; i++) {
-        if(strcmp(ucli_config_settings[i].name, setting)) {
+        if(!strcmp(ucli_config_settings[i].name, setting)) {
             return ucli_config_settings[i].value;
         }
     }
