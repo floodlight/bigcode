@@ -392,3 +392,13 @@
     - check ICMPV6_CODE == 0x00
     - check ICMPV6_CHECKSUM == 0x1176
  
+- BFD_HEADER:
+    - data {01005e900001}{5c16c7ffff04}{0800}{4500003400000000ff11a5a90a00010a0a000106c3511a8000207010214803180000000100000000000f4240000c350000000000}
+    - check BFD_VERSION == 1
+    - check BFD_DIAG == 1
+    - check BFD_STATE == 1
+    - check BFD_DETECT_MULT == 3
+    - check BFD_LENGTH == 24
+    - check BFD_MY_DISCR == 1
+    - check BFD_YOUR_DISCR == 0
+   

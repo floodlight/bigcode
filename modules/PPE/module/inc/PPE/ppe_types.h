@@ -31,88 +31,35 @@
 #define __PPE_TYPES_H__
 
 /* <auto.start.enum(ALL).header> */
-/** ppe_slow_protocol */
-typedef enum ppe_slow_protocol_e {
-    PPE_SLOW_PROTOCOL_LACP = 1,
-} ppe_slow_protocol_t;
+/** ppe_ethertype */
+typedef enum ppe_ethertype_e {
+    PPE_ETHERTYPE_ARP = 2054,
+    PPE_ETHERTYPE_IP4 = 2048,
+    PPE_ETHERTYPE_IP6 = 34525,
+    PPE_ETHERTYPE_LLDP = 35020,
+    PPE_ETHERTYPE_SLOW_PROTOCOLS = 34825,
+} ppe_ethertype_t;
 
 /** Enum names. */
-const char* ppe_slow_protocol_name(ppe_slow_protocol_t e);
+const char* ppe_ethertype_name(ppe_ethertype_t e);
 
 /** Enum values. */
-int ppe_slow_protocol_value(const char* str, ppe_slow_protocol_t* e, int substr);
+int ppe_ethertype_value(const char* str, ppe_ethertype_t* e, int substr);
 
 /** Enum descriptions. */
-const char* ppe_slow_protocol_desc(ppe_slow_protocol_t e);
+const char* ppe_ethertype_desc(ppe_ethertype_t e);
 
 /** Enum validator. */
-int ppe_slow_protocol_valid(ppe_slow_protocol_t e);
+int ppe_ethertype_valid(ppe_ethertype_t e);
 
 /** validator */
-#define PPE_SLOW_PROTOCOL_VALID(_e) \
-    (ppe_slow_protocol_valid((_e)))
+#define PPE_ETHERTYPE_VALID(_e) \
+    (ppe_ethertype_valid((_e)))
 
-/** ppe_slow_protocol_map table. */
-extern aim_map_si_t ppe_slow_protocol_map[];
-/** ppe_slow_protocol_desc_map table. */
-extern aim_map_si_t ppe_slow_protocol_desc_map[];
-
-/** ppe_pim_type */
-typedef enum ppe_pim_type_e {
-    PPE_PIM_TYPE_HELLO = 0,
-    PPE_PIM_TYPE_REGISTER = 1,
-    PPE_PIM_TYPE_REGISTER_STOP = 2,
-    PPE_PIM_TYPE_JOIN_PRUNE = 3,
-} ppe_pim_type_t;
-
-/** Enum names. */
-const char* ppe_pim_type_name(ppe_pim_type_t e);
-
-/** Enum values. */
-int ppe_pim_type_value(const char* str, ppe_pim_type_t* e, int substr);
-
-/** Enum descriptions. */
-const char* ppe_pim_type_desc(ppe_pim_type_t e);
-
-/** Enum validator. */
-int ppe_pim_type_valid(ppe_pim_type_t e);
-
-/** validator */
-#define PPE_PIM_TYPE_VALID(_e) \
-    (ppe_pim_type_valid((_e)))
-
-/** ppe_pim_type_map table. */
-extern aim_map_si_t ppe_pim_type_map[];
-/** ppe_pim_type_desc_map table. */
-extern aim_map_si_t ppe_pim_type_desc_map[];
-
-/** ppe_ip4_flags */
-typedef enum ppe_ip4_flags_e {
-    PPE_IP4_FLAGS_RESERVED = 4,
-    PPE_IP4_FLAGS_DF = 2,
-    PPE_IP4_FLAGS_MF = 1,
-} ppe_ip4_flags_t;
-
-/** Enum names. */
-const char* ppe_ip4_flags_name(ppe_ip4_flags_t e);
-
-/** Enum values. */
-int ppe_ip4_flags_value(const char* str, ppe_ip4_flags_t* e, int substr);
-
-/** Enum descriptions. */
-const char* ppe_ip4_flags_desc(ppe_ip4_flags_t e);
-
-/** Enum validator. */
-int ppe_ip4_flags_valid(ppe_ip4_flags_t e);
-
-/** validator */
-#define PPE_IP4_FLAGS_VALID(_e) \
-    (ppe_ip4_flags_valid((_e)))
-
-/** ppe_ip4_flags_map table. */
-extern aim_map_si_t ppe_ip4_flags_map[];
-/** ppe_ip4_flags_desc_map table. */
-extern aim_map_si_t ppe_ip4_flags_desc_map[];
+/** ppe_ethertype_map table. */
+extern aim_map_si_t ppe_ethertype_map[];
+/** ppe_ethertype_desc_map table. */
+extern aim_map_si_t ppe_ethertype_desc_map[];
 
 /** ppe_field */
 typedef enum ppe_field_e {
@@ -283,7 +230,26 @@ typedef enum ppe_field_e {
     PPE_FIELD_PIM_VERSION,
     PPE_FIELD_PIM_TYPE,
     PPE_FIELD_PIM_CHECKSUM,
-    PPE_FIELD_LAST = PPE_FIELD_PIM_CHECKSUM,
+    PPE_FIELD_BFD_VERSION,
+    PPE_FIELD_BFD_DIAG,
+    PPE_FIELD_BFD_STATE,
+    PPE_FIELD_BFD_POLL,
+    PPE_FIELD_BFD_FINAL,
+    PPE_FIELD_BFD_CONTROL_IND,
+    PPE_FIELD_BFD_AUTH,
+    PPE_FIELD_BFD_DEMAND,
+    PPE_FIELD_BFD_MULTIPOINT,
+    PPE_FIELD_BFD_DETECT_MULT,
+    PPE_FIELD_BFD_LENGTH,
+    PPE_FIELD_BFD_MY_DISCR,
+    PPE_FIELD_BFD_YOUR_DISCR,
+    PPE_FIELD_BFD_MIN_TX,
+    PPE_FIELD_BFD_MIN_RX,
+    PPE_FIELD_BFD_MIN_ECHO,
+    PPE_FIELD_BFD_AUTH_TYPE,
+    PPE_FIELD_BFD_AUTH_LENGTH,
+    PPE_FIELD_BFD_AUTH_DATA,
+    PPE_FIELD_LAST = PPE_FIELD_BFD_AUTH_DATA,
     PPE_FIELD_COUNT,
     PPE_FIELD_INVALID = -1,
 } ppe_field_t;
@@ -299,7 +265,7 @@ const char* ppe_field_desc(ppe_field_t e);
 
 /** validator */
 #define PPE_FIELD_VALID(_e) \
-    ( (0 <= (_e)) && ((_e) <= PPE_FIELD_PIM_CHECKSUM))
+    ( (0 <= (_e)) && ((_e) <= PPE_FIELD_BFD_AUTH_DATA))
 
 /** ppe_field_map table. */
 extern aim_map_si_t ppe_field_map[];
@@ -335,7 +301,8 @@ typedef enum ppe_header_e {
     PPE_HEADER_OF10,
     PPE_HEADER_IGMP,
     PPE_HEADER_PIM,
-    PPE_HEADER_LAST = PPE_HEADER_PIM,
+    PPE_HEADER_BFD,
+    PPE_HEADER_LAST = PPE_HEADER_BFD,
     PPE_HEADER_COUNT,
     PPE_HEADER_INVALID = -1,
 } ppe_header_t;
@@ -370,6 +337,7 @@ typedef enum ppe_header_e {
     "OF10", \
     "IGMP", \
     "PIM", \
+    "BFD", \
 }
 /** Enum names. */
 const char* ppe_header_name(ppe_header_t e);
@@ -382,133 +350,12 @@ const char* ppe_header_desc(ppe_header_t e);
 
 /** validator */
 #define PPE_HEADER_VALID(_e) \
-    ( (0 <= (_e)) && ((_e) <= PPE_HEADER_PIM))
+    ( (0 <= (_e)) && ((_e) <= PPE_HEADER_BFD))
 
 /** ppe_header_map table. */
 extern aim_map_si_t ppe_header_map[];
 /** ppe_header_desc_map table. */
 extern aim_map_si_t ppe_header_desc_map[];
-
-/** ppe_ip_protocol */
-typedef enum ppe_ip_protocol_e {
-    PPE_IP_PROTOCOL_ICMP = 1,
-    PPE_IP_PROTOCOL_IGMP = 2,
-    PPE_IP_PROTOCOL_TCP = 6,
-    PPE_IP_PROTOCOL_UDP = 17,
-    PPE_IP_PROTOCOL_GRE = 47,
-    PPE_IP_PROTOCOL_ICMPV6 = 58,
-    PPE_IP_PROTOCOL_PIM = 103,
-} ppe_ip_protocol_t;
-
-/** Enum names. */
-const char* ppe_ip_protocol_name(ppe_ip_protocol_t e);
-
-/** Enum values. */
-int ppe_ip_protocol_value(const char* str, ppe_ip_protocol_t* e, int substr);
-
-/** Enum descriptions. */
-const char* ppe_ip_protocol_desc(ppe_ip_protocol_t e);
-
-/** Enum validator. */
-int ppe_ip_protocol_valid(ppe_ip_protocol_t e);
-
-/** validator */
-#define PPE_IP_PROTOCOL_VALID(_e) \
-    (ppe_ip_protocol_valid((_e)))
-
-/** ppe_ip_protocol_map table. */
-extern aim_map_si_t ppe_ip_protocol_map[];
-/** ppe_ip_protocol_desc_map table. */
-extern aim_map_si_t ppe_ip_protocol_desc_map[];
-
-/** ppe_icmpv6_typecode */
-typedef enum ppe_icmpv6_typecode_e {
-    PPE_ICMPV6_TYPECODE_ROUTER_SOLICITATION = 133,
-    PPE_ICMPV6_TYPECODE_ROUTER_ADVERTISEMENT = 134,
-    PPE_ICMPV6_TYPECODE_NEIGHBOR_SOLICITATION = 135,
-    PPE_ICMPV6_TYPECODE_NEIGHBOR_ADVERTISEMENT = 136,
-    PPE_ICMPV6_TYPECODE_ECHO_REQUEST = 128,
-    PPE_ICMPV6_TYPECODE_ECHO_REPLY = 129,
-} ppe_icmpv6_typecode_t;
-
-/** Enum names. */
-const char* ppe_icmpv6_typecode_name(ppe_icmpv6_typecode_t e);
-
-/** Enum values. */
-int ppe_icmpv6_typecode_value(const char* str, ppe_icmpv6_typecode_t* e, int substr);
-
-/** Enum descriptions. */
-const char* ppe_icmpv6_typecode_desc(ppe_icmpv6_typecode_t e);
-
-/** Enum validator. */
-int ppe_icmpv6_typecode_valid(ppe_icmpv6_typecode_t e);
-
-/** validator */
-#define PPE_ICMPV6_TYPECODE_VALID(_e) \
-    (ppe_icmpv6_typecode_valid((_e)))
-
-/** ppe_icmpv6_typecode_map table. */
-extern aim_map_si_t ppe_icmpv6_typecode_map[];
-/** ppe_icmpv6_typecode_desc_map table. */
-extern aim_map_si_t ppe_icmpv6_typecode_desc_map[];
-
-/** ppe_igmp_type */
-typedef enum ppe_igmp_type_e {
-    PPE_IGMP_TYPE_QUERY = 17,
-    PPE_IGMP_TYPE_V1_REPORT = 18,
-    PPE_IGMP_TYPE_V2_REPORT = 22,
-    PPE_IGMP_TYPE_V3_REPORT = 34,
-    PPE_IGMP_TYPE_LEAVE = 23,
-} ppe_igmp_type_t;
-
-/** Enum names. */
-const char* ppe_igmp_type_name(ppe_igmp_type_t e);
-
-/** Enum values. */
-int ppe_igmp_type_value(const char* str, ppe_igmp_type_t* e, int substr);
-
-/** Enum descriptions. */
-const char* ppe_igmp_type_desc(ppe_igmp_type_t e);
-
-/** Enum validator. */
-int ppe_igmp_type_valid(ppe_igmp_type_t e);
-
-/** validator */
-#define PPE_IGMP_TYPE_VALID(_e) \
-    (ppe_igmp_type_valid((_e)))
-
-/** ppe_igmp_type_map table. */
-extern aim_map_si_t ppe_igmp_type_map[];
-/** ppe_igmp_type_desc_map table. */
-extern aim_map_si_t ppe_igmp_type_desc_map[];
-
-/** ppe_pservice_port */
-typedef enum ppe_pservice_port_e {
-    PPE_PSERVICE_PORT_DHCP_CLIENT = 68,
-    PPE_PSERVICE_PORT_DHCP_SERVER = 67,
-    PPE_PSERVICE_PORT_VXLAN = 4789,
-} ppe_pservice_port_t;
-
-/** Enum names. */
-const char* ppe_pservice_port_name(ppe_pservice_port_t e);
-
-/** Enum values. */
-int ppe_pservice_port_value(const char* str, ppe_pservice_port_t* e, int substr);
-
-/** Enum descriptions. */
-const char* ppe_pservice_port_desc(ppe_pservice_port_t e);
-
-/** Enum validator. */
-int ppe_pservice_port_valid(ppe_pservice_port_t e);
-
-/** validator */
-#define PPE_PSERVICE_PORT_VALID(_e) \
-    (ppe_pservice_port_valid((_e)))
-
-/** ppe_pservice_port_map table. */
-extern aim_map_si_t ppe_pservice_port_map[];
-/** ppe_pservice_port_desc_map table. */
-extern aim_map_si_t ppe_pservice_port_desc_map[];
 
 /** ppe_icmp_typecode */
 typedef enum ppe_icmp_typecode_e {
@@ -583,35 +430,126 @@ extern aim_map_si_t ppe_icmp_typecode_map[];
 /** ppe_icmp_typecode_desc_map table. */
 extern aim_map_si_t ppe_icmp_typecode_desc_map[];
 
-/** ppe_ethertype */
-typedef enum ppe_ethertype_e {
-    PPE_ETHERTYPE_ARP = 2054,
-    PPE_ETHERTYPE_IP4 = 2048,
-    PPE_ETHERTYPE_IP6 = 34525,
-    PPE_ETHERTYPE_LLDP = 35020,
-    PPE_ETHERTYPE_SLOW_PROTOCOLS = 34825,
-} ppe_ethertype_t;
+/** ppe_icmpv6_typecode */
+typedef enum ppe_icmpv6_typecode_e {
+    PPE_ICMPV6_TYPECODE_ROUTER_SOLICITATION = 133,
+    PPE_ICMPV6_TYPECODE_ROUTER_ADVERTISEMENT = 134,
+    PPE_ICMPV6_TYPECODE_NEIGHBOR_SOLICITATION = 135,
+    PPE_ICMPV6_TYPECODE_NEIGHBOR_ADVERTISEMENT = 136,
+    PPE_ICMPV6_TYPECODE_ECHO_REQUEST = 128,
+    PPE_ICMPV6_TYPECODE_ECHO_REPLY = 129,
+} ppe_icmpv6_typecode_t;
 
 /** Enum names. */
-const char* ppe_ethertype_name(ppe_ethertype_t e);
+const char* ppe_icmpv6_typecode_name(ppe_icmpv6_typecode_t e);
 
 /** Enum values. */
-int ppe_ethertype_value(const char* str, ppe_ethertype_t* e, int substr);
+int ppe_icmpv6_typecode_value(const char* str, ppe_icmpv6_typecode_t* e, int substr);
 
 /** Enum descriptions. */
-const char* ppe_ethertype_desc(ppe_ethertype_t e);
+const char* ppe_icmpv6_typecode_desc(ppe_icmpv6_typecode_t e);
 
 /** Enum validator. */
-int ppe_ethertype_valid(ppe_ethertype_t e);
+int ppe_icmpv6_typecode_valid(ppe_icmpv6_typecode_t e);
 
 /** validator */
-#define PPE_ETHERTYPE_VALID(_e) \
-    (ppe_ethertype_valid((_e)))
+#define PPE_ICMPV6_TYPECODE_VALID(_e) \
+    (ppe_icmpv6_typecode_valid((_e)))
 
-/** ppe_ethertype_map table. */
-extern aim_map_si_t ppe_ethertype_map[];
-/** ppe_ethertype_desc_map table. */
-extern aim_map_si_t ppe_ethertype_desc_map[];
+/** ppe_icmpv6_typecode_map table. */
+extern aim_map_si_t ppe_icmpv6_typecode_map[];
+/** ppe_icmpv6_typecode_desc_map table. */
+extern aim_map_si_t ppe_icmpv6_typecode_desc_map[];
+
+/** ppe_igmp_type */
+typedef enum ppe_igmp_type_e {
+    PPE_IGMP_TYPE_QUERY = 17,
+    PPE_IGMP_TYPE_V1_REPORT = 18,
+    PPE_IGMP_TYPE_V2_REPORT = 22,
+    PPE_IGMP_TYPE_V3_REPORT = 34,
+    PPE_IGMP_TYPE_LEAVE = 23,
+} ppe_igmp_type_t;
+
+/** Enum names. */
+const char* ppe_igmp_type_name(ppe_igmp_type_t e);
+
+/** Enum values. */
+int ppe_igmp_type_value(const char* str, ppe_igmp_type_t* e, int substr);
+
+/** Enum descriptions. */
+const char* ppe_igmp_type_desc(ppe_igmp_type_t e);
+
+/** Enum validator. */
+int ppe_igmp_type_valid(ppe_igmp_type_t e);
+
+/** validator */
+#define PPE_IGMP_TYPE_VALID(_e) \
+    (ppe_igmp_type_valid((_e)))
+
+/** ppe_igmp_type_map table. */
+extern aim_map_si_t ppe_igmp_type_map[];
+/** ppe_igmp_type_desc_map table. */
+extern aim_map_si_t ppe_igmp_type_desc_map[];
+
+/** ppe_ip4_flags */
+typedef enum ppe_ip4_flags_e {
+    PPE_IP4_FLAGS_RESERVED = 4,
+    PPE_IP4_FLAGS_DF = 2,
+    PPE_IP4_FLAGS_MF = 1,
+} ppe_ip4_flags_t;
+
+/** Enum names. */
+const char* ppe_ip4_flags_name(ppe_ip4_flags_t e);
+
+/** Enum values. */
+int ppe_ip4_flags_value(const char* str, ppe_ip4_flags_t* e, int substr);
+
+/** Enum descriptions. */
+const char* ppe_ip4_flags_desc(ppe_ip4_flags_t e);
+
+/** Enum validator. */
+int ppe_ip4_flags_valid(ppe_ip4_flags_t e);
+
+/** validator */
+#define PPE_IP4_FLAGS_VALID(_e) \
+    (ppe_ip4_flags_valid((_e)))
+
+/** ppe_ip4_flags_map table. */
+extern aim_map_si_t ppe_ip4_flags_map[];
+/** ppe_ip4_flags_desc_map table. */
+extern aim_map_si_t ppe_ip4_flags_desc_map[];
+
+/** ppe_ip_protocol */
+typedef enum ppe_ip_protocol_e {
+    PPE_IP_PROTOCOL_ICMP = 1,
+    PPE_IP_PROTOCOL_IGMP = 2,
+    PPE_IP_PROTOCOL_TCP = 6,
+    PPE_IP_PROTOCOL_UDP = 17,
+    PPE_IP_PROTOCOL_GRE = 47,
+    PPE_IP_PROTOCOL_ICMPV6 = 58,
+    PPE_IP_PROTOCOL_PIM = 103,
+} ppe_ip_protocol_t;
+
+/** Enum names. */
+const char* ppe_ip_protocol_name(ppe_ip_protocol_t e);
+
+/** Enum values. */
+int ppe_ip_protocol_value(const char* str, ppe_ip_protocol_t* e, int substr);
+
+/** Enum descriptions. */
+const char* ppe_ip_protocol_desc(ppe_ip_protocol_t e);
+
+/** Enum validator. */
+int ppe_ip_protocol_valid(ppe_ip_protocol_t e);
+
+/** validator */
+#define PPE_IP_PROTOCOL_VALID(_e) \
+    (ppe_ip_protocol_valid((_e)))
+
+/** ppe_ip_protocol_map table. */
+extern aim_map_si_t ppe_ip_protocol_map[];
+/** ppe_ip_protocol_desc_map table. */
+extern aim_map_si_t ppe_ip_protocol_desc_map[];
 
 /** ppe_log_flag */
 typedef enum ppe_log_flag_e {
@@ -645,6 +583,92 @@ const char* ppe_log_flag_desc(ppe_log_flag_t e);
 extern aim_map_si_t ppe_log_flag_map[];
 /** ppe_log_flag_desc_map table. */
 extern aim_map_si_t ppe_log_flag_desc_map[];
+
+/** ppe_pim_type */
+typedef enum ppe_pim_type_e {
+    PPE_PIM_TYPE_HELLO = 0,
+    PPE_PIM_TYPE_REGISTER = 1,
+    PPE_PIM_TYPE_REGISTER_STOP = 2,
+    PPE_PIM_TYPE_JOIN_PRUNE = 3,
+} ppe_pim_type_t;
+
+/** Enum names. */
+const char* ppe_pim_type_name(ppe_pim_type_t e);
+
+/** Enum values. */
+int ppe_pim_type_value(const char* str, ppe_pim_type_t* e, int substr);
+
+/** Enum descriptions. */
+const char* ppe_pim_type_desc(ppe_pim_type_t e);
+
+/** Enum validator. */
+int ppe_pim_type_valid(ppe_pim_type_t e);
+
+/** validator */
+#define PPE_PIM_TYPE_VALID(_e) \
+    (ppe_pim_type_valid((_e)))
+
+/** ppe_pim_type_map table. */
+extern aim_map_si_t ppe_pim_type_map[];
+/** ppe_pim_type_desc_map table. */
+extern aim_map_si_t ppe_pim_type_desc_map[];
+
+/** ppe_pservice_port */
+typedef enum ppe_pservice_port_e {
+    PPE_PSERVICE_PORT_DHCP_CLIENT = 68,
+    PPE_PSERVICE_PORT_DHCP_SERVER = 67,
+    PPE_PSERVICE_PORT_VXLAN = 4789,
+    PPE_PSERVICE_PORT_MICRO_BFD = 6784,
+    PPE_PSERVICE_PORT_SINGLE_HOP_BFD = 3784,
+    PPE_PSERVICE_PORT_MULTI_HOP_BFD = 4784,
+} ppe_pservice_port_t;
+
+/** Enum names. */
+const char* ppe_pservice_port_name(ppe_pservice_port_t e);
+
+/** Enum values. */
+int ppe_pservice_port_value(const char* str, ppe_pservice_port_t* e, int substr);
+
+/** Enum descriptions. */
+const char* ppe_pservice_port_desc(ppe_pservice_port_t e);
+
+/** Enum validator. */
+int ppe_pservice_port_valid(ppe_pservice_port_t e);
+
+/** validator */
+#define PPE_PSERVICE_PORT_VALID(_e) \
+    (ppe_pservice_port_valid((_e)))
+
+/** ppe_pservice_port_map table. */
+extern aim_map_si_t ppe_pservice_port_map[];
+/** ppe_pservice_port_desc_map table. */
+extern aim_map_si_t ppe_pservice_port_desc_map[];
+
+/** ppe_slow_protocol */
+typedef enum ppe_slow_protocol_e {
+    PPE_SLOW_PROTOCOL_LACP = 1,
+} ppe_slow_protocol_t;
+
+/** Enum names. */
+const char* ppe_slow_protocol_name(ppe_slow_protocol_t e);
+
+/** Enum values. */
+int ppe_slow_protocol_value(const char* str, ppe_slow_protocol_t* e, int substr);
+
+/** Enum descriptions. */
+const char* ppe_slow_protocol_desc(ppe_slow_protocol_t e);
+
+/** Enum validator. */
+int ppe_slow_protocol_valid(ppe_slow_protocol_t e);
+
+/** validator */
+#define PPE_SLOW_PROTOCOL_VALID(_e) \
+    (ppe_slow_protocol_valid((_e)))
+
+/** ppe_slow_protocol_map table. */
+extern aim_map_si_t ppe_slow_protocol_map[];
+/** ppe_slow_protocol_desc_map table. */
+extern aim_map_si_t ppe_slow_protocol_desc_map[];
 /* <auto.end.enum(ALL).header> */
 
 

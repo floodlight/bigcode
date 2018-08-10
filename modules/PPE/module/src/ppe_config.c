@@ -85,7 +85,7 @@ ppe_config_lookup(const char* setting)
 {
     int i;
     for(i = 0; ppe_config_settings[i].name; i++) {
-        if(strcmp(ppe_config_settings[i].name, setting)) {
+        if(!strcmp(ppe_config_settings[i].name, setting)) {
             return ppe_config_settings[i].value;
         }
     }
