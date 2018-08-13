@@ -246,10 +246,7 @@ typedef enum ppe_field_e {
     PPE_FIELD_BFD_MIN_TX,
     PPE_FIELD_BFD_MIN_RX,
     PPE_FIELD_BFD_MIN_ECHO,
-    PPE_FIELD_BFD_AUTH_TYPE,
-    PPE_FIELD_BFD_AUTH_LENGTH,
-    PPE_FIELD_BFD_AUTH_DATA,
-    PPE_FIELD_LAST = PPE_FIELD_BFD_AUTH_DATA,
+    PPE_FIELD_LAST = PPE_FIELD_BFD_MIN_ECHO,
     PPE_FIELD_COUNT,
     PPE_FIELD_INVALID = -1,
 } ppe_field_t;
@@ -265,7 +262,7 @@ const char* ppe_field_desc(ppe_field_t e);
 
 /** validator */
 #define PPE_FIELD_VALID(_e) \
-    ( (0 <= (_e)) && ((_e) <= PPE_FIELD_BFD_AUTH_DATA))
+    ( (0 <= (_e)) && ((_e) <= PPE_FIELD_BFD_MIN_ECHO))
 
 /** ppe_field_map table. */
 extern aim_map_si_t ppe_field_map[];

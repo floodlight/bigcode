@@ -472,9 +472,7 @@ fields: &fields
 - [ BFD,           MIN_TX,          32, 12, 0 ]
 - [ BFD,           MIN_RX,          32, 16, 0 ]
 - [ BFD,           MIN_ECHO,        32, 20, 0 ]
-- [ BFD,           AUTH_TYPE,       8,  24, 0 ]
-- [ BFD,           AUTH_LENGTH,     8,  25, 0 ]
-- [ BFD,           AUTH_DATA,       16, 26, 0 ]
+# authentication has dynmaic length. Fix it if needed
 
 ###############################################################################
 #

@@ -279,9 +279,6 @@ aim_map_si_t ppe_field_map[] =
     { "BFD_MIN_TX", PPE_FIELD_BFD_MIN_TX },
     { "BFD_MIN_RX", PPE_FIELD_BFD_MIN_RX },
     { "BFD_MIN_ECHO", PPE_FIELD_BFD_MIN_ECHO },
-    { "BFD_AUTH_TYPE", PPE_FIELD_BFD_AUTH_TYPE },
-    { "BFD_AUTH_LENGTH", PPE_FIELD_BFD_AUTH_LENGTH },
-    { "BFD_AUTH_DATA", PPE_FIELD_BFD_AUTH_DATA },
     { NULL, 0 }
 };
 
@@ -470,9 +467,6 @@ aim_map_si_t ppe_field_desc_map[] =
     { "None", PPE_FIELD_BFD_MIN_TX },
     { "None", PPE_FIELD_BFD_MIN_RX },
     { "None", PPE_FIELD_BFD_MIN_ECHO },
-    { "None", PPE_FIELD_BFD_AUTH_TYPE },
-    { "None", PPE_FIELD_BFD_AUTH_LENGTH },
-    { "None", PPE_FIELD_BFD_AUTH_DATA },
     { NULL, 0 }
 };
 
