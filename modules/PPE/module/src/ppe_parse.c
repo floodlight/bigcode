@@ -159,6 +159,43 @@ ppe_parse_service_port_VXLAN(ppe_packet_t* ppep,
 }
 
 static inline int
+ppe_parse_service_port_MICRO_BFD(ppe_packet_t* ppep,
+                                 uint16_t sport, uint16_t dport,
+                                 uint8_t* data, int size)
+{
+    AIM_REFERENCE(sport);
+    AIM_REFERENCE(dport);
+    AIM_REFERENCE(size);
+    PPE_PACKET_HEADER_SET(ppep, PPE_HEADER_BFD, data);
+    return 0;
+}
+
+static inline int
+ppe_parse_service_port_SINGLE_HOP_BFD(ppe_packet_t* ppep,
+                                 uint16_t sport, uint16_t dport,
+                                 uint8_t* data, int size)
+{
+    AIM_REFERENCE(sport);
+    AIM_REFERENCE(dport);
+    AIM_REFERENCE(size);
+    PPE_PACKET_HEADER_SET(ppep, PPE_HEADER_BFD, data);
+    return 0;
+}
+
+static inline int
+ppe_parse_service_port_MULTI_HOP_BFD(ppe_packet_t* ppep,
+				 uint16_t sport, uint16_t dport,
+				 uint8_t* data, int size)
+{
+    AIM_REFERENCE(sport);
+    AIM_REFERENCE(dport);
+    AIM_REFERENCE(size);
+    PPE_PACKET_HEADER_SET(ppep, PPE_HEADER_BFD, data);
+    return 0;
+}
+
+
+static inline int
 ppe_parse_service_ports(ppe_packet_t* ppep, uint8_t* data, int size)
 {
     uint32_t sport;
