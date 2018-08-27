@@ -28,7 +28,6 @@
 #include <stdio.h>
 #include <unistd.h>
 #include <stdlib.h>
-#include <poll.h>
 #include <errno.h>
 #include <string.h>
 #include <sys/types.h>
@@ -49,7 +48,9 @@
 #include <linux/if_packet.h>
 #include <linux/if_ether.h>
 #include <linux/sockios.h>
+#include <unistd.h>
 #include <sys/ioctl.h>
+#include <errno.h>
 
 static const char* mmap_interface_docstring__ =
     "----------------------------------------------------\n"
@@ -70,8 +71,6 @@ static const char* mmap_interface_docstring__ =
 #define FRAME_SIZE      (1 << 11) /* 2 KB */
 #define NUM_BLOCKS      64
 #define NUM_FRAMES      ((BLOCK_SIZE*NUM_BLOCKS)/FRAME_SIZE)
-
-#define POLL_TIMEOUT_MS 20
 
 typedef struct frame_control_s {
     void* base;
@@ -111,9 +110,8 @@ typedef struct vpi_interface_mmap_s {
     /* Interface name */
     char interface_name[IFNAMSIZ];
 
-    /* Ring controls */
+    /* Ring control */
     ring_control_t rx_ring;
-    ring_control_t tx_ring;
 
 } vpi_interface_mmap_t;
 
@@ -139,50 +137,15 @@ vpi_mmap_interface_register(void)
 static int
 sendto__(vpi_interface_mmap_t* vi, char* data, int len)
 {
-    ring_control_t* rc;
-    frame_control_t* fc;
-    struct tpacket2_hdr* hdr;
-    void* copy_start;
-
-    rc = &vi->tx_ring;
-    fc = &rc->frames[rc->current_frame];
-    hdr = (struct tpacket2_hdr*)fc->base;
-    copy_start = fc->base + (TPACKET2_HDRLEN - sizeof(struct sockaddr_ll));
-
-    /* check len */
-    if(len > (FRAME_SIZE - (copy_start - fc->base))) {
-        return -1;
-    }
-
-    /* wait for frame status */
-    while(hdr->tp_status != TP_STATUS_AVAILABLE) {
-        struct pollfd pfd;
-
-        pfd.fd = vi->fd;
-        pfd.revents = 0;
-        pfd.events = POLLOUT;
-        if(poll(&pfd, 1, POLL_TIMEOUT_MS) < 0) {
-            if(errno != EINTR) {
-                return -1;
-            }
-            return 0;
-        }
-    }
-
-    /* update and advance */
-    VPI_MEMCPY(copy_start, data, len);
-    rc->current_frame = (rc->current_frame + 1)%NUM_FRAMES;
-    hdr->tp_status = TP_STATUS_SEND_REQUEST;
-    hdr->tp_len = len;
-
-    /* notify kernel */
     struct sockaddr_ll sockaddr;
+
     VPI_MEMSET(&sockaddr, 0, sizeof(sockaddr));
-    sockaddr.sll_family = AF_PACKET;
+    sockaddr.sll_family  = AF_PACKET;
     sockaddr.sll_ifindex = vi->ifindex;
-    if (sendto(vi->fd, data, len, 0,
-               (struct sockaddr*)&sockaddr, sizeof(sockaddr)) < 0) {
-        VPI_ERROR(vi, "send() failed: %s", strerror(errno));
+
+    if (sendto(vi->fd, data, len, 0, (struct sockaddr *)&sockaddr,
+               sizeof(sockaddr)) < 0) {
+        VPI_ERROR(vi, "sendto() failed: %s", strerror(errno));
         return -1;
     }
     return 0;
@@ -274,7 +237,6 @@ vpi_mmap_interface_create(vpi_interface_t** vi, char* args[], int flags,
     int version;
     int i;
     frame_control_t* fc;
-    void* buf;
 
     AIM_REFERENCE(flags);
 
@@ -341,52 +303,41 @@ vpi_mmap_interface_create(vpi_interface_t** vi, char* args[], int flags,
         return -1;
     }
 
-    /* Set up rx_ring and tx_ring */
+    /* Set up rx_ring buffer */
     VPI_MEMSET(&treq, 0, sizeof(treq));
     treq.tp_block_size = BLOCK_SIZE;
     treq.tp_frame_size = FRAME_SIZE;
     treq.tp_block_nr = NUM_BLOCKS;
     treq.tp_frame_nr = NUM_FRAMES;;
     if(setsockopt(nvi->fd, SOL_PACKET, PACKET_RX_RING,
-                  (void*)&treq, sizeof(treq)) < 0) {
+                  (void*)&treq , sizeof(treq)) < 0) {
         VPI_ERROR(nvi, "setsockopt() rx_ring failed. %s\n", strerror(errno));
         close(nvi->fd);
         aim_free(nvi);
         return -1;
     }
-    if(setsockopt(nvi->fd, SOL_PACKET, PACKET_TX_RING,
-                  (void*)&treq, sizeof(treq)) < 0) {
-        VPI_ERROR(nvi, "setsockopt() tx_ring failed. %s\n", strerror(errno));
-        close(nvi->fd);
-        aim_free(nvi);
-        return -1;
 
+    /* If num blocks change, bail! */
+    if(treq.tp_block_nr != NUM_BLOCKS) {
+        AIM_DIE("Unhandled: RX_RING block number changed!\n");
     }
 
-    /* Set up ring buffer */
-    buf = mmap(NULL, 2*(BLOCK_SIZE*NUM_BLOCKS),
-               PROT_READ | PROT_WRITE, MAP_SHARED | MAP_LOCKED,
-               nvi->fd, 0);
-    if(buf == MAP_FAILED) {
+    /* Set up rx_ring */
+    nvi->rx_ring.buf = mmap(NULL, BLOCK_SIZE*NUM_BLOCKS,
+                            PROT_READ | PROT_WRITE, MAP_SHARED | MAP_LOCKED,
+                            nvi->fd, 0);
+    if(nvi->rx_ring.buf == MAP_FAILED) {
         VPI_ERROR(nvi, "mmap() failed.\n");
         close(nvi->fd);
         aim_free(nvi);
         return -1;
     }
 
-    /* Set up rx_ring/tx_ring and frame controls */
-    nvi->rx_ring.buf = buf;
+    /* Set up rx_ring and frame controls */
     nvi->rx_ring.current_frame = 0;
-    nvi->tx_ring.buf = buf + (BLOCK_SIZE*NUM_BLOCKS);
-    nvi->tx_ring.current_frame = 0;
     for(i = 0; i < NUM_FRAMES; i++) {
-        /* rx */
         fc = &nvi->rx_ring.frames[i];
         fc->base = nvi->rx_ring.buf + (i*FRAME_SIZE);
-
-        /* tx */
-        fc = &nvi->tx_ring.frames[i];
-        fc->base = nvi->tx_ring.buf + (i*FRAME_SIZE);
     }
 
     /* Bind */
