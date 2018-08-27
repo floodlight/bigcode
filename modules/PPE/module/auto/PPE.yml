@@ -183,6 +183,9 @@ pservice_ports: &pservice_ports
 - DHCP_CLIENT : 68
 - DHCP_SERVER : 67
 - VXLAN : 4789
+- MICRO_BFD : 6784
+- SINGLE_HOP_BFD : 3784
+- MULTI_HOP_BFD : 4784
 
 
 ###############################################################################
@@ -254,6 +257,7 @@ headers: &headers
 - OF10
 - IGMP
 - PIM
+- BFD
 
 ###############################################################################
 #
@@ -452,6 +456,23 @@ fields: &fields
 - [ PIM,           TYPE,            4,  0, 0 ]
 - [ PIM,           CHECKSUM,       16,  2, 0 ]
 
+- [ BFD,           VERSION,         3,  0,  5 ]
+- [ BFD,           DIAG,            5,  0,  0 ]
+- [ BFD,           STATE,           2,  1,  6 ]
+- [ BFD,           POLL,            1,  1,  5 ]
+- [ BFD,           FINAL,           1,  1,  4 ]
+- [ BFD,           CONTROL_IND,     1,  1,  3 ]
+- [ BFD,           AUTH,            1,  1,  2 ]
+- [ BFD,           DEMAND,          1,  1,  1 ]
+- [ BFD,           MULTIPOINT,      1,  1,  0 ]
+- [ BFD,           DETECT_MULT,     8,  2,  0 ]
+- [ BFD,           LENGTH,          8,  3,  0 ]
+- [ BFD,           MY_DISCR,        32, 4,  0 ]
+- [ BFD,           YOUR_DISCR,      32, 8,  0 ]
+- [ BFD,           MIN_TX,          32, 12, 0 ]
+- [ BFD,           MIN_RX,          32, 16, 0 ]
+- [ BFD,           MIN_ECHO,        32, 20, 0 ]
+# FIXME: authentication not handled because data length depends on auth type
 
 ###############################################################################
 #

@@ -263,6 +263,22 @@ aim_map_si_t ppe_field_map[] =
     { "PIM_VERSION", PPE_FIELD_PIM_VERSION },
     { "PIM_TYPE", PPE_FIELD_PIM_TYPE },
     { "PIM_CHECKSUM", PPE_FIELD_PIM_CHECKSUM },
+    { "BFD_VERSION", PPE_FIELD_BFD_VERSION },
+    { "BFD_DIAG", PPE_FIELD_BFD_DIAG },
+    { "BFD_STATE", PPE_FIELD_BFD_STATE },
+    { "BFD_POLL", PPE_FIELD_BFD_POLL },
+    { "BFD_FINAL", PPE_FIELD_BFD_FINAL },
+    { "BFD_CONTROL_IND", PPE_FIELD_BFD_CONTROL_IND },
+    { "BFD_AUTH", PPE_FIELD_BFD_AUTH },
+    { "BFD_DEMAND", PPE_FIELD_BFD_DEMAND },
+    { "BFD_MULTIPOINT", PPE_FIELD_BFD_MULTIPOINT },
+    { "BFD_DETECT_MULT", PPE_FIELD_BFD_DETECT_MULT },
+    { "BFD_LENGTH", PPE_FIELD_BFD_LENGTH },
+    { "BFD_MY_DISCR", PPE_FIELD_BFD_MY_DISCR },
+    { "BFD_YOUR_DISCR", PPE_FIELD_BFD_YOUR_DISCR },
+    { "BFD_MIN_TX", PPE_FIELD_BFD_MIN_TX },
+    { "BFD_MIN_RX", PPE_FIELD_BFD_MIN_RX },
+    { "BFD_MIN_ECHO", PPE_FIELD_BFD_MIN_ECHO },
     { NULL, 0 }
 };
 
@@ -435,6 +451,22 @@ aim_map_si_t ppe_field_desc_map[] =
     { "None", PPE_FIELD_PIM_VERSION },
     { "None", PPE_FIELD_PIM_TYPE },
     { "None", PPE_FIELD_PIM_CHECKSUM },
+    { "None", PPE_FIELD_BFD_VERSION },
+    { "None", PPE_FIELD_BFD_DIAG },
+    { "None", PPE_FIELD_BFD_STATE },
+    { "None", PPE_FIELD_BFD_POLL },
+    { "None", PPE_FIELD_BFD_FINAL },
+    { "None", PPE_FIELD_BFD_CONTROL_IND },
+    { "None", PPE_FIELD_BFD_AUTH },
+    { "None", PPE_FIELD_BFD_DEMAND },
+    { "None", PPE_FIELD_BFD_MULTIPOINT },
+    { "None", PPE_FIELD_BFD_DETECT_MULT },
+    { "None", PPE_FIELD_BFD_LENGTH },
+    { "None", PPE_FIELD_BFD_MY_DISCR },
+    { "None", PPE_FIELD_BFD_YOUR_DISCR },
+    { "None", PPE_FIELD_BFD_MIN_TX },
+    { "None", PPE_FIELD_BFD_MIN_RX },
+    { "None", PPE_FIELD_BFD_MIN_ECHO },
     { NULL, 0 }
 };
 
@@ -507,6 +539,7 @@ aim_map_si_t ppe_header_map[] =
     { "OF10", PPE_HEADER_OF10 },
     { "IGMP", PPE_HEADER_IGMP },
     { "PIM", PPE_HEADER_PIM },
+    { "BFD", PPE_HEADER_BFD },
     { NULL, 0 }
 };
 
@@ -539,6 +572,7 @@ aim_map_si_t ppe_header_desc_map[] =
     { "None", PPE_HEADER_OF10 },
     { "None", PPE_HEADER_IGMP },
     { "None", PPE_HEADER_PIM },
+    { "None", PPE_HEADER_BFD },
     { NULL, 0 }
 };
 
@@ -1123,6 +1157,9 @@ aim_map_si_t ppe_pservice_port_map[] =
     { "DHCP_CLIENT", PPE_PSERVICE_PORT_DHCP_CLIENT },
     { "DHCP_SERVER", PPE_PSERVICE_PORT_DHCP_SERVER },
     { "VXLAN", PPE_PSERVICE_PORT_VXLAN },
+    { "MICRO_BFD", PPE_PSERVICE_PORT_MICRO_BFD },
+    { "SINGLE_HOP_BFD", PPE_PSERVICE_PORT_SINGLE_HOP_BFD },
+    { "MULTI_HOP_BFD", PPE_PSERVICE_PORT_MULTI_HOP_BFD },
     { NULL, 0 }
 };
 
@@ -1131,6 +1168,9 @@ aim_map_si_t ppe_pservice_port_desc_map[] =
     { "None", PPE_PSERVICE_PORT_DHCP_CLIENT },
     { "None", PPE_PSERVICE_PORT_DHCP_SERVER },
     { "None", PPE_PSERVICE_PORT_VXLAN },
+    { "None", PPE_PSERVICE_PORT_MICRO_BFD },
+    { "None", PPE_PSERVICE_PORT_SINGLE_HOP_BFD },
+    { "None", PPE_PSERVICE_PORT_MULTI_HOP_BFD },
     { NULL, 0 }
 };
 

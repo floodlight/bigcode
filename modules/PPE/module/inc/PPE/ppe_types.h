@@ -230,7 +230,23 @@ typedef enum ppe_field_e {
     PPE_FIELD_PIM_VERSION,
     PPE_FIELD_PIM_TYPE,
     PPE_FIELD_PIM_CHECKSUM,
-    PPE_FIELD_LAST = PPE_FIELD_PIM_CHECKSUM,
+    PPE_FIELD_BFD_VERSION,
+    PPE_FIELD_BFD_DIAG,
+    PPE_FIELD_BFD_STATE,
+    PPE_FIELD_BFD_POLL,
+    PPE_FIELD_BFD_FINAL,
+    PPE_FIELD_BFD_CONTROL_IND,
+    PPE_FIELD_BFD_AUTH,
+    PPE_FIELD_BFD_DEMAND,
+    PPE_FIELD_BFD_MULTIPOINT,
+    PPE_FIELD_BFD_DETECT_MULT,
+    PPE_FIELD_BFD_LENGTH,
+    PPE_FIELD_BFD_MY_DISCR,
+    PPE_FIELD_BFD_YOUR_DISCR,
+    PPE_FIELD_BFD_MIN_TX,
+    PPE_FIELD_BFD_MIN_RX,
+    PPE_FIELD_BFD_MIN_ECHO,
+    PPE_FIELD_LAST = PPE_FIELD_BFD_MIN_ECHO,
     PPE_FIELD_COUNT,
     PPE_FIELD_INVALID = -1,
 } ppe_field_t;
@@ -246,7 +262,7 @@ const char* ppe_field_desc(ppe_field_t e);
 
 /** validator */
 #define PPE_FIELD_VALID(_e) \
-    ( (0 <= (_e)) && ((_e) <= PPE_FIELD_PIM_CHECKSUM))
+    ( (0 <= (_e)) && ((_e) <= PPE_FIELD_BFD_MIN_ECHO))
 
 /** ppe_field_map table. */
 extern aim_map_si_t ppe_field_map[];
@@ -282,7 +298,8 @@ typedef enum ppe_header_e {
     PPE_HEADER_OF10,
     PPE_HEADER_IGMP,
     PPE_HEADER_PIM,
-    PPE_HEADER_LAST = PPE_HEADER_PIM,
+    PPE_HEADER_BFD,
+    PPE_HEADER_LAST = PPE_HEADER_BFD,
     PPE_HEADER_COUNT,
     PPE_HEADER_INVALID = -1,
 } ppe_header_t;
@@ -317,6 +334,7 @@ typedef enum ppe_header_e {
     "OF10", \
     "IGMP", \
     "PIM", \
+    "BFD", \
 }
 /** Enum names. */
 const char* ppe_header_name(ppe_header_t e);
@@ -329,7 +347,7 @@ const char* ppe_header_desc(ppe_header_t e);
 
 /** validator */
 #define PPE_HEADER_VALID(_e) \
-    ( (0 <= (_e)) && ((_e) <= PPE_HEADER_PIM))
+    ( (0 <= (_e)) && ((_e) <= PPE_HEADER_BFD))
 
 /** ppe_header_map table. */
 extern aim_map_si_t ppe_header_map[];
@@ -597,6 +615,9 @@ typedef enum ppe_pservice_port_e {
     PPE_PSERVICE_PORT_DHCP_CLIENT = 68,
     PPE_PSERVICE_PORT_DHCP_SERVER = 67,
     PPE_PSERVICE_PORT_VXLAN = 4789,
+    PPE_PSERVICE_PORT_MICRO_BFD = 6784,
+    PPE_PSERVICE_PORT_SINGLE_HOP_BFD = 3784,
+    PPE_PSERVICE_PORT_MULTI_HOP_BFD = 4784,
 } ppe_pservice_port_t;
 
 /** Enum names. */
