@@ -459,6 +459,8 @@ fields: &fields
 - [ PIM,           REGISTER_B,          1,  4, 7 ]
 - [ PIM,           REGISTER_N,          1,  4, 6 ]
 - [ PIM,           REGISTER_RESERVED,  30,  4, 0 ]
+# WARNING: Handles only 20 bytes of data,
+# null register can be sent for only one multicast group
 - [ PIM,           REGISTER_DATA,     160,  8, 0 ]
 
 - [ BFD,           VERSION,         3,  0,  5 ]
