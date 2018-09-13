@@ -196,6 +196,30 @@ ppe_udp_header_checksum_update(ppe_packet_t* ppep)
                                             PPE_IP_PROTOCOL_UDP);
 }
 
+uint32_t
+ppe_pim_header_checksum_update(ppe_packet_t* ppep)
+{
+    uint8_t* pim_header = ppep->headers[PPE_HEADER_PIM].start;
+    int csum = 0;
+    uint32_t ip_hdr, ip_total_len;
+    /* PIM HDR (4 bytes) + Variable Size Data */
+    uint32_t size = 0;
+
+    /* Only for PIM Packets */
+    if(pim_header) {
+        /* Calculate the length of PIM Header and Data */
+        ppe_field_get(ppep, PPE_FIELD_IP4_HEADER_SIZE, &ip_hdr);
+        ip_hdr *= 4;
+        ppe_field_get(ppep, PPE_FIELD_IP4_TOTAL_LENGTH, &ip_total_len);
+        size = ip_total_len - ip_hdr;
+
+        ppe_field_set(ppep, PPE_FIELD_PIM_CHECKSUM, 0);
+        csum = ip_checksum__(pim_header, size, NULL, 0, NULL, 0);
+        ppe_field_set(ppep, PPE_FIELD_PIM_CHECKSUM, csum);
+    }
+    return csum;
+}
+
 /**************************************************************************//**
  *
  * Recalculate the ICMP Header checksum and update the packet.

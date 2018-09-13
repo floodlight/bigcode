@@ -452,9 +452,16 @@ fields: &fields
 - [ OF10,          ARP_OPERATION,  16, 50, 0 ]
 - [ OF10,          LAST,            0, 52, 0 ]
 
-- [ PIM,           VERSION,         4,  0, 4 ]
-- [ PIM,           TYPE,            4,  0, 0 ]
-- [ PIM,           CHECKSUM,       16,  2, 0 ]
+- [ PIM,           VERSION,             4,  0, 4 ]
+- [ PIM,           TYPE,                4,  0, 0 ]
+- [ PIM,           RESERVED,            8,  1, 0 ]
+- [ PIM,           CHECKSUM,           16,  2, 0 ]
+- [ PIM,           REGISTER_B,          1,  4, 7 ]
+- [ PIM,           REGISTER_N,          1,  4, 6 ]
+- [ PIM,           REGISTER_RESERVED,  30,  4, 0 ]
+# WARNING: Handles only 20 bytes of data,
+# null register can be sent for only one multicast group
+- [ PIM,           REGISTER_DATA,     160,  8, 0 ]
 
 - [ BFD,           VERSION,         3,  0,  5 ]
 - [ BFD,           DIAG,            5,  0,  0 ]
