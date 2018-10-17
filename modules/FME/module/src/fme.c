@@ -228,7 +228,7 @@ fme_key_match__(fme_key_t* value, fme_key_t* matchkey)
     /* key value masks */
     mmp = (uint32_t*) matchkey->masks;
 
-    for(i = 0; i < value->size/4 + 1; i++) {
+    for(i = 0; i < value->size/4; i++) {
         if( (vp[i] & mmp[i]) != mvp[i] ) {
             /* No match */
             return 0;
