@@ -213,6 +213,10 @@ sff_module_type_get(const uint8_t* eeprom)
     }
 
     if (SFF8472_MODULE_SFP(eeprom)
+        && _sff8472_sfp_10g_base_t(eeprom))
+        return SFF_MODULE_TYPE_10G_BASE_T;
+
+    if (SFF8472_MODULE_SFP(eeprom)
         && SFF8472_MEDIA_GBE_SX(eeprom))
         return SFF_MODULE_TYPE_1G_BASE_SX;
 
@@ -264,6 +268,7 @@ sff_media_type_get(sff_module_type_t mt)
         case SFF_MODULE_TYPE_40G_BASE_CR:
         case SFF_MODULE_TYPE_25G_BASE_CR:
         case SFF_MODULE_TYPE_10G_BASE_CR:
+        case SFF_MODULE_TYPE_10G_BASE_T:
         case SFF_MODULE_TYPE_1G_BASE_CX:
         case SFF_MODULE_TYPE_1G_BASE_T:
             return SFF_MEDIA_TYPE_COPPER;
@@ -357,6 +362,7 @@ sff_module_caps_get(sff_module_type_t mt, uint32_t *caps)
         case SFF_MODULE_TYPE_10G_BASE_LX:
         case SFF_MODULE_TYPE_10G_BASE_ZR:
         case SFF_MODULE_TYPE_10G_BASE_SRL:
+        case SFF_MODULE_TYPE_10G_BASE_T:
             *caps |= SFF_MODULE_CAPS_F_10G;
             return 0;
 
@@ -783,6 +789,7 @@ sff_info_init(sff_info_t* info, sff_module_type_t mt,
             info->caps = SFF_MODULE_CAPS_F_25G;
             break;
 
+        case SFF_MODULE_TYPE_10G_BASE_T:
         case SFF_MODULE_TYPE_10G_BASE_CR:
             info->sfp_type = SFF_SFP_TYPE_SFP;
             info->media_type = SFF_MEDIA_TYPE_COPPER;
