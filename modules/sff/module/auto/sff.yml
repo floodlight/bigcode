@@ -103,6 +103,8 @@ sff_module_types: &sff_module_types
     desc: "10GBASE-ZR"
 - 10G_BASE_SRL:
     desc: "10GBASE-SRL"
+- 10G_BASE_T:
+    desc: "10GBASE-T"
 - 1G_BASE_SX:
     desc: "1GBASE-SX"
 - 1G_BASE_LX:
