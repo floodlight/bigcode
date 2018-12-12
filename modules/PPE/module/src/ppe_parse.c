@@ -254,12 +254,54 @@ ppe_parse_ip_protocol_IGMP__(ppe_packet_t* ppep, uint8_t* data, int size)
     PPE_PACKET_HEADER_SET(ppep, PPE_HEADER_IGMP, data);
     return 0;
 }
+
+static inline int
+ppe_parse_pim_type_HELLO__(ppe_packet_t* ppep, uint8_t *data, int size)
+{
+    AIM_REFERENCE(size);
+    PPE_PACKET_HEADER_SET(ppep, PPE_HEADER_PIM_HELLO, data);
+    return 0;
+}
+static inline int
+ppe_parse_pim_type_REGISTER__(ppe_packet_t* ppep, uint8_t *data, int size)
+{
+    AIM_REFERENCE(size);
+    PPE_PACKET_HEADER_SET(ppep, PPE_HEADER_PIM_REGISTER, data);
+    return 0;
+}
+static inline int
+ppe_parse_pim_type_REGISTER_STOP__(ppe_packet_t* ppep, uint8_t *data, int size)
+{
+    AIM_REFERENCE(size);
+    PPE_PACKET_HEADER_SET(ppep, PPE_HEADER_PIM_REGISTER_STOP_V4, data);
+    return 0;
+}
+static inline int
+ppe_parse_pim_type_JOIN_PRUNE__(ppe_packet_t* ppep, uint8_t *data, int size)
+{
+    AIM_REFERENCE(size);
+    PPE_PACKET_HEADER_SET(ppep, PPE_HEADER_PIM_JOIN_PRUNE, data);
+    return 0;
+}
+static inline int
+ppe_parse_pim_types(ppe_packet_t *ppep, uint8_t pim_type, uint8_t *data, int size)
+{
+    switch(pim_type)
+        {
+#define PPE_PIM_TYPE_ENTRY(_type, _value)                           \
+            case PPE_PIM_TYPE_##_type:                              \
+                return ppe_parse_pim_type_##_type##__ (ppep, data, size);
+#include <PPE/ppe.x>
+        default: return 0;
+        }
+}
 static inline int
 ppe_parse_ip_protocol_PIM__(ppe_packet_t* ppep, uint8_t* data, int size)
 {
     AIM_REFERENCE(size);
     PPE_PACKET_HEADER_SET(ppep, PPE_HEADER_PIM, data);
-    return 0;
+    /* Only move 4 bytes (pim common header) */
+    return ppe_parse_pim_types(ppep, data[0] & 0xf, data + 4, size - 4);
 }
 static inline int
 ppe_parse_ip_protocol_ICMPV6__(ppe_packet_t* ppep, uint8_t* data, int size)
