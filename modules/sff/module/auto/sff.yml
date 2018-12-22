@@ -51,6 +51,8 @@ sff_module_types: &sff_module_types
     desc: "100GBASE-SR4"
 - 100G_BASE_LR4:
     desc: "100GBASE-LR4"
+- 100G_BASE_ER4:
+    desc: "100GBASE-ER4"
 - 100G_CWDM4:
     desc: "100G-CWDM4"
 - 100G_PSM4:
