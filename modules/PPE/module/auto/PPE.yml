@@ -257,6 +257,10 @@ headers: &headers
 - OF10
 - IGMP
 - PIM
+- PIM_HELLO
+- PIM_REGISTER
+- PIM_REGISTER_STOP_V4
+- PIM_JOIN_PRUNE
 - BFD
 
 ###############################################################################
@@ -456,12 +460,28 @@ fields: &fields
 - [ PIM,           TYPE,                4,  0, 0 ]
 - [ PIM,           RESERVED,            8,  1, 0 ]
 - [ PIM,           CHECKSUM,           16,  2, 0 ]
-- [ PIM,           REGISTER_B,          1,  4, 7 ]
-- [ PIM,           REGISTER_N,          1,  4, 6 ]
-- [ PIM,           REGISTER_RESERVED,  30,  4, 0 ]
+
+- [ PIM_HELLO,     DATA,              160,  0, 0 ]
+
+- [ PIM_REGISTER,  B,                   1,  0, 7 ]
+- [ PIM_REGISTER,  N,                   1,  0, 6 ]
+- [ PIM_REGISTER,  RESERVED,           30,  0, 0 ]
 # WARNING: Handles only 20 bytes of data,
 # null register can be sent for only one multicast group
-- [ PIM,           REGISTER_DATA,     160,  8, 0 ]
+- [ PIM_REGISTER,  DATA,              160,  4, 0 ]
+
+- [ PIM_REGISTER_STOP_V4,  ENCODED_GRP_AF,      8,  0, 0 ]
+- [ PIM_REGISTER_STOP_V4,  ENCODED_GRP_TYPE,    8,  1, 0 ]
+- [ PIM_REGISTER_STOP_V4,  ENCODED_GRP_B,       1,  2, 7 ]
+- [ PIM_REGISTER_STOP_V4,  ENCODED_GRP_RSVD,    6,  2, 1 ]
+- [ PIM_REGISTER_STOP_V4,  ENCODED_GRP_Z,       1,  2, 0 ]
+- [ PIM_REGISTER_STOP_V4,  ENCODED_GRP_MASK,    8,  3, 0 ]
+- [ PIM_REGISTER_STOP_V4,  ENCODED_GRP_ADDR,   32,  4, 0 ]
+- [ PIM_REGISTER_STOP_V4,  ENCODED_UNI_AF,      8,  8, 0 ]
+- [ PIM_REGISTER_STOP_V4,  ENCODED_UNI_TYPE,    8,  9, 0 ]
+- [ PIM_REGISTER_STOP_V4,  ENCODED_UNI_ADDR,   32, 10, 0 ]
+
+- [ PIM_JOIN_PRUNE,        DATA,              160,  0, 0 ]
 
 - [ BFD,           VERSION,         3,  0,  5 ]
 - [ BFD,           DIAG,            5,  0,  0 ]
@@ -586,6 +606,8 @@ definitions:
       members: *icmpv6_typecodes
     PPE_PSERVICE_PORT_ENTRY:
       members: *pservice_ports
+    PPE_PIM_TYPE_ENTRY:
+      members: *pim_types
 
   xenum:
     PPE_ENUMERATION_ENTRY:
