@@ -975,7 +975,7 @@ _sff8472_sfp_10g_base_t(const uint8_t *idprom)
     if (!SFF8472_MODULE_SFP(idprom)) return 0;
 
     if (idprom[2] != SFF8472_CONN_RJ45) return 0;
-    if (idprom[12] == 0x64) return 1;
+    if ((idprom[12] >= 0x64) && (idprom[12] <= 0x67)) return 1;
 
     return 0;
 }
