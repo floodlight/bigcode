@@ -92,6 +92,11 @@ sff_module_type_get(const uint8_t* eeprom)
         && SFF8636_MEDIA_100GE_SWDM4(eeprom))
         return SFF_MODULE_TYPE_100G_SWDM4;
 
+    if (SFF8636_MODULE_QSFP28(eeprom)
+        && SFF8636_MEDIA_EXTENDED(eeprom)
+        && SFF8636_MEDIA_100GE_PAM4_BIDI(eeprom))
+        return SFF_MODULE_TYPE_100G_PAM4_BIDI;
+
     if (SFF8436_MODULE_QSFP_PLUS_V2(eeprom)
         && SFF8436_MEDIA_40GE_CR4(eeprom))
         return SFF_MODULE_TYPE_40G_BASE_CR4;
@@ -289,6 +294,7 @@ sff_media_type_get(sff_module_type_t mt)
         case SFF_MODULE_TYPE_100G_CWDM4:
         case SFF_MODULE_TYPE_100G_PSM4:
         case SFF_MODULE_TYPE_100G_SWDM4:
+        case SFF_MODULE_TYPE_100G_PAM4_BIDI:
         case SFF_MODULE_TYPE_40G_BASE_SR4:
         case SFF_MODULE_TYPE_40G_BASE_LR4:
         case SFF_MODULE_TYPE_40G_BASE_LM4:
@@ -342,6 +348,7 @@ sff_module_caps_get(sff_module_type_t mt, uint32_t *caps)
         case SFF_MODULE_TYPE_100G_CWDM4:
         case SFF_MODULE_TYPE_100G_PSM4:
         case SFF_MODULE_TYPE_100G_SWDM4:
+        case SFF_MODULE_TYPE_100G_PAM4_BIDI:
             *caps |= SFF_MODULE_CAPS_F_100G;
             return 0;
 
@@ -755,6 +762,7 @@ sff_info_init(sff_info_t* info, sff_module_type_t mt,
         case SFF_MODULE_TYPE_100G_CWDM4:
         case SFF_MODULE_TYPE_100G_PSM4:
         case SFF_MODULE_TYPE_100G_SWDM4:
+        case SFF_MODULE_TYPE_100G_PAM4_BIDI:
             info->sfp_type = SFF_SFP_TYPE_QSFP28;
             info->media_type = SFF_MEDIA_TYPE_FIBER;
             info->caps = SFF_MODULE_CAPS_F_100G;
