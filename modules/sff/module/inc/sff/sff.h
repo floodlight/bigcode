@@ -105,6 +105,7 @@ typedef enum sff_module_type_e {
     SFF_MODULE_TYPE_100G_CWDM4,
     SFF_MODULE_TYPE_100G_PSM4,
     SFF_MODULE_TYPE_100G_SWDM4,
+    SFF_MODULE_TYPE_100G_PAM4_BIDI,
     SFF_MODULE_TYPE_40G_BASE_CR4,
     SFF_MODULE_TYPE_40G_BASE_SR4,
     SFF_MODULE_TYPE_40G_BASE_LR4,
@@ -153,6 +154,7 @@ typedef enum sff_module_type_e {
     "100G_CWDM4", \
     "100G_PSM4", \
     "100G_SWDM4", \
+    "100G_PAM4_BIDI", \
     "40G_BASE_CR4", \
     "40G_BASE_SR4", \
     "40G_BASE_LR4", \
