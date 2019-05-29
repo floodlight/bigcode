@@ -130,14 +130,16 @@
 #define SFF8636_CC192_100GE_SR4          0x02
 #define SFF8636_CC192_100GE_LR4          0x03
 #define SFF8636_CC192_100GE_ER4          0x04
-#define SFF8636_CC192_100GE_CWDM4        0x06
+#define SFF8636_CC192_100GE_CWDM4_FEC    0x06
 #define SFF8636_CC192_100GE_PSM4         0x07
 #define SFF8636_CC192_100GE_ACC          0x08
+#define SFF8636_CC192_100GE_CWDM4_NOFEC  0x09
 #define SFF8636_CC192_100GE_CR4          0x0B
 #define SFF8636_CC192_25GE_CR_S          0x0C
 #define SFF8636_CC192_25GE_CR_N          0x0D
 #define SFF8636_CC192_40GE_ER4           0x10
 #define SFF8636_CC192_100GE_AOC_LBER     0x18
+#define SFF8636_CC192_100GE_ACC_LBER     0x19
 #define SFF8636_CC192_40GE_SWDM4         0x1F
 #define SFF8636_CC192_100GE_SWDM4        0x20
 #define SFF8636_CC192_100GE_PAM4_BIDI    0x21
@@ -153,7 +155,9 @@
 #define SFF8636_MEDIA_100GE_ER4(idprom)                  \
   (idprom[192] == SFF8636_CC192_100GE_ER4)
 #define SFF8636_MEDIA_100GE_CWDM4(idprom)                \
-  (idprom[192] == SFF8636_CC192_100GE_CWDM4)
+  ((idprom[192] == SFF8636_CC192_100GE_CWDM4_FEC) ||     \
+  (idprom[192] == SFF8636_CC192_100GE_CWDM4_NOFEC))
+
 #define SFF8636_MEDIA_100GE_PSM4(idprom)                \
   (idprom[192] == SFF8636_CC192_100GE_PSM4)
 #define SFF8636_MEDIA_100GE_CR4(idprom)                  \
