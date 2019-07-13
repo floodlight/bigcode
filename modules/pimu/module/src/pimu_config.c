@@ -89,7 +89,7 @@ pimu_config_lookup(const char* setting)
 {
     int i;
     for(i = 0; pimu_config_settings[i].name; i++) {
-        if(strcmp(pimu_config_settings[i].name, setting)) {
+        if(!strcmp(pimu_config_settings[i].name, setting)) {
             return pimu_config_settings[i].value;
         }
     }

@@ -174,7 +174,7 @@ vpi_config_lookup(const char* setting)
 {
     int i;
     for(i = 0; vpi_config_settings[i].name; i++) {
-        if(strcmp(vpi_config_settings[i].name, setting)) {
+        if(!strcmp(vpi_config_settings[i].name, setting)) {
             return vpi_config_settings[i].value;
         }
     }

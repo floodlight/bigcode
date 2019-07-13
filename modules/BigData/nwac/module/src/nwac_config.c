@@ -74,7 +74,7 @@ nwac_config_lookup(const char* setting)
 {
     int i;
     for(i = 0; nwac_config_settings[i].name; i++) {
-        if(strcmp(nwac_config_settings[i].name, setting)) {
+        if(!strcmp(nwac_config_settings[i].name, setting)) {
             return nwac_config_settings[i].value;
         }
     }

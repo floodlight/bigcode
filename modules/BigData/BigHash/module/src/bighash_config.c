@@ -84,7 +84,7 @@ bighash_config_lookup(const char* setting)
 {
     int i;
     for(i = 0; bighash_config_settings[i].name; i++) {
-        if(strcmp(bighash_config_settings[i].name, setting)) {
+        if(!strcmp(bighash_config_settings[i].name, setting)) {
             return bighash_config_settings[i].value;
         }
     }

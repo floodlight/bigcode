@@ -136,6 +136,34 @@ int vpi_drain(vpi_t vpi);
 
 
 /* <auto.start.enum(ALL).header> */
+/** vpi_log_flag */
+typedef enum vpi_log_flag_e {
+    VPI_LOG_FLAG_CREATE,
+    VPI_LOG_FLAG_SEND,
+    VPI_LOG_FLAG_RECV,
+} vpi_log_flag_t;
+
+/** Enum names. */
+const char* vpi_log_flag_name(vpi_log_flag_t e);
+
+/** Enum values. */
+int vpi_log_flag_value(const char* str, vpi_log_flag_t* e, int substr);
+
+/** Enum descriptions. */
+const char* vpi_log_flag_desc(vpi_log_flag_t e);
+
+/** Enum validator. */
+int vpi_log_flag_valid(vpi_log_flag_t e);
+
+/** validator */
+#define VPI_LOG_FLAG_VALID(_e) \
+    (vpi_log_flag_valid((_e)))
+
+/** vpi_log_flag_map table. */
+extern aim_map_si_t vpi_log_flag_map[];
+/** vpi_log_flag_desc_map table. */
+extern aim_map_si_t vpi_log_flag_desc_map[];
+
 /** vpi_protocol_opcode */
 typedef enum vpi_protocol_opcode_e {
     VPI_PROTOCOL_OPCODE_PACKET,
@@ -182,34 +210,6 @@ const char* vpi_protocol_opcode_desc(vpi_protocol_opcode_t e);
 extern aim_map_si_t vpi_protocol_opcode_map[];
 /** vpi_protocol_opcode_desc_map table. */
 extern aim_map_si_t vpi_protocol_opcode_desc_map[];
-
-/** vpi_log_flag */
-typedef enum vpi_log_flag_e {
-    VPI_LOG_FLAG_CREATE,
-    VPI_LOG_FLAG_SEND,
-    VPI_LOG_FLAG_RECV,
-} vpi_log_flag_t;
-
-/** Enum names. */
-const char* vpi_log_flag_name(vpi_log_flag_t e);
-
-/** Enum values. */
-int vpi_log_flag_value(const char* str, vpi_log_flag_t* e, int substr);
-
-/** Enum descriptions. */
-const char* vpi_log_flag_desc(vpi_log_flag_t e);
-
-/** Enum validator. */
-int vpi_log_flag_valid(vpi_log_flag_t e);
-
-/** validator */
-#define VPI_LOG_FLAG_VALID(_e) \
-    (vpi_log_flag_valid((_e)))
-
-/** vpi_log_flag_map table. */
-extern aim_map_si_t vpi_log_flag_map[];
-/** vpi_log_flag_desc_map table. */
-extern aim_map_si_t vpi_log_flag_desc_map[];
 /* <auto.end.enum(ALL).header> */
 
 

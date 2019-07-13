@@ -70,7 +70,7 @@ snmp_subagent_config_lookup(const char* setting)
 {
     int i;
     for(i = 0; snmp_subagent_config_settings[i].name; i++) {
-        if(strcmp(snmp_subagent_config_settings[i].name, setting)) {
+        if(!strcmp(snmp_subagent_config_settings[i].name, setting)) {
             return snmp_subagent_config_settings[i].value;
         }
     }

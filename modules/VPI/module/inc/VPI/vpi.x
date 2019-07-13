@@ -24,8 +24,8 @@
 
 /* <auto.start.xenum(ALL).define> */
 #ifdef VPI_ENUMERATION_ENTRY
-VPI_ENUMERATION_ENTRY(vpi_protocol_opcode, "VPI Protocol Opcode")
 VPI_ENUMERATION_ENTRY(vpi_log_flag, "VPI Log Flag")
+VPI_ENUMERATION_ENTRY(vpi_protocol_opcode, "VPI Protocol Opcode")
 #undef VPI_ENUMERATION_ENTRY
 #endif
 /* <auto.end.xenum(ALL).define> */

@@ -55,7 +55,7 @@ timer_wheel_config_lookup(const char* setting)
 {
     int i;
     for(i = 0; timer_wheel_config_settings[i].name; i++) {
-        if(strcmp(timer_wheel_config_settings[i].name, setting)) {
+        if(!strcmp(timer_wheel_config_settings[i].name, setting)) {
             return timer_wheel_config_settings[i].value;
         }
     }

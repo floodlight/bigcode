@@ -74,7 +74,7 @@ bigring_config_lookup(const char* setting)
 {
     int i;
     for(i = 0; bigring_config_settings[i].name; i++) {
-        if(strcmp(bigring_config_settings[i].name, setting)) {
+        if(!strcmp(bigring_config_settings[i].name, setting)) {
             return bigring_config_settings[i].value;
         }
     }

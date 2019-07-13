@@ -55,7 +55,7 @@ slot_allocator_config_lookup(const char* setting)
 {
     int i;
     for(i = 0; slot_allocator_config_settings[i].name; i++) {
-        if(strcmp(slot_allocator_config_settings[i].name, setting)) {
+        if(!strcmp(slot_allocator_config_settings[i].name, setting)) {
             return slot_allocator_config_settings[i].value;
         }
     }

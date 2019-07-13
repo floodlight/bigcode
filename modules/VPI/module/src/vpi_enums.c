@@ -27,6 +27,68 @@
 #include <string.h>
 
 /* <auto.start.enum(ALL).source> */
+aim_map_si_t vpi_log_flag_map[] =
+{
+    { "create", VPI_LOG_FLAG_CREATE },
+    { "send", VPI_LOG_FLAG_SEND },
+    { "recv", VPI_LOG_FLAG_RECV },
+    { NULL, 0 }
+};
+
+aim_map_si_t vpi_log_flag_desc_map[] =
+{
+    { "None", VPI_LOG_FLAG_CREATE },
+    { "None", VPI_LOG_FLAG_SEND },
+    { "None", VPI_LOG_FLAG_RECV },
+    { NULL, 0 }
+};
+
+const char*
+vpi_log_flag_name(vpi_log_flag_t e)
+{
+    const char* name;
+    if(aim_map_si_i(&name, e, vpi_log_flag_map, 0)) {
+        return name;
+    }
+    else {
+        return "-invalid value for enum type 'vpi_log_flag'";
+    }
+}
+
+int
+vpi_log_flag_value(const char* str, vpi_log_flag_t* e, int substr)
+{
+    int i;
+    AIM_REFERENCE(substr);
+    if(aim_map_si_s(&i, str, vpi_log_flag_map, 0)) {
+        /* Enum Found */
+        *e = i;
+        return 0;
+    }
+    else {
+        return -1;
+    }
+}
+
+const char*
+vpi_log_flag_desc(vpi_log_flag_t e)
+{
+    const char* name;
+    if(aim_map_si_i(&name, e, vpi_log_flag_desc_map, 0)) {
+        return name;
+    }
+    else {
+        return "-invalid value for enum type 'vpi_log_flag'";
+    }
+}
+
+int
+vpi_log_flag_valid(vpi_log_flag_t e)
+{
+    return aim_map_si_i(NULL, e, vpi_log_flag_map, 0) ? 1 : 0;
+}
+
+
 aim_map_si_t vpi_protocol_opcode_map[] =
 {
     { "packet", VPI_PROTOCOL_OPCODE_PACKET },
@@ -92,68 +154,6 @@ vpi_protocol_opcode_desc(vpi_protocol_opcode_t e)
     else {
         return "-invalid value for enum type 'vpi_protocol_opcode'";
     }
-}
-
-
-aim_map_si_t vpi_log_flag_map[] =
-{
-    { "create", VPI_LOG_FLAG_CREATE },
-    { "send", VPI_LOG_FLAG_SEND },
-    { "recv", VPI_LOG_FLAG_RECV },
-    { NULL, 0 }
-};
-
-aim_map_si_t vpi_log_flag_desc_map[] =
-{
-    { "None", VPI_LOG_FLAG_CREATE },
-    { "None", VPI_LOG_FLAG_SEND },
-    { "None", VPI_LOG_FLAG_RECV },
-    { NULL, 0 }
-};
-
-const char*
-vpi_log_flag_name(vpi_log_flag_t e)
-{
-    const char* name;
-    if(aim_map_si_i(&name, e, vpi_log_flag_map, 0)) {
-        return name;
-    }
-    else {
-        return "-invalid value for enum type 'vpi_log_flag'";
-    }
-}
-
-int
-vpi_log_flag_value(const char* str, vpi_log_flag_t* e, int substr)
-{
-    int i;
-    AIM_REFERENCE(substr);
-    if(aim_map_si_s(&i, str, vpi_log_flag_map, 0)) {
-        /* Enum Found */
-        *e = i;
-        return 0;
-    }
-    else {
-        return -1;
-    }
-}
-
-const char*
-vpi_log_flag_desc(vpi_log_flag_t e)
-{
-    const char* name;
-    if(aim_map_si_i(&name, e, vpi_log_flag_desc_map, 0)) {
-        return name;
-    }
-    else {
-        return "-invalid value for enum type 'vpi_log_flag'";
-    }
-}
-
-int
-vpi_log_flag_valid(vpi_log_flag_t e)
-{
-    return aim_map_si_i(NULL, e, vpi_log_flag_map, 0) ? 1 : 0;
 }
 
 /* <auto.end.enum(ALL).source> */

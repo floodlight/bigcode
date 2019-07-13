@@ -95,7 +95,7 @@ els_config_lookup(const char* setting)
 {
     int i;
     for(i = 0; els_config_settings[i].name; i++) {
-        if(strcmp(els_config_settings[i].name, setting)) {
+        if(!strcmp(els_config_settings[i].name, setting)) {
             return els_config_settings[i].value;
         }
     }

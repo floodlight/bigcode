@@ -80,7 +80,7 @@ orc_config_lookup(const char* setting)
 {
     int i;
     for(i = 0; orc_config_settings[i].name; i++) {
-        if(strcmp(orc_config_settings[i].name, setting)) {
+        if(!strcmp(orc_config_settings[i].name, setting)) {
             return orc_config_settings[i].value;
         }
     }

@@ -55,7 +55,7 @@ debug_counter_config_lookup(const char* setting)
 {
     int i;
     for(i = 0; debug_counter_config_settings[i].name; i++) {
-        if(strcmp(debug_counter_config_settings[i].name, setting)) {
+        if(!strcmp(debug_counter_config_settings[i].name, setting)) {
             return debug_counter_config_settings[i].value;
         }
     }
