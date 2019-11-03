@@ -351,6 +351,22 @@ dom_spec_get_SFP__(sff_info_t* si, uint8_t* a0, sff_dom_spec_t* rspec)
 }
 
 static int
+dom_spec_get_QSFP_DD__(sff_info_t* si, uint8_t* a0, sff_dom_spec_t* rspec)
+{
+    /* Fixme */
+    *rspec = SFF_DOM_SPEC_UNSUPPORTED;
+    return 0;
+}
+
+static int
+dom_info_get_QSFP_DD__(sff_dom_info_t* sdi, sff_info_t* si,
+                       uint8_t* a0, uint8_t* a2)
+{
+    sdi->spec = SFF_DOM_SPEC_UNSUPPORTED;
+    return 0;
+}
+
+static int
 dom_spec_get_SFP28__(sff_info_t* si, uint8_t* a0, sff_dom_spec_t* rspec)
 {
     if (SFF8472_DOM_SUPPORTED(a0)) {
