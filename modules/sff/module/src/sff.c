@@ -29,27 +29,42 @@
 #include "sff_log.h"
 #include <ctype.h>
 #include "sff_int.h"
+#include <sff/cmis.h>
+
 
 sff_sfp_type_t
 sff_sfp_type_get(const uint8_t* eeprom)
 {
     if(eeprom) {
+
         if(SFF8472_MODULE_SFP(eeprom)) {
             return SFF_SFP_TYPE_SFP;
         }
+
         if(SFF8436_MODULE_QSFP_PLUS_V2(eeprom)) {
             return SFF_SFP_TYPE_QSFP_PLUS;
         }
+
         if(SFF8636_MODULE_QSFP28(eeprom)) {
             return SFF_SFP_TYPE_QSFP28;
         }
+
+        if(SFF_CMIS_MODULE_IS_QSFP_DD(eeprom)) {
+            return SFF_SFP_TYPE_QSFP_DD;
+        }
+
     }
+
     return SFF_SFP_TYPE_INVALID;
 }
 
 sff_module_type_t
 sff_module_type_get(const uint8_t* eeprom)
 {
+    if(SFF_CMIS_MODULE_IS_QSFP_DD(eeprom)) {
+        return sff_cmis_module_type_get(eeprom);
+    }
+
     if (SFF8636_MODULE_QSFP28(eeprom)
         && SFF8636_MEDIA_EXTENDED(eeprom)
         && SFF8636_MEDIA_100GE_AOC(eeprom))
@@ -277,6 +292,7 @@ sff_media_type_get(sff_module_type_t mt)
 {
     switch(mt)
         {
+        case SFF_MODULE_TYPE_400G_CR8:
         case SFF_MODULE_TYPE_100G_BASE_CR4:
         case SFF_MODULE_TYPE_40G_BASE_CR4:
         case SFF_MODULE_TYPE_40G_BASE_CR:
@@ -287,6 +303,15 @@ sff_media_type_get(sff_module_type_t mt)
         case SFF_MODULE_TYPE_1G_BASE_T:
             return SFF_MEDIA_TYPE_COPPER;
 
+        case SFF_MODULE_TYPE_400G_AOC:
+        case SFF_MODULE_TYPE_400G_BIDI:
+        case SFF_MODULE_TYPE_400G_SR8:
+        case SFF_MODULE_TYPE_400G_SR4:
+        case SFF_MODULE_TYPE_400G_BASE_FR8:
+        case SFF_MODULE_TYPE_400G_FR4:
+        case SFF_MODULE_TYPE_400G_BASE_LR8:
+        case SFF_MODULE_TYPE_400G_LR4:
+        case SFF_MODULE_TYPE_400G_BASE_DR4:
         case SFF_MODULE_TYPE_100G_AOC:
         case SFF_MODULE_TYPE_100G_BASE_SR4:
         case SFF_MODULE_TYPE_100G_BASE_LR4:
@@ -449,6 +474,11 @@ sff_eeprom_parse_standard__(sff_eeprom_t* se, uint8_t* eeprom)
             se->cc_base = (se->cc_base + se->eeprom[i]) & 0xFF;
         for (i = 192, se->cc_ext = 0; i < 223; ++i)
             se->cc_ext = (se->cc_ext + se->eeprom[i]) & 0xFF;
+    } else if (SFF_CMIS_MODULE_IS_QSFP_DD(se->eeprom)) {
+        int i;
+        for (i = 128, se->cc_base = 0; i < 222; ++i) {
+            se->cc_base = (se->cc_base + se->eeprom[i]) & 0xFF;
+        }
     }
 
     if (!sff_eeprom_validate(se, 1)) {
@@ -471,6 +501,12 @@ sff_eeprom_parse_standard__(sff_eeprom_t* se, uint8_t* eeprom)
             vendor=se->eeprom+148;
             model=se->eeprom+168;
             serial=se->eeprom+196;
+            break;
+
+        case SFF_SFP_TYPE_QSFP_DD:
+            vendor=se->eeprom+129;
+            model=se->eeprom+148;
+            serial=se->eeprom+166;
             break;
 
         case SFF_SFP_TYPE_SFP:
@@ -527,6 +563,9 @@ sff_eeprom_parse_standard__(sff_eeprom_t* se, uint8_t* eeprom)
                 case SFF_SFP_TYPE_SFP:
                 case SFF_SFP_TYPE_SFP28:
                     se->info.length = se->eeprom[18];
+                    break;
+                case SFF_SFP_TYPE_QSFP_DD:
+                    se->info.length = sff_cmis_cable_assembly_length(se->eeprom);
                     break;
                 default:
                     se->info.length = -1;
@@ -679,6 +718,14 @@ sff_eeprom_validate(sff_eeprom_t *se, int verbose)
         }
 #endif
 
+    } else if (SFF_CMIS_MODULE_IS_QSFP_DD(se->eeprom)) {
+        if (se->cc_base != se->eeprom[222]) {
+            if (verbose) {
+                AIM_LOG_ERROR("sff_info_valid() failed: invalid base QSFP-DD checksum (0x%x should be 0x%x)",
+                              se->eeprom[222], se->cc_base);
+            }
+            return 0;
+        }
     } else {
 
         if (verbose) {
@@ -755,6 +802,27 @@ sff_info_init(sff_info_t* info, sff_module_type_t mt,
 
     switch(mt)
         {
+
+        case SFF_MODULE_TYPE_400G_CR8:
+            info->sfp_type = SFF_SFP_TYPE_QSFP_DD;
+            info->media_type = SFF_MEDIA_TYPE_COPPER;
+            info->caps = SFF_MODULE_CAPS_F_400G;
+            break;
+
+        case SFF_MODULE_TYPE_400G_SR8:
+        case SFF_MODULE_TYPE_400G_SR4:
+        case SFF_MODULE_TYPE_400G_BASE_FR8:
+        case SFF_MODULE_TYPE_400G_FR4:
+        case SFF_MODULE_TYPE_400G_BASE_LR8:
+        case SFF_MODULE_TYPE_400G_LR4:
+        case SFF_MODULE_TYPE_400G_BASE_DR4:
+        case SFF_MODULE_TYPE_400G_AOC:
+        case SFF_MODULE_TYPE_400G_BIDI:
+            info->sfp_type = SFF_SFP_TYPE_QSFP_DD;
+            info->media_type = SFF_MEDIA_TYPE_FIBER;
+            info->caps = SFF_MODULE_CAPS_F_400G;
+            break;
+
         case SFF_MODULE_TYPE_100G_AOC:
         case SFF_MODULE_TYPE_100G_BASE_SR4:
         case SFF_MODULE_TYPE_100G_BASE_LR4:
