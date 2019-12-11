@@ -67,6 +67,12 @@
 #define SFF8636_SFP_TEMP(idprom)              \
     (idprom[22] << 8 | idprom[22 + 1])
 
+/* Free side device properities */
+#define SFF8636_FARSIDE_MANAGED(idprom)        \
+    (idprom[110] & 0x8)
+#define SFF8636_FAREND_4X1(idprom)             \
+    (((idprom[113] & 0x70) >> 4) == 0x4)
+
 /* connector value, byte 130 page 0 */
 
 #define SFF8636_CONN_UNKNOWN             SFF8472_CONN_UNKNOWN
