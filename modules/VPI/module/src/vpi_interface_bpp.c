@@ -75,7 +75,7 @@ vpi_bpp_interface_preprocess(char* args[], const char* create_spec)
 {
     char** arg = args;
     char track_script[256];
-    char cmd[256];
+    char cmd[1024];
     int port;
     char* type = "udp";
 
