@@ -152,6 +152,9 @@
 #define SFF8472_CC36_100G_25G_LR          0x03
 #define SFF8472_CC36_100G_25G_AOC_1       0x01
 #define SFF8472_CC36_100G_25G_AOC_2       0x18
+#define SFF8472_CC36_100G_25G_50G_CR      0x0B
+#define SFF8472_CC36_25G_50G_CR_1         0x0C
+#define SFF8472_CC36_25G_50G_CR_2         0x0D
 
 #define SFF8471_CC60_FC_PI_4_LIMITING     0x08
 #define SFF8471_CC60_SFF8431_LIMITING     0x04
@@ -989,8 +992,10 @@ _sff8472_media_sfp28_cr(const uint8_t* idprom)
     /* module should be sfp */
     if (!SFF8472_MODULE_SFP(idprom)) return 0;
 
-    if ((idprom[3] & SFF8472_CC3_INF_1X_CU_PASSIVE) == 0) return 0;
-    if (idprom[12] == 0xFF) return 1;
+    if (idprom[12] != 0xFF) return 0;
+    if ((idprom[36] == SFF8472_CC36_100G_25G_50G_CR) ||
+         (idprom[36] == SFF8472_CC36_25G_50G_CR_1) ||
+         (idprom[36] == SFF8472_CC36_25G_50G_CR_2)) return 1;
 
     return 0;
 }
