@@ -70,6 +70,8 @@ static int reload__(cjson_util_file_t* jfs)
     }
 
     if(jfs->filename) {
+        /* The file may be edited during paring the contents. Save the mtime before parsing. */
+        uint64_t mtime = mtime__(jfs->filename);
         rv = cjson_util_parse_file(jfs->filename, &jfs->root);
 
         if(rv < 0 || jfs->root == NULL) {
@@ -106,13 +108,17 @@ static int reload__(cjson_util_file_t* jfs)
                     }
                 default:
                     {
-                        AIM_LOG_ERROR("error %d file loading '%s'", jfs->filename);
+                        AIM_LOG_ERROR("error %d file loading '%s'", rv, jfs->filename);
                         break;
                     }
                 }
         }
         else {
-            jfs->mtime = mtime__(jfs->filename);
+            jfs->mtime = mtime;
+            mtime = mtime__(jfs->filename);
+            if (mtime != jfs->mtime) {
+                AIM_LOG_INFO("file %s is modified during reload", jfs->filename);
+            }
         }
     }
     return rv;
