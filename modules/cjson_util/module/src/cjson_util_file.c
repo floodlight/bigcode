@@ -70,7 +70,7 @@ static int reload__(cjson_util_file_t* jfs)
     }
 
     if(jfs->filename) {
-        /* The file may be edited during paring the contents. Save the mtime before parsing. */
+        /* The file may be edited during parsing the contents. Save the mtime before parsing. */
         uint64_t mtime = mtime__(jfs->filename);
         rv = cjson_util_parse_file(jfs->filename, &jfs->root);
 
