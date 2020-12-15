@@ -30,6 +30,7 @@
 #include <ctype.h>
 #include "sff_int.h"
 #include <sff/cmis.h>
+#include <errno.h>
 
 
 sff_sfp_type_t
@@ -647,7 +648,7 @@ sff_eeprom_parse_file(sff_eeprom_t* se, const char* fname)
     SFF_MEMSET(se, 0, sizeof(*se));
 
     if( (fp = fopen(fname, "r")) == NULL) {
-        AIM_LOG_ERROR("Failed to open eeprom file %s: %{errno}");
+        AIM_LOG_ERROR("Failed to open eeprom file %s: %{errno}", fname, errno);
         return -1;
     }
 
