@@ -305,6 +305,7 @@ sff_media_type_get(sff_module_type_t mt)
         {
         case SFF_MODULE_TYPE_400G_CR8:
         case SFF_MODULE_TYPE_100G_BASE_CR4:
+        case SFF_MODULE_TYPE_100G_ACC_LBER:
         case SFF_MODULE_TYPE_40G_BASE_CR4:
         case SFF_MODULE_TYPE_40G_BASE_CR:
         case SFF_MODULE_TYPE_25G_BASE_CR:
@@ -332,7 +333,6 @@ sff_media_type_get(sff_module_type_t mt)
         case SFF_MODULE_TYPE_100G_SWDM4:
         case SFF_MODULE_TYPE_100G_PAM4_BIDI:
         case SFF_MODULE_TYPE_100G_AOC_LBER:
-        case SFF_MODULE_TYPE_100G_ACC_LBER:
         case SFF_MODULE_TYPE_40G_BASE_SR4:
         case SFF_MODULE_TYPE_40G_BASE_LR4:
         case SFF_MODULE_TYPE_40G_BASE_LM4:
@@ -847,13 +847,13 @@ sff_info_init(sff_info_t* info, sff_module_type_t mt,
         case SFF_MODULE_TYPE_100G_SWDM4:
         case SFF_MODULE_TYPE_100G_PAM4_BIDI:
         case SFF_MODULE_TYPE_100G_AOC_LBER:
-        case SFF_MODULE_TYPE_100G_ACC_LBER:
             info->sfp_type = SFF_SFP_TYPE_QSFP28;
             info->media_type = SFF_MEDIA_TYPE_FIBER;
             info->caps = SFF_MODULE_CAPS_F_100G;
             break;
 
         case SFF_MODULE_TYPE_100G_BASE_CR4:
+        case SFF_MODULE_TYPE_100G_ACC_LBER:
             info->sfp_type = SFF_SFP_TYPE_QSFP28;
             info->media_type = SFF_MEDIA_TYPE_COPPER;
             info->caps = SFF_MODULE_CAPS_F_100G;
