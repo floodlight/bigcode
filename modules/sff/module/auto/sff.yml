@@ -82,6 +82,10 @@ sff_module_types: &sff_module_types
     desc: "100G-SWDM4"
 - 100G_PAM4_BIDI:
     desc: "100G-PAM4-BIDI"
+- 100G_AOC_LBER:
+    desc: "100G-AOC-LBER"
+- 100G_ACC_LBER:
+    desc: "100G-ACC-LBER"
 - 40G_BASE_CR4:
     desc: "40GBASE-CR4"
 - 40G_BASE_SR4:
