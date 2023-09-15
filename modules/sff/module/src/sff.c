@@ -83,6 +83,21 @@ sff_module_type_get(const uint8_t* eeprom)
 
     if (SFF8636_MODULE_QSFP28(eeprom)
         && SFF8636_MEDIA_EXTENDED(eeprom)
+        && SFF8636_MEDIA_100GE_DR(eeprom))
+        return SFF_MODULE_TYPE_100G_BASE_DR;
+
+    if (SFF8636_MODULE_QSFP28(eeprom)
+        && SFF8636_MEDIA_EXTENDED(eeprom)
+        && SFF8636_MEDIA_100GE_FR(eeprom))
+        return SFF_MODULE_TYPE_100G_BASE_FR;
+
+    if (SFF8636_MODULE_QSFP28(eeprom)
+        && SFF8636_MEDIA_EXTENDED(eeprom)
+        && SFF8636_MEDIA_100GE_LR(eeprom))
+        return SFF_MODULE_TYPE_100G_BASE_LR;
+
+    if (SFF8636_MODULE_QSFP28(eeprom)
+        && SFF8636_MEDIA_EXTENDED(eeprom)
         && (SFF8636_MEDIA_100GE_CR4(eeprom) ||
             SFF8636_MEDIA_25GE_CR_S(eeprom) ||
             SFF8636_MEDIA_25GE_CR_N(eeprom)))
@@ -285,6 +300,14 @@ sff_module_type_get(const uint8_t* eeprom)
         && SFF8472_MEDIA_CBE_FX(eeprom))
         return SFF_MODULE_TYPE_100_BASE_FX;
 
+    if (SFF8472_MODULE_SFP(eeprom)
+	&& SSFF8472_MEDIA_CC6_BX10(eeprom))
+	return SFF_MODULE_TYPE_1G_BASE_BX10;
+
+   if (SFF8472_MODULE_SFP(eeprom)
+        && SSFF8472_MEDIA_CC6_BX40(eeprom))
+        return SFF_MODULE_TYPE_1G_BASE_BX40;
+
     /* non-standard (e.g. Finisar) ZR media */
     if (SFF8472_MODULE_SFP(eeprom)
         && _sff8472_media_zr(eeprom))
@@ -333,6 +356,9 @@ sff_media_type_get(sff_module_type_t mt)
         case SFF_MODULE_TYPE_100G_SWDM4:
         case SFF_MODULE_TYPE_100G_PAM4_BIDI:
         case SFF_MODULE_TYPE_100G_AOC_LBER:
+        case SFF_MODULE_TYPE_100G_BASE_DR:
+        case SFF_MODULE_TYPE_100G_BASE_FR:
+        case SFF_MODULE_TYPE_100G_BASE_LR:
         case SFF_MODULE_TYPE_40G_BASE_SR4:
         case SFF_MODULE_TYPE_40G_BASE_LR4:
         case SFF_MODULE_TYPE_40G_BASE_LM4:
@@ -357,7 +383,9 @@ sff_media_type_get(sff_module_type_t mt)
         case SFF_MODULE_TYPE_1G_BASE_ZX:
         case SFF_MODULE_TYPE_100_BASE_LX:
         case SFF_MODULE_TYPE_100_BASE_FX:
-        case SFF_MODULE_TYPE_4X_MUX:
+        case SFF_MODULE_TYPE_1G_BASE_BX10:
+        case SFF_MODULE_TYPE_1G_BASE_BX40:       
+	case SFF_MODULE_TYPE_4X_MUX:
             return SFF_MEDIA_TYPE_FIBER;
 
         case SFF_MODULE_TYPE_COUNT:
@@ -389,6 +417,9 @@ sff_module_caps_get(sff_module_type_t mt, uint32_t *caps)
         case SFF_MODULE_TYPE_100G_PAM4_BIDI:
         case SFF_MODULE_TYPE_100G_AOC_LBER:
         case SFF_MODULE_TYPE_100G_ACC_LBER:
+        case SFF_MODULE_TYPE_100G_BASE_DR:
+        case SFF_MODULE_TYPE_100G_BASE_FR:
+        case SFF_MODULE_TYPE_100G_BASE_LR:
             *caps |= SFF_MODULE_CAPS_F_100G;
             return 0;
 
@@ -428,7 +459,9 @@ sff_module_caps_get(sff_module_type_t mt, uint32_t *caps)
         case SFF_MODULE_TYPE_1G_BASE_LX:
         case SFF_MODULE_TYPE_1G_BASE_ZX:
         case SFF_MODULE_TYPE_1G_BASE_CX:
-        case SFF_MODULE_TYPE_1G_BASE_T:
+	case SFF_MODULE_TYPE_1G_BASE_BX10:
+        case SFF_MODULE_TYPE_1G_BASE_BX40:
+	case SFF_MODULE_TYPE_1G_BASE_T:
             *caps |= SFF_MODULE_CAPS_F_1G;
             return 0;
 
@@ -847,6 +880,9 @@ sff_info_init(sff_info_t* info, sff_module_type_t mt,
         case SFF_MODULE_TYPE_100G_SWDM4:
         case SFF_MODULE_TYPE_100G_PAM4_BIDI:
         case SFF_MODULE_TYPE_100G_AOC_LBER:
+        case SFF_MODULE_TYPE_100G_BASE_DR:
+        case SFF_MODULE_TYPE_100G_BASE_FR:
+        case SFF_MODULE_TYPE_100G_BASE_LR:
             info->sfp_type = SFF_SFP_TYPE_QSFP28;
             info->media_type = SFF_MEDIA_TYPE_FIBER;
             info->caps = SFF_MODULE_CAPS_F_100G;
@@ -916,6 +952,8 @@ sff_info_init(sff_info_t* info, sff_module_type_t mt,
 
         case SFF_MODULE_TYPE_1G_BASE_SX:
         case SFF_MODULE_TYPE_1G_BASE_LX:
+	case SFF_MODULE_TYPE_1G_BASE_BX10:
+	case SFF_MODULE_TYPE_1G_BASE_BX40:
         case SFF_MODULE_TYPE_1G_BASE_ZX:
             info->sfp_type = SFF_SFP_TYPE_SFP;
             info->media_type = SFF_MEDIA_TYPE_FIBER;

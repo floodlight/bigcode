@@ -109,6 +109,7 @@
 #define SFF8472_CC6_CBE_BASE_LX           0x10
 #define SFF8472_CC6_CBE_BASE_FX           0x20
 #define SFF8472_CC6_BASE_BX10             0x40
+#define SFF8472_CC6_BASE_BX40             0x40
 #define SFF8472_CC6_BASE_PX               0x80
 
 #define SFF8472_CC7_FC_TECH_EL            0x01
@@ -566,6 +567,10 @@ _sff8472_hack_cr(const uint8_t* idprom)
 
 #define SFF8472_MEDIA_CBE_LX(idprom)            \
   ((idprom[6] & SFF8472_CC6_CBE_BASE_LX) != 0)
+#define SSFF8472_MEDIA_CC6_BX10(idprom)         \
+  ((idprom[6] & SFF8472_CC6_BASE_BX10) != 0)
+#define SSFF8472_MEDIA_CC6_BX40(idprom)         \
+  ((idprom[6] & SFF8472_CC6_BASE_BX40) != 0)
 #define SFF8472_MEDIA_CBE_FX(idprom)            \
   ((idprom[6] & SFF8472_CC6_CBE_BASE_FX) != 0)
 
@@ -918,6 +923,8 @@ _sff8472_sfp_10g_aoc(const uint8_t *idprom)
     if (SFF8472_MEDIA_GBE_CX(idprom)) return 0;
     if (SFF8472_MEDIA_GBE_T(idprom)) return 0;
     if (SFF8472_MEDIA_CBE_LX(idprom)) return 0;
+    if (SSFF8472_MEDIA_CC6_BX10(idprom)) return 0;
+    if (SSFF8472_MEDIA_CC6_BX40(idprom)) return 0;
     if (SFF8472_MEDIA_CBE_FX(idprom)) return 0;
 
     /* should be active */
